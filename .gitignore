@@ -1,0 +1,39 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.*
+
+# build output
+dist/
+build/
+out/
+.next/
+*.tsbuildinfo
+next-env.d.ts
+
+# the frontend bundle the server ships; produced by `bun run build`
+apps/server/ui/
+
+# test / tooling caches
+coverage/
+.turbo/
+.eslintcache
+.firecrawl/
+
+# env & secrets
+.env
+.env.*
+!.env.example
+# not a secret: the loopback address `next dev` talks to, committed so the dev
+# command works from a clone with no setup.
+!apps/web/.env.development
+*.pem
+
+# editor / os
+.DS_Store
+*.log
+npm-debug.log*
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/

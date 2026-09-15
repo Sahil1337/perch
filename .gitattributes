@@ -1,0 +1,10 @@
+* text=auto eol=lf
+
+# Shell scripts must keep LF even on Windows checkouts — CI runs the smoke test on
+# windows-latest and CRLF would break the shebang.
+*.sh text eol=lf
+
+# Generated / vendored: keep them out of diffs and language stats.
+package-lock.json  linguist-generated=true -diff
+docs/design/*.dc.html            linguist-vendored=true -diff
+docs/design/sql-client-directions.html linguist-vendored=true -diff
