@@ -1,0 +1,55 @@
+// Reading a MySQL database's schema out of information_schema. MySQL's "schema" and "database"
+// are the same thing, so the tree always has exactly one schema: the target database.
+
+import type mysql from "mysql2/promise";
+import { type Column, type DatabaseSchema, type Schema, type Table } from "@perch/protocol";
+
+export async function readSchema(pool: mysql.Pool, target: string): Promise<DatabaseSchema> {
+  const [tables] = await pool.query<mysql.RowDataPacket[]>(
+    `select table_schema, table_name, table_type, table_rows
+       from information_schema.tables
+      where table_schema = ?
+      order by table_name`,
+    [target],
+  );
+  const [columns] = await pool.query<mysql.RowDataPacket[]>(
+    `select c.table_schema, c.table_name, c.column_name, c.column_type, c.is_nullable,
+            c.column_default, c.ordinal_position, c.column_key
+       from information_schema.columns c
+      where c.table_schema = ?
+      order by c.table_name, c.ordinal_position`,
+    [target],
+  );
+
+  const byTable = new Map<string, Column[]>();
+  for (const c of columns) {
+    const key = String(c.table_name);
+    const list = byTable.get(key) ?? [];
+    list.push({
+      name: String(c.column_name),
+      type: String(c.column_type),
+      nullable: String(c.is_nullable).toUpperCase() === "YES",
+      default: c.column_default === null || c.column_default === undefined ? null : String(c.column_default),
+      pk: String(c.column_key ?? "").toUpperCase() === "PRI",
+      position: Number(c.ordinal_position),
+    });
+    byTable.set(key, list);
+  }
+
+  const schema: Schema = { name: target, tables: [] };
+  for (const t of tables) {
+    const name = String(t.table_name);
+    const type = String(t.table_type ?? "").toUpperCase();
+    const table: Table = {
+      schema: target,
+      name,
+      kind: type.includes("VIEW") ? "view" : "table",
+      columns: byTable.get(name) ?? [],
+    };
+    const estimate = t.table_rows === null || t.table_rows === undefined ? Number.NaN : Number(t.table_rows);
+    if (Number.isFinite(estimate) && estimate >= 0) table.rowEstimate = estimate;
+    schema.tables.push(table);
+  }
+
+  return { database: target, schemas: [schema], fetchedAt: new Date().toISOString() };
+}
