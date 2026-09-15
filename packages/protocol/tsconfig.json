@@ -1,0 +1,10 @@
+{
+  "extends": "@perch/tsconfig/base.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2023"],
+    "noEmit": true
+  },
+  "include": ["src"]
+}

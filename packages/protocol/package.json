@@ -1,0 +1,25 @@
+{
+  "name": "@perch/protocol",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The wire contract between the perch server and every client. TYPES ONLY \u2014 no runtime code, ever.",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "check": "node scripts/assert-types-only.mjs"
+  },
+  "devDependencies": {
+    "@perch/tsconfig": "*",
+    "typescript": "^6.0.3"
+  }
+}
