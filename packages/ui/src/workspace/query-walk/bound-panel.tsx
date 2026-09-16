@@ -98,7 +98,7 @@ export function BoundPanel({
                 {durationMs !== null && <span className="opacity-70"> · {durationMs} ms</span>}
               </p>
               <pre className="whitespace-pre-wrap rounded-md bg-muted p-2 font-mono text-sm leading-5">
-                {highlightSql(innerSql ?? plan.section.parsed.text)}
+                {highlightSql(innerSql ?? plan.section.text)}
               </pre>
               {innerError && (
                 <p className="mt-1 whitespace-pre-wrap font-mono text-destructive-foreground text-xs">
@@ -118,7 +118,7 @@ export function BoundPanel({
         </TabsPanel>
         <TabsPanel className="min-h-0 overflow-auto" value="query">
           <pre className="whitespace-pre-wrap font-mono text-sm leading-6">
-            <span className="opacity-40">{highlightSql(plan.section.parsed.text)}</span>
+            <span className="opacity-40">{highlightSql(plan.section.text)}</span>
           </pre>
         </TabsPanel>
       </Tabs>

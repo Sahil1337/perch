@@ -399,7 +399,7 @@ export function WalkPlayer({ data, probe }: { data: ProgramData; probe: Probe })
               phases={stationPhases}
               result={walk.results[stationIndex]}
               sentence={sentence}
-              sql={walk.parsed.text}
+              sql={walk.text}
               state={state}
               station={station}
             />

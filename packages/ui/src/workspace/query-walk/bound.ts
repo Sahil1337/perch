@@ -104,6 +104,15 @@ export function boundPlan(program: Program, section: Section): BoundPlan | Bound
   }
   const host = outer.parsed;
   const body = section.parsed;
+  // A result-only section has no sliced clauses at all, so there is no select list to widen and no
+  // correlated reference to find a range for. It cannot be probed per row, and saying so is better
+  // than probing it once and printing an answer that is true of no outer row.
+  if (host === null || body === null) {
+    return {
+      kind: "blocked",
+      reason: "This section has no clauses to splice a per-row count into, so it can only be shown as it was written.",
+    };
+  }
   if (isSetOp(host) || isSetOp(body)) {
     return {
       kind: "blocked",
@@ -198,8 +207,10 @@ function canWiden(parsed: ParsedSelect, kind: SubqueryPredicateKind): boolean {
  * value. This is the departure the file header names, and the SQL the reader is meant to look at.
  */
 export function boundRowSql(plan: BoundPlan, row: BoundRow): string {
+  // `boundPlan` refuses both of these, so a plan can never carry one; the guard is what keeps that
+  // promise readable here rather than asserted with a `!`.
   const parsed = plan.section.parsed;
-  if (isSetOp(parsed)) return parsed.text;
+  if (parsed === null || isSetOp(parsed)) return plan.section.text;
   // The literals come off the row rather than being spelled again here, so what the SQL says and
   // what the narrator quotes can never drift apart by a quote mark.
   const edits = plan.refs.map((found) => ({

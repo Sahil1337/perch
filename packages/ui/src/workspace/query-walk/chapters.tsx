@@ -27,6 +27,10 @@ function note(run: SectionRun): string {
       return "runs per row, and needs its parent's row bound first";
     case "unwalkable":
       return "combines the branches";
+    case "writes":
+      return run.section.result?.kind === "writes"
+        ? "changes the database, so it is shown but not run"
+        : "reads a step that changes the database, so it was not run either";
   }
 }
 
@@ -45,6 +49,23 @@ function describe(run: SectionRun, sections: readonly SectionRun[]): string {
       ? (sections.find((entry) => entry.section.id === binding.outer)?.section.label ??
         "the query above it")
       : null;
+  // What it IS comes before where it sits: a CTE that is a VALUES list or a DELETE is a CTE either
+  // way, but "computed once before anything that reads it" is not the sentence a reader needs when
+  // the chapter in front of them has one card instead of a rail.
+  const result = run.section.result;
+  if (result !== null) {
+    switch (result.kind) {
+      case "values":
+        return "a table written out in the query itself, so there are no clauses to step through.";
+      case "no-from":
+        return "a SELECT with no FROM: it computes its expressions once, over no rows at all.";
+      case "writes":
+        return "changes the database, so the walk shows it and never runs it.";
+    }
+  }
+  if (run.section.unsafeToProbe) {
+    return "reads a WITH step that changes the database, so the walk did not run it either.";
+  }
   switch (origin.kind) {
     case "cte":
       return "declared by WITH, and computed once before anything that reads it.";

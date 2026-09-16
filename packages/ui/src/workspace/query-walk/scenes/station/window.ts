@@ -22,11 +22,11 @@ const MEMBER_COLS = 3;
 const DIRECTIONS = /\s+(asc|desc)\b|\s+nulls\s+(first|last)\b/gi;
 
 export function windowScene(ctx: SceneContext): Scene {
-  const { walk, phase, result, tableOf, input, own, mainTitle } = ctx;
+  const { parsed, phase, result, tableOf, input, own, mainTitle } = ctx;
   const sample = okResult(result, "sample");
   if (!sample) return EMPTY;
   const count = own ?? input;
-  const fn = windowFunctions(walk.parsed)[0];
+  const fn = windowFunctions(parsed)[0];
   const value = sample.columns.findIndex((column) => column.name === WINDOW_COLUMN);
   // The probe asks for the function's value under a name of the walk's own, so losing it means the
   // splice came back as something else entirely; the rows are still worth showing plainly.

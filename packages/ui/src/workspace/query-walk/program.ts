@@ -27,6 +27,7 @@ import {
   isSetOp,
   isUnsupported,
   parseStatement,
+  statementShape,
   subqueryPredicates,
   type Cte,
   type ParsedSelect,
@@ -69,6 +70,37 @@ export type Binding =
       readonly columns: readonly string[];
     };
 
+/**
+ * Why a section produces a table but has no clause sequence to step through.
+ *
+ * These are not failures. A `VALUES` list, a `select` with no FROM and a data-modifying `RETURNING`
+ * CTE all run on the database and all hand back real rows — there is simply no FROM → WHERE →
+ * SELECT order inside them for the walk to animate. Before this existed each one was dropped as
+ * "unsupported", which told the reader their CTE was not part of the query when in fact it is the
+ * first thing that runs.
+ */
+export type ResultOnlyKind =
+  /** `values (1),(2)`, or `table student`: a whole table written in one word. */
+  | "values"
+  /** `select 1 as n`: expressions computed once, over no rows at all. */
+  | "no-from"
+  /** `delete … returning *`: it changes the database, so the walk shows it and never runs it. */
+  | "writes";
+
+export type ResultOnly = {
+  readonly kind: ResultOnlyKind;
+  /**
+   * The statement WITHOUT the WITH prefix the slicer spliced onto it: what the user wrote for this
+   * section and nothing else. `Section.text` is what runs; this is what the narrator quotes, so a
+   * two-line `values` list is not introduced by the fifty lines of CTEs that happen to precede it.
+   */
+  readonly body: string;
+  /** `insert`, `update`, `delete`, `merge` — for `writes` only, so the chapter can name the verb. */
+  readonly verb: string | null;
+  /** What the clause slicer said when it refused, kept so the chapter can stay honest about it. */
+  readonly reason: string;
+};
+
 export type Section = {
   readonly id: SectionId;
   /** Human-readable, stable, and unique within the program. Shown in the chapter strip. */
@@ -77,8 +109,25 @@ export type Section = {
   /**
    * The section as a standalone statement. A set operation stays a `ParsedSetOp`: its branches are
    * sections of their own and this is the node that combines them.
+   *
+   * Null exactly when `result` is set: the slicer refused the body and the section runs as one
+   * station instead of ten. Read `text` rather than `parsed.text` when all you want is the SQL.
    */
-  readonly parsed: ParsedSelect | ParsedSetOp;
+  readonly parsed: ParsedSelect | ParsedSetOp | null;
+  /** The complete statement this section runs, WITH prefix and all. Always present. */
+  readonly text: string;
+  /** Set when the section has no clause sequence to walk; null for every ordinary section. */
+  readonly result: ResultOnly | null;
+  /**
+   * Running this section's text would CHANGE the database, so nothing may ever probe it.
+   *
+   * This is true of far more sections than the write itself. Every probe the walk builds carries
+   * the section's whole WITH prefix, so in `with d as (delete from takes returning *) select * from
+   * d` it is not only `d` that deletes — the final query's FROM, WHERE and SELECT probes each
+   * splice that same prefix in and delete again, thirty times over. The flag is therefore set from
+   * the section's OWN composed text, which is exactly what would be sent.
+   */
+  readonly unsafeToProbe: boolean;
   readonly binding: Binding;
   /** Sections this one reads. Every id here appears EARLIER in `Program.sections`. */
   readonly reads: readonly SectionId[];
@@ -140,8 +189,16 @@ type Build = {
 };
 
 export function buildProgram(text: string, dialect: Dialect): Program | Unsupported {
-  const top = parseStatement(text, dialect);
-  if (isUnsupported(top)) return top;
+  // The one statement that cannot be made into a program at all. Everything else — a bare `select
+  // 1`, a `VALUES` list, a CTE that writes — has SOME table to show and gets a chapter below; a
+  // write with no RETURNING hands back nothing, and the walk will not run it to find out.
+  const shape = statementShape(text, dialect);
+  if (shape.kind === "write" && !shape.returning) {
+    return {
+      kind: "unsupported",
+      reason: `${(shape.verb ?? "This statement").toUpperCase()} changes the database and returns no rows, so there is nothing to walk. Add a RETURNING clause to see what it touched.`,
+    };
+  }
 
   const build: Build = { dialect, sections: [], skipped: [], labels: new Map() };
   const mainId = addQuery(build, {
@@ -153,16 +210,22 @@ export function buildProgram(text: string, dialect: Dialect): Program | Unsuppor
     binding: { kind: "standalone", certain: true },
     scope: EMPTY_SCOPE,
   });
-  if (mainId === null) return { kind: "unsupported", reason: "This query could not be read." };
+  // The main query was refused outright. Its own reason is the useful one — "This SELECT has no
+  // columns" tells the reader where to look, where a generic line sends them nowhere.
+  if (mainId === null) {
+    const refusal = build.skipped.find((part) => part.why === "unsupported");
+    return { kind: "unsupported", reason: refusal?.reason ?? "This query could not be read." };
+  }
 
   const sections = orderSections(build.sections);
   const main = sections.find((section) => section.id === mainId);
+  const parsed = main?.parsed ?? null;
   return {
     text,
     dialect,
     sections,
     mainId,
-    setOp: main && isSetOp(main.parsed) ? main.parsed : null,
+    setOp: parsed !== null && isSetOp(parsed) ? parsed : null,
     skipped: build.skipped,
   };
 }
@@ -249,16 +312,20 @@ type AddArgs = {
 function addQuery(build: Build, args: AddArgs): SectionId | null {
   const { sql, prefix, path, origin, binding, scope } = args;
   const parsed = parseStatement(sql, build.dialect);
-  if (isUnsupported(parsed)) {
-    build.skipped.push({ why: "unsupported", label: args.label, reason: parsed.reason, sql });
-    return null;
-  }
+  if (isUnsupported(parsed)) return addResultOnly(build, args, parsed);
 
   const reads: SectionId[] = [];
-  const children = isSetOp(parsed)
-    ? addBranches(build, parsed, sql, path, binding, scope)
-    : addChildren(build, parsed, sql, path, binding, scope);
-  reads.push(...children);
+  if (isSetOp(parsed)) {
+    // The CTEs belong to the WHOLE set operation, not to a branch. Wave 1 seeds every branch parse
+    // with them so `from monthly` resolves inside it, which meant each branch reached its own CTE
+    // loop with an empty scope and built the CTE all over again — the `a 2` in the chapter strip.
+    // Building them HERE, once, and handing the branches a scope that already knows them is what
+    // makes every branch read the same section instead of a copy of it.
+    const seeded = addCtes(build, { ctes: parsed.ctes, withRange: parsed.with, sql, path, binding, scope });
+    reads.push(...seeded.reads, ...addBranches(build, parsed, sql, path, binding, seeded.scope));
+  } else {
+    reads.push(...addChildren(build, parsed, sql, path, binding, scope));
+  }
 
   const id = path;
   build.sections.push({
@@ -266,11 +333,118 @@ function addQuery(build: Build, args: AddArgs): SectionId | null {
     label: claimLabel(build, args.label),
     origin,
     parsed,
+    text: sql,
+    result: null,
+    unsafeToProbe: carriesWrite(sql, build.dialect),
     binding,
     reads: dedupe(reads),
     prefix,
   });
   return id;
+}
+
+/**
+ * A section for a body the clause slicer refused, when the body nonetheless produces a table.
+ *
+ * This is the whole point of wave 7. `with v as (values (1),(2)) select * from v` used to lose `v`
+ * entirely — no chapter, just a note saying only SELECT queries can be walked — even though `v` is
+ * the first thing the database computes and its rows are on screen a moment later under another
+ * name. The section it gets has one station instead of ten, and it still carries its CTEs, because
+ * a `select 1` at the end of a WITH list does not make the list stop existing.
+ *
+ * Returns null, and records the refusal, only when the body really is something we cannot show.
+ */
+function addResultOnly(build: Build, args: AddArgs, refusal: Unsupported): SectionId | null {
+  const { sql, prefix, path, origin, binding, scope } = args;
+  const shape = statementShape(sql, build.dialect);
+  const kind: ResultOnlyKind | null =
+    shape.kind === "write"
+      ? "writes"
+      : shape.kind === "values"
+        ? "values"
+        : shape.kind === "select" && !shape.from
+          ? "no-from"
+          : null;
+  if (kind === null) {
+    build.skipped.push({ why: "unsupported", label: args.label, reason: refusal.reason, sql });
+    return null;
+  }
+
+  // The CTEs first, exactly as a walkable section would. They are ordinary queries with ordinary
+  // walks; only the body that reads them is the odd one, and it must not take them down with it.
+  const seeded = addCtes(build, { ctes: shape.ctes, withRange: shape.with, sql, path, binding, scope });
+  build.sections.push({
+    id: path,
+    label: claimLabel(build, args.label),
+    origin,
+    parsed: null,
+    text: sql,
+    // `compose` MERGES two WITH lists rather than stacking them, so the prefix is not always a
+    // literal head of `sql`; when it is not, the whole statement is the honest thing to quote.
+    result: {
+      kind,
+      body: (prefix !== "" && sql.startsWith(prefix) ? sql.slice(prefix.length) : sql).trim(),
+      verb: shape.verb,
+      reason: refusal.reason,
+    },
+    unsafeToProbe: carriesWrite(sql, build.dialect),
+    binding,
+    reads: dedupe(seeded.reads),
+    prefix,
+  });
+  return path;
+}
+
+type CteArgs = {
+  readonly ctes: readonly Cte[];
+  readonly withRange: Range | null;
+  readonly sql: string;
+  readonly path: string;
+  readonly binding: Binding;
+  readonly scope: Scope;
+};
+
+/**
+ * The CTEs a statement declares, each its own section, and the scope that results.
+ *
+ * `ctes` opens with the ones an enclosing prefix spliced into `sql`, which already have sections of
+ * their own; `scope.known` is what tells those apart from the ones this statement declares, and
+ * skipping them is what stops a CTE in scope from being rebuilt once per statement that can see it.
+ */
+function addCtes(build: Build, args: CteArgs): { scope: Scope; reads: SectionId[] } {
+  const { ctes, withRange, sql, path, binding, scope } = args;
+  const reads: SectionId[] = [];
+  const recursive =
+    scope.recursive ||
+    (withRange !== null && /^with\s+recursive\b/i.test(sql.slice(withRange.from, withRange.to)));
+
+  let inner: Scope = { ...scope, recursive };
+  for (const cte of ctes) {
+    const key = cte.name.toLowerCase();
+    if (inner.known.has(key)) continue;
+    const cteText = sql.slice(cte.range.from, cte.range.to);
+    const body = sql.slice(cte.body.from, cte.body.to);
+    const id = mentionsWord(body, cte.name)
+      ? addRecursiveCte(build, { cte, cteText, path, scope: inner })
+      : addQuery(build, {
+          sql: compose(body, inner, build.dialect),
+          prefix: renderPrefix(inner),
+          path: `${path}.cte:${cte.name}`,
+          label: cte.name,
+          origin: { kind: "cte", cte },
+          // A CTE sits at the top of the statement, where there is no outer row to depend on, so
+          // it always computes exactly once.
+          binding: binding.kind === "bound" ? binding : { kind: "standalone", certain: true },
+          scope: inner,
+        });
+    inner = {
+      ctes: [...inner.ctes, cteText],
+      recursive: inner.recursive,
+      known: new Map([...inner.known, [key, id]]),
+    };
+    if (id !== null) reads.push(id);
+  }
+  return { scope: inner, reads };
 }
 
 /**
@@ -317,39 +491,9 @@ function addChildren(
   binding: Binding,
   scope: Scope,
 ): SectionId[] {
-  const reads: SectionId[] = [];
-  const recursive =
-    scope.recursive ||
-    (parsed.with !== null && /^with\s+recursive\b/i.test(sql.slice(parsed.with.from, parsed.with.to)));
-
-  // `parsed.ctes` opens with the ones the prefix put there, which already have sections; only the
-  // ones this statement declares itself are new.
-  let inner: Scope = { ...scope, recursive };
-  for (const cte of parsed.ctes) {
-    const key = cte.name.toLowerCase();
-    if (inner.known.has(key)) continue;
-    const cteText = sql.slice(cte.range.from, cte.range.to);
-    const body = sql.slice(cte.body.from, cte.body.to);
-    const id = mentionsWord(body, cte.name)
-      ? addRecursiveCte(build, { cte, cteText, path, scope: inner })
-      : addQuery(build, {
-          sql: compose(body, inner, build.dialect),
-          prefix: renderPrefix(inner),
-          path: `${path}.cte:${cte.name}`,
-          label: cte.name,
-          origin: { kind: "cte", cte },
-          // A CTE sits at the top of the statement, where there is no outer row to depend on, so
-          // it always computes exactly once.
-          binding: binding.kind === "bound" ? binding : { kind: "standalone", certain: true },
-          scope: inner,
-        });
-    inner = {
-      ctes: [...inner.ctes, cteText],
-      recursive: inner.recursive,
-      known: new Map([...inner.known, [key, id]]),
-    };
-    if (id !== null) reads.push(id);
-  }
+  const seeded = addCtes(build, { ctes: parsed.ctes, withRange: parsed.with, sql, path, binding, scope });
+  const inner = seeded.scope;
+  const reads: SectionId[] = [...seeded.reads];
 
   /* FROM: a CTE reference is an edge to the section that computes it; a derived table is one more. */
   const sources = [parsed.first, ...parsed.joins.map((join) => join.source)];
@@ -428,6 +572,9 @@ function addRecursiveCte(
     label: claimLabel(build, cte.name),
     origin: { kind: "cte", cte },
     parsed,
+    text: sql,
+    result: null,
+    unsafeToProbe: carriesWrite(sql, build.dialect),
     binding: { kind: "standalone", certain: true },
     reads: [...scope.known.values()].filter((id): id is SectionId => id !== null),
     prefix,
@@ -495,6 +642,23 @@ function isCertainlyUncorrelated(
   }
   if (predicate.kind === "scalar") ranges.push(parsed.selectList);
   return !hasBareColumnRef(sql, dialect, ranges);
+}
+
+/**
+ * Whether running `sql` as written would change the database.
+ *
+ * The test is on the WHOLE statement, prefix included, and that is the point: a section is refused
+ * the moment a data-modifying CTE is spliced into it, not only when it IS one. The walk probes
+ * every station of every section, and each of those probes carries the section's own WITH — so one
+ * `delete … returning *` in a WITH list is a delete per probe, not a delete once.
+ *
+ * Postgres allows a data-modifying statement only in the WITH attached to the top-level statement,
+ * so descending into nested CTE bodies is belt-and-braces rather than the case that happens.
+ */
+function carriesWrite(sql: string, dialect: Dialect): boolean {
+  const shape = statementShape(sql, dialect);
+  if (shape.kind === "write") return true;
+  return shape.ctes.some((cte) => carriesWrite(sql.slice(cte.body.from, cte.body.to), dialect));
 }
 
 /* ---------------------------------------------------------------------------------------------- */

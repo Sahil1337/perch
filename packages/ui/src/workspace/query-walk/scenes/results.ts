@@ -59,8 +59,10 @@ export function countAt(walk: WalkData, index: number): number | null {
       const sample = sampleOf(walk, index);
       if (!sample) return null;
       if (!sample.truncated) return sample.rowCount;
+      // Only a walk with clauses ever has a LIMIT station, so this is a guard on the type rather
+      // than a case that happens.
+      if (walk.parsed === null || input === null) return null;
       const { limitValue, offsetValue } = walk.parsed;
-      if (input === null) return null;
       const after = Math.max(0, input - (offsetValue ?? 0));
       return limitValue === null ? after : Math.min(limitValue, after);
     }

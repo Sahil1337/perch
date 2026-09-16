@@ -13,8 +13,8 @@ import type { RunRecord, StatementResult } from "@perch/protocol";
 import * as React from "react";
 import { boundPlan } from "./bound";
 import { isSetOp, type ParsedSelect } from "./clauses";
-import type { Program, Section } from "./program";
-import { buildStations, SAMPLE_ROWS, type Station } from "./steps";
+import type { Program, ResultOnly, Section } from "./program";
+import { buildResultStation, buildStations, SAMPLE_ROWS, type Station } from "./steps";
 
 export type QueryOutcome =
   | { readonly ok: true; readonly result: StatementResult }
@@ -26,7 +26,17 @@ export type StationResult = {
 };
 
 export type WalkData = {
-  readonly parsed: ParsedSelect;
+  /**
+   * Null for a result-only section, whose body the clause slicer refused: it has one station, and
+   * that station is the statement itself, so there are no clauses for a scene or a sentence to
+   * reach for. Every builder that needs the parse checks the station id first.
+   */
+  readonly parsed: ParsedSelect | null;
+  /** The SQL this walk runs, which `parsed` cannot always be asked for. */
+  readonly text: string;
+  /** Set exactly when `parsed` is null: what sort of thing this one-station walk is, for the
+   *  narrator, which has a different lesson for a VALUES list than for a bare `select 1`. */
+  readonly result: ResultOnly | null;
   readonly stations: readonly Station[];
   readonly results: readonly StationResult[];
 };
@@ -112,7 +122,7 @@ export function useWalk(parsed: ParsedSelect, probe: Probe): WalkData {
     };
   }, [stations, probe]);
 
-  return { parsed, stations, results };
+  return { parsed, text: parsed.text, result: null, stations, results };
 }
 
 /**
@@ -132,7 +142,16 @@ export type SectionStatus =
   | "done"
   | "per-row"
   | "held"
-  | "unwalkable";
+  | "unwalkable"
+  /**
+   * Probing this section would change the database, so the walk shows it and never runs it. These
+   * are the chapters that hold on purpose rather than for want of something to say.
+   *
+   * It covers the write itself AND everything downstream of it, which is the trap: a probe carries
+   * its section's whole WITH prefix, so a `delete … returning *` in a WITH list would be re-run by
+   * every station of every section after it, not just once by its own chapter.
+   */
+  | "writes";
 
 /** Whether the section runs once per row of another, and so is not stepped through station by
  *  station. Both kinds hand the stage to a view of their own instead of to the station walk. */
@@ -183,7 +202,22 @@ type ProgramState = {
  * section can actually be bound depends on what its OUTER section is, and that is a lookup.
  */
 function planSection(program: Program, section: Section): SectionPlan {
-  const parsed = isSetOp(section.parsed) ? null : section.parsed;
+  // Nothing that would change the database gets stations, and that is a wider net than the write
+  // itself: a section downstream of a data-modifying CTE carries it in the WITH prefix of every
+  // probe it builds, so running its walk would delete the same rows once per station.
+  if (section.unsafeToProbe) return { section, parsed: null, stations: [], status: "writes" };
+
+  // A result-only section is settled before anything else is asked about it: it has no parse, so
+  // `boundPlan` has nothing to read.
+  if (section.result !== null) {
+    // Inside a per-row section there is no outer row bound yet, so running this once would answer a
+    // question nobody asked. It holds with a note, the way any other unbindable section does.
+    if (section.binding.kind === "bound") {
+      return { section, parsed: null, stations: [], status: "held" };
+    }
+    return { section, parsed: null, stations: [buildResultStation(section.text)], status: "pending" };
+  }
+  const parsed = section.parsed !== null && !isSetOp(section.parsed) ? section.parsed : null;
   const bound =
     section.binding.kind === "bound" && boundPlan(program, section).kind === "plan"
       ? "per-row"
@@ -264,9 +298,18 @@ export function useProgram(program: Program, probe: Probe): ProgramData {
         return {
           section: plan.section,
           status: entry.status,
-          walk: plan.parsed
-            ? { parsed: plan.parsed, stations: plan.stations, results: entry.results }
-            : null,
+          // Stations, not the parse, are what decides whether there is a walk: a result-only
+          // section has one station and no parse, and a set-op combine has a parse and no stations.
+          walk:
+            plan.stations.length > 0
+              ? {
+                  parsed: plan.parsed,
+                  text: plan.section.text,
+                  result: plan.section.result,
+                  stations: plan.stations,
+                  results: entry.results,
+                }
+              : null,
         };
       }),
     }),

@@ -20,8 +20,7 @@ import { EMPTY, type BucketView, type Row, type Scene, type Summary } from "../t
 import { plain, tables } from "../view";
 
 export function groupScene(ctx: SceneContext): Scene {
-  const { walk, phase, result, tableOf, input, own, prevSample, mainTitle } = ctx;
-  const { parsed } = walk;
+  const { parsed, phase, result, tableOf, input, own, prevSample, mainTitle } = ctx;
   const grouped = okResult(result, "sample");
   if (!grouped) return EMPTY;
   const pre = okResult(result, "pre");

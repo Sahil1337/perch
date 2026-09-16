@@ -19,8 +19,7 @@ import { EMPTY, type Row, type Scene } from "../types";
 import { plain, tables } from "../view";
 
 export function filterScene(ctx: SceneContext): Scene {
-  const { walk, phase, station, result, input, own, prevSample, mainTitle } = ctx;
-  const { parsed } = walk;
+  const { parsed, phase, station, result, input, own, prevSample, mainTitle } = ctx;
   const sample = okResult(result, "sample");
   if (!sample) return EMPTY;
   const clause = station.id === "where" ? parsed.where : parsed.having;

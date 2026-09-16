@@ -3,13 +3,16 @@
 // `sceneAt` and handed to whichever builder the station id picks.
 
 import type { StatementResult } from "@perch/protocol";
-import type { SourceRef } from "../clauses";
+import type { ParsedSelect, SourceRef } from "../clauses";
 import { sourceTitle, type Station } from "../steps";
 import type { StationResult, WalkData } from "../use-walk";
 import { countAt, inputCount, previousIndex, sampleOf } from "./results";
 
 export type SceneContext = {
   readonly walk: WalkData;
+  /** The section's clauses. Handed in rather than read off `walk`, which cannot promise one: a
+   *  result-only walk has no parse, and it never reaches a builder that takes this. */
+  readonly parsed: ParsedSelect;
   readonly index: number;
   readonly phase: number;
   readonly station: Station;
@@ -24,8 +27,13 @@ export type SceneContext = {
   readonly mainTitle: string;
 };
 
-export function sceneContext(index: number, phase: number, walk: WalkData, station: Station): SceneContext {
-  const { parsed } = walk;
+export function sceneContext(
+  index: number,
+  phase: number,
+  walk: WalkData,
+  station: Station,
+  parsed: ParsedSelect,
+): SceneContext {
   const result = walk.results[index];
   const sources = [parsed.first, ...parsed.joins.map((join) => join.source)];
   const tableOf = (qualifier: string): string | null =>
@@ -50,6 +58,7 @@ export function sceneContext(index: number, phase: number, walk: WalkData, stati
 
   return {
     walk,
+    parsed,
     index,
     phase,
     station,

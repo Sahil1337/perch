@@ -32,9 +32,34 @@ function joinCondition(join: JoinClause): string {
   return join.keys.map((pair) => code(`${pair.left} = ${pair.right}`)).join(" and ");
 }
 
+/**
+ * What a section with no clause sequence IS, and why it gets one card instead of ten stations.
+ *
+ * Three different things land here and they teach three different lessons, so they do not share a
+ * line. Saying "this could not be walked" to all of them would be the old bug wearing a sentence:
+ * none of them failed, and each one has a reason of its own for having no clauses to walk.
+ */
+function resultSentence(walk: WalkData): string {
+  const sql = code(walk.result?.body ?? walk.text);
+  switch (walk.result?.kind) {
+    case "values":
+      return `${sql} is a table written out by hand. Its rows are not read from anywhere — they are spelled in the query itself, which is why there is no FROM to start from and no WHERE to narrow. That is the whole step: the rows below exist the moment the statement runs, and whatever reads this section reads them like any other table's.`;
+    case "no-from":
+      return `${sql} has no FROM, so there is no table for the clause order to act on. SELECT computes its expressions once and hands back exactly one row, and the stations this walk usually steps through — narrowing, gathering, sorting — all exist to do something to rows that are already there. With none to start from there is nothing for them to do, which is not a failure: it is what a SELECT without a FROM means.`;
+    case "writes":
+      return `${sql} changes the database rather than reading it, so the walk shows it and never runs it.`;
+    default:
+      return `${sql} produces a table but has no clauses to step through, so it is shown exactly as it was written.`;
+  }
+}
+
 export function sentenceFor(index: number, walk: WalkData): string {
   const { parsed, stations } = walk;
   const station = stations[index]!;
+  if (station.id === "result") return resultSentence(walk);
+  // Every station below reads clauses off the parse, and the only walk without one is the
+  // result-only walk the line above has already answered for.
+  if (parsed === null) return "";
   const text = (from: number, to: number): string => parsed.text.slice(from, to);
   const sources = [parsed.first, ...parsed.joins.map((join) => join.source)];
 
@@ -170,6 +195,10 @@ export function phasesFor(index: number, walk: WalkData, state: StationState): P
     return outcome?.ok ? outcome.result.rows.length : 0;
   };
   switch (station.id) {
+    // One phase, because there is one thing to see. A result-only section has no before and after
+    // to cut between: the rows arrive whole or not at all.
+    case "result":
+      return [{ ms: 1600, label: "the rows it produces" }];
     case "from":
       return [{ ms: 700, label: "raw tables" }];
     case "join": {
@@ -194,7 +223,7 @@ export function phasesFor(index: number, walk: WalkData, state: StationState): P
       ];
     }
     case "group": {
-      const keys = walk.parsed.groupKeys.join(", ");
+      const keys = walk.parsed?.groupKeys.join(", ") ?? "";
       return [
         { ms: 1000, label: `sorting by ${keys}` },
         { ms: 1300, label: "gathering into buckets" },
@@ -209,7 +238,7 @@ export function phasesFor(index: number, walk: WalkData, state: StationState): P
       ];
     }
     case "window": {
-      const fn = windowFunctions(walk.parsed)[0];
+      const fn = walk.parsed ? windowFunctions(walk.parsed)[0] : undefined;
       const keys = fn?.partition.join(", ") ?? "";
       return [
         { ms: 1300, label: keys ? `panes by ${keys}` : "one pane, every row" },

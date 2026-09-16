@@ -12,6 +12,7 @@ import { groupScene } from "./station/group";
 import { joinScene } from "./station/join";
 import { limitScene } from "./station/limit";
 import { orderScene } from "./station/order";
+import { resultScene } from "./station/result";
 import { selectScene } from "./station/select";
 import { windowScene } from "./station/window";
 import { EMPTY, type Scene } from "./types";
@@ -29,7 +30,10 @@ export function buildScene(index: number, phase: number, walk: WalkData): Scene 
 function sceneAt(index: number, phase: number, walk: WalkData): Scene {
   const station = walk.stations[index];
   if (!station) return EMPTY;
-  const ctx = sceneContext(index, phase, walk, station);
+  // Both checks say the same thing from either end: a result-only walk has this one station and no
+  // parse, and `sceneContext` would need the parse's sources on its first line.
+  if (station.id === "result" || walk.parsed === null) return resultScene(walk.results[index]);
+  const ctx = sceneContext(index, phase, walk, station, walk.parsed);
 
   switch (station.id) {
     case "from":

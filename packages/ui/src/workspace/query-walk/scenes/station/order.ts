@@ -9,8 +9,7 @@ import { EMPTY, type Col, type Scene } from "../types";
 import { tables } from "../view";
 
 export function orderScene(ctx: SceneContext): Scene {
-  const { walk, phase, result, tableOf, own, prevSample } = ctx;
-  const { parsed } = walk;
+  const { parsed, phase, result, tableOf, own, prevSample } = ctx;
   const ordered = okResult(result, "sample");
   if (!ordered) return EMPTY;
   const sortCols = (sample: StatementResult, indices: number[]): Col[] =>

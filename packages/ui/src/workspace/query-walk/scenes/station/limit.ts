@@ -8,8 +8,7 @@ import { EMPTY, type Row, type Scene } from "../types";
 import { plain, tables } from "../view";
 
 export function limitScene(ctx: SceneContext): Scene {
-  const { walk, phase, result, input, own, prevSample } = ctx;
-  const { parsed } = walk;
+  const { parsed, phase, result, input, own, prevSample } = ctx;
   const final = okResult(result, "sample");
   if (!final) return EMPTY;
   const { limitValue, offsetValue } = parsed;

@@ -198,7 +198,7 @@ function BoundHold({
       <h2 className="font-medium text-sm">This subquery runs once per row, and cannot be bound here</h2>
       <p className="max-w-prose text-muted-foreground text-sm leading-relaxed">{reason}</p>
       <pre className="max-w-full overflow-x-auto whitespace-pre-wrap rounded-md bg-card p-3 text-start font-mono text-xs leading-5">
-        {highlightSql(section.parsed.text)}
+        {highlightSql(section.text)}
       </pre>
     </motion.section>
   );

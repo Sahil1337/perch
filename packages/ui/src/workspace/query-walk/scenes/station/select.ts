@@ -87,7 +87,7 @@ function withBranches(
   outVisible: readonly number[],
   rows: readonly Row[],
 ): { readonly col: Col; readonly rows: readonly Row[] } | null {
-  const expression = caseExpressions(ctx.walk.parsed)[0];
+  const expression = caseExpressions(ctx.parsed)[0];
   const sample = okResult(ctx.result, "case");
   if (!expression || !sample) return null;
   const visible = visibleIndices(sample);
