@@ -12,38 +12,11 @@
 
 import { motion } from "motion/react";
 import * as React from "react";
+import { PerchBadge, PerchLogo } from "../brand/logo";
 import { useFade, useSpring } from "../lib/motion";
 import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
 import { useWorkspace } from "./context";
-
-/** The product mark. Small, quiet, and the only thing on screen while the first probe runs. */
-function Mark(): React.ReactElement {
-  return (
-    <span
-      aria-hidden
-      className="flex size-9 items-center justify-center rounded-lg border border-border bg-card"
-    >
-      {/* A perch: the bar, and what sits on it. Drawn rather than imported so the mark does not
-          depend on an icon set that is there for UI affordances, not for identity. */}
-      <svg className="size-4.5 text-foreground" fill="none" viewBox="0 0 18 18">
-        <path
-          d="M3 12h12"
-          stroke="currentColor"
-          strokeLinecap="round"
-          strokeWidth="1.5"
-        />
-        <path
-          d="M6.5 12V7.5a2.5 2.5 0 0 1 5 0V12"
-          stroke="currentColor"
-          strokeLinecap="round"
-          strokeWidth="1.5"
-        />
-        <circle cx="9" cy="4" fill="currentColor" r="1.25" />
-      </svg>
-    </span>
-  );
-}
 
 /** Inline code, for the commands these screens exist to tell you to run. */
 function Code({ children }: { children: React.ReactNode }): React.ReactElement {
@@ -92,7 +65,7 @@ export function ServerGate(): React.ReactElement {
           initial={{ opacity: 0 }}
           transition={{ ...fade, delay: 0.25 }}
         >
-          <Mark />
+          <PerchLogo />
           <Spinner className="size-4" />
         </motion.div>
       </Centered>
@@ -108,7 +81,7 @@ export function ServerGate(): React.ReactElement {
         role="alert"
         transition={spring}
       >
-        <Mark />
+        <PerchBadge />
         <Unreachable
           onRetry={() => {
             setRetrying(true);

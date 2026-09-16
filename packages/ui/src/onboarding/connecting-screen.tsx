@@ -16,7 +16,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import * as React from "react";
 import { useFade } from "../lib/motion";
 import { cn } from "../lib/utils";
-import { PerchMark } from "./connection-beam";
+import { PerchMark } from "../brand/logo";
 import { DIALECT_LABEL, DialectMark } from "./dialect-mark";
 
 /** The curve the packets ride, in the SVG's own coordinates. Shared by the path and the dots. */

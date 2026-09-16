@@ -12,6 +12,7 @@
 import type { Dialect } from "@perch/protocol";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import type React from "react";
+import { PerchMark } from "../brand/logo";
 import { cn } from "../lib/utils";
 import { DIALECT_LABEL, DialectMark } from "./dialect-mark";
 import { useSpring } from "../lib/motion";
@@ -35,11 +36,11 @@ export function ConnectionBeam({
 
   return (
     <div
-      aria-label={`perch, connecting to ${DIALECT_LABEL[target]}`}
+      aria-label={`Perch, connecting to ${DIALECT_LABEL[target]}`}
       className={cn("flex items-center justify-center gap-3", className)}
       role="img"
     >
-      <Node label="perch">
+      <Node label="Perch">
         <PerchMark />
       </Node>
 
@@ -131,37 +132,5 @@ function Node({
         )}
       </span>
     </div>
-  );
-}
-
-/**
- * perch's own mark: a bird on a branch. A drawing, not a logo, and never without the name under it.
- * Built from parts that each say "bird" on their own — branch, feet, beak, tail — so it survives
- * being small, in the same 24px box and 1.5 stroke as `DialectMark` so the two ends match.
- */
-export function PerchMark({ className }: { className?: string } = {}): React.ReactElement {
-  return (
-    <svg
-      aria-hidden
-      className={cn("size-5 shrink-0", className)}
-      fill="none"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="1.5"
-      viewBox="0 0 24 24"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      {/* the branch, and the feet that make it a perch rather than a hover */}
-      <path d="M3 19h18" />
-      <path d="M10.6 16.4V19M13.4 16.4V19" />
-      {/* the body, closed against the feet */}
-      <path d="M9 16.4a4.6 4.6 0 0 1 4-8.2 4 4 0 0 1 4.4 4c0 2.3-1.9 4.2-4.2 4.2Z" />
-      {/* beak and tail, the two strokes that fix which way it faces */}
-      <path d="M16.6 9.1 19.6 8.4" />
-      <path d="M9.2 15.1 5.2 13.3" />
-      {/* the eye */}
-      <circle cx="14.6" cy="10.6" fill="currentColor" r="0.6" stroke="none" />
-    </svg>
   );
 }

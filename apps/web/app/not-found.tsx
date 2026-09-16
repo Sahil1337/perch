@@ -1,3 +1,4 @@
+import { PerchLogo } from "@perch/ui";
 import Link from "next/link";
 
 /**
@@ -8,6 +9,10 @@ import Link from "next/link";
 export default function NotFound(): React.ReactElement {
   return (
     <main className="flex h-svh flex-col items-center justify-center gap-6 px-6 text-center">
+      {/* The one piece of chrome this screen gets. A bookmark that lands here should still be able
+          to tell what it landed on, and the logo says that without implying a live connection. */}
+      <PerchLogo />
+
       <div className="flex flex-col gap-2">
         <p className="font-mono text-muted-foreground text-sm">404</p>
         <h1 className="font-medium text-xl tracking-tight">This page does not exist</h1>

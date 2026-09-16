@@ -13,6 +13,7 @@ import {
   EditorGrid,
   FilesList,
   Onboarding,
+  PerchMark,
   ResizableSidebar,
   RunButton,
   SaveIndicator,
@@ -93,6 +94,13 @@ function Workspace(): React.ReactElement {
         }
         start={
           <>
+            {/* The mark, not the wordmark: the topbar is the app you are already inside, so the
+                identity only has to be present, and the name would cost the connection picker the
+                width it needs for a long database name. */}
+            <span aria-label="Perch" className="flex items-center pr-1 pl-0.5" role="img">
+              <PerchMark className="size-5" />
+            </span>
+            <div aria-hidden className="mr-0.5 h-4 w-px bg-border" />
             <button
               aria-label="Toggle sidebar"
               className="flex size-7 cursor-pointer items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"

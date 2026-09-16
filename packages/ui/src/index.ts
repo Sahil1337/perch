@@ -57,6 +57,8 @@ export * from "./ui/radio-group";
 export * from "./ui/select";
 export * from "./ui/switch";
 
+export * from "./brand/logo";
+
 export * from "./onboarding/onboarding";
 export * from "./onboarding/connecting-screen";
 export * from "./onboarding/connection-beam";
