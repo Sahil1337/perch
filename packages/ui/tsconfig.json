@@ -1,0 +1,5 @@
+{
+  "extends": "@perch/tsconfig/react.json",
+  "include": ["src"]
+}
+ 
