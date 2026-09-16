@@ -4,7 +4,7 @@
 import type { BoundPlan, BoundRow } from "./bound";
 import type { JoinClause, SubqueryPredicateKind } from "./clauses";
 import { cellFound, isNegativeKind, type GridBuild } from "./grid";
-import { previousIndex, sampleId } from "./scenes";
+import { previousIndex, sampleId, type AnswerView } from "./scenes";
 import { caseExpressions, sourceTitle, WALK_PREFIX, type WindowFn, windowFunctions } from "./steps";
 import type { StationState, WalkData } from "./use-walk";
 
@@ -313,6 +313,27 @@ export function bindingText(plan: BoundPlan, row: BoundRow): string {
     .join(", ");
 }
 
+/**
+ * The title over the card of rows the subquery came back with.
+ *
+ * It says what the rows MEAN rather than repeating the binding, which the scrubber under the stage
+ * is already showing: under `exists` they are what the predicate found, and under `not exists` they
+ * are the evidence against the row — so an EMPTY card there is the good one, and a title that only
+ * said `s.ID = '12345'` left the reader to work that out for themselves. IN and a scalar have cards
+ * of their own with their own titles and never reach this.
+ */
+export function boundInnerTitle(plan: BoundPlan, row: BoundRow): string {
+  const bound = bindingText(plan, row);
+  switch (plan.predicate.kind) {
+    case "exists":
+      return `found for ${bound}`;
+    case "not exists":
+      return `what disqualifies ${bound}`;
+    default:
+      return bound;
+  }
+}
+
 /** What this section IS: why it has no single result, and what its outer query wants from it. */
 export function boundSentence(plan: BoundPlan): string {
   const columns = list(plan.columns.map((column) => code(column.ref)));
@@ -333,6 +354,71 @@ export function boundRowSentence(plan: BoundPlan, row: BoundRow): string {
         : `the subquery comes back with ${row.matches} ${row.matches === 1 ? "row" : "rows"}`;
   const verdict = row.pass ? "passes" : "fails";
   return `With ${bound}, ${answer}, so this row ${verdict}: ${code(plan.predicate.kind)} needs ${passRule(plan.predicate.kind)}.`;
+}
+
+/* ── IN and the scalar comparison ──────────────────────────────────────────────────────────────
+ *
+ * Both of these get a card of their own rather than the rows EXISTS shows, and both get a sentence
+ * of their own for the same reason: what the subquery answered is a different KIND of thing. IN
+ * answers whether a value is in a set. A scalar answers with one value, and has two failure modes
+ * that no other predicate has — more than one row is an error, and no row at all is a null that
+ * makes the comparison unknown rather than false.
+ */
+
+/** What `x in (…)` did for this row: the value on the left, and whether the set holds it. */
+export function membershipSentence(plan: BoundPlan, row: BoundRow, answer: AnswerView): string {
+  if (answer.kind !== "values") return boundRowSentence(plan, row);
+  const negated = plan.predicate.kind === "not in";
+  const found = answer.values.some((value) => value.match);
+  const poisoned = answer.values.some((value) => value.poison);
+  const bound = bindingText(plan, row);
+  const rule = `${code(plan.predicateText)} passes a row when its ${code(answer.needleLabel)} is ${
+    negated ? "none of" : "one of"
+  } the values the subquery returns.`;
+  // The null case is not "it is not in the list": it is that nothing can be PROVED about the list
+  // at all, and saying "not in the list, so the row fails" would teach the wrong reason.
+  if (negated && poisoned) {
+    return `${rule} For ${code(bound)} the value is ${code(answer.needle)}, but the subquery returned a null among its values, so the row fails whatever that value is.`;
+  }
+  return `${rule} For ${code(bound)} the value is ${code(answer.needle)}, and it is ${
+    found ? "in" : "not in"
+  } the list, so the row ${row.pass ? "passes" : "fails"}.`;
+}
+
+/** What the scalar comparison came out as for this row, in the three cells the card shows. */
+export function scalarSentence(plan: BoundPlan, row: BoundRow, answer: AnswerView): string {
+  if (answer.kind !== "equation") return boundRowSentence(plan, row);
+  const bound = bindingText(plan, row);
+  const rule = `${code(plan.predicateText)} compares each row's ${code(answer.leftLabel)} against the one value the subquery returns.`;
+  if (answer.many !== null) {
+    return `${rule} For ${code(bound)} it returned ${answer.many} rows, which is not a value at all — the database raises an error rather than choosing one of them.`;
+  }
+  if (answer.missing) {
+    return `${rule} For ${code(bound)} it returned no row, so the value is null, ${code(`${answer.left} ${answer.operator} null`)} is unknown rather than false, and the row is dropped exactly as a false one would be.`;
+  }
+  return `${rule} For ${code(bound)} the value is ${code(answer.right)}, and ${code(`${answer.left} ${answer.operator} ${answer.right}`)} is ${row.pass}, so the row ${row.pass ? "passes" : "fails"}.`;
+}
+
+/**
+ * The NOT IN null trap, which is the reason `not exists` is usually what people mean.
+ *
+ * One null anywhere in the set is fatal to EVERY row, not just to rows that are null themselves,
+ * and that is the part nobody predicts: `not in` is `<> all`, a comparison to null is unknown, and
+ * a predicate that is unknown never passes a WHERE. Null when there is no null to warn about.
+ */
+export function notInNullSentence(plan: BoundPlan, answer: AnswerView): string | null {
+  if (plan.predicate.kind !== "not in" || answer.kind !== "values") return null;
+  if (!answer.values.some((value) => value.poison)) return null;
+  // "this row" rather than "every row": the set a CORRELATED subquery returns is a different set
+  // per outer row, so a null in one row's set says nothing about the next row's. The rule it
+  // demonstrates is the same one, and it is the rule that costs people afternoons.
+  return `The subquery returns a null among its values, and ${code("not in")} compares against every value with ${code("=")}; a comparison to null is unknown, so nothing can be proved absent and this row fails whatever its value is. One null anywhere in the set is enough, and over a set that does not change per row that is every row at once — which is the reason ${code("not exists")} is usually what people mean.`;
+}
+
+/** The promise a scalar subquery makes, and both ways of breaking it. Null for every other kind. */
+export function scalarShapeSentence(plan: BoundPlan, answer: AnswerView): string | null {
+  if (plan.predicate.kind !== "scalar" || answer.kind !== "equation") return null;
+  return `A subquery in this position must return exactly one row: more than one is an error the database raises, and none at all is a null, which makes the comparison unknown and drops the row without ever being false.`;
 }
 
 /**
@@ -427,6 +513,111 @@ export function gridCellSentence(args: {
       }`
     : `${code(label)} is not returned: this ${grid.driveNoun} counts as ${found ? "matched" : "unmatched"}.`;
   return `With ${list(args.bound.map(code))}, ${code(grid.innerSource)} ${has}, so the inner ${code(grid.innerKind)} is ${returned} and ${tail}`;
+}
+
+/* ── The terminus ──────────────────────────────────────────────────────────────────────────────
+ *
+ * The sentences under an empty result. Each one has the same shape — what failed, and what the
+ * nearest row would have needed — and each one is written from numbers the walk already had. They
+ * take plain arguments rather than the card, so `terminus.ts` can build the card by calling them
+ * and neither file has to import the other's types.
+ */
+
+/** The card's own title, in the accessible name and above the rows. */
+export const NEAREST_TITLE = "nearest to passing";
+
+/**
+ * The nearest-miss sentence for `not exists`: the one predicate with a real gradient.
+ *
+ * `short by exactly one` rather than `short by 1` in the case where it is one, because that is the
+ * whole point of the card and a digit does not land the way the word does. The closing clause says
+ * what a single extra row would have done, which is the sentence a reader can act on.
+ */
+export function nearMissSentence(args: {
+  /** The outer query's FROM, as written: `student s`. */
+  readonly outerSource: string;
+  /** A noun for one outer row: `student`. */
+  readonly rowNoun: string;
+  readonly kind: SubqueryPredicateKind;
+  /** The rows the subquery walks, when a grid named them: `RequiredCourses rc`. */
+  readonly driveTitle: string | null;
+  readonly driveNoun: string;
+  /** The table the inner predicate reads: `takes`. */
+  readonly innerSource: string | null;
+  /** The nearest row, as its own columns spell it. */
+  readonly name: string;
+  readonly count: number;
+  /** The values it was missing, when the grid's cells named them. */
+  readonly missing: readonly string[];
+}): string {
+  const { outerSource, rowNoun, kind, driveTitle, driveNoun, innerSource, name, count } = args;
+  const one = count === 1;
+  const walked =
+    driveTitle === null || innerSource === null
+      ? `every ${rowNoun} comes back with at least one row from it`
+      : `every ${rowNoun} has at least one row of ${code(driveTitle)} with no matching row in ${code(innerSource)}`;
+  const named = args.missing.length > 0 ? `, ${list(args.missing.map(code))}` : "";
+  const short = one
+    ? `short by exactly one ${driveNoun}${named}`
+    : `short by ${count} ${driveNoun}s${named}`;
+  const fix =
+    innerSource === null
+      ? one
+        ? "one row fewer and the query would return them"
+        : `${count} rows fewer and the query would return them`
+      : one
+        ? `a single ${code(innerSource)} row for that pair and the query would return them`
+        : `${count} more ${code(innerSource)} rows and the query would return them`;
+  return `No row of ${code(outerSource)} survives ${code(kind)}: ${walked}. The nearest is ${code(name)}, ${short}; ${fix}.`;
+}
+
+/**
+ * The sentence for a kind with NO gradient, which is `exists` and `not in`.
+ *
+ * Every row that fails an `exists` fails it with a count of zero, so there is no nearest and saying
+ * there is would be the one thing this card must never do. What is left that is true is what the
+ * subquery would have had to find, so that is what the sentence says — and it says explicitly that
+ * the rows are not ranked, because three rows in a list look ranked whatever the header says.
+ */
+export function noGradientSentence(args: {
+  readonly outerSource: string;
+  readonly kind: SubqueryPredicateKind;
+  readonly predicate: string;
+  readonly innerSource: string;
+  /** The binding the subquery ran with, for the first failing row: `s.ID = '12345'`. */
+  readonly binding: string;
+}): string {
+  const { outerSource, kind, predicate, innerSource, binding } = args;
+  const wanted =
+    kind === "not in"
+      ? `Each of these rows has its value among the ones ${code(innerSource)} returned, and ${code("not in")} passes a row only when it has none of them.`
+      : `What it would have taken is a single row of ${code(innerSource)} — for the first of these, one with ${code(binding)}.`;
+  return `No row of ${code(outerSource)} survives ${code(predicate)}, and every one of them failed it the same way: the subquery came back empty, so there is no nearest row and these three are not ranked. ${wanted}`;
+}
+
+/** The sentence for `in` and for a scalar comparison, where near means a distance between numbers. */
+export function closestSentence(args: {
+  readonly outerSource: string;
+  readonly predicate: string;
+  readonly name: string;
+  readonly gap: string;
+}): string {
+  return `No row of ${code(args.outerSource)} survives ${code(args.predicate)}. Nearness here is a distance between numbers, so the rows are ordered by how far the compared value was from the one the subquery came back with: ${code(args.name)} is the closest, ${args.gap}.`;
+}
+
+/**
+ * The fallback, for a WHERE with no bound chapter behind it.
+ *
+ * `measured` is what makes the second half true: the row test brings back one boolean per depth-zero
+ * conjunct, so a row that failed one of three really did come closer than a row that failed all
+ * three. A single-conjunct WHERE has no such measure and the sentence stops after the first line
+ * rather than claiming an order nothing produced.
+ */
+export function genericTerminusSentence(body: string, measured: boolean): string {
+  const failed = `Every row failed ${code(body)}.`;
+  return measured
+    ? `${failed} The rows above are the ones that came closest, ordered by how far they were from passing.`
+    : `${failed} It is a single condition, so there is no sense in which one row came closer than another; these are simply the first of the rows it threw away.`;
 }
 
 /** One beat per outer row, labelled the way the phase caption above a station's sentence is. */

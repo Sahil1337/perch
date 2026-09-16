@@ -23,13 +23,15 @@ import { motion } from "motion/react";
 import * as React from "react";
 import { highlightSql } from "../sql-editor/highlight-sql";
 import { boundGrid, boundPlan, type BoundPlan, type BoundRow } from "./bound";
+import { useReportEvidence } from "./bound-evidence";
 import { BoundPanel } from "./bound-panel";
 import { BoundScrubber } from "./bound-scrubber";
 import { GridPickContext } from "./grid-card";
-import { bindingText, boundPhases, ROW_HOLD_MS } from "./narration";
+import { boundInnerTitle, boundPhases, ROW_HOLD_MS } from "./narration";
 import type { Program, Section, SectionId } from "./program";
-import { boundScene, gridScene, innerCard, type Scene, type TableView } from "./scenes";
+import { answerView, boundScene, gridScene, innerCard, type Scene, type TableView } from "./scenes";
 import { Stage } from "./stage";
+import type { BoundEvidence } from "./terminus";
 import { useBoundRun } from "./use-bound";
 import { bindKey, useGridRun } from "./use-grid";
 import type { Probe, StationState } from "./use-walk";
@@ -138,7 +140,27 @@ function BoundWalk({
   const reveal = filling ? reached : null;
 
   const phases = React.useMemo(() => boundPhases(rows), [rows]);
-  const title = row ? bindingText(plan, row) : plan.section.label;
+  const title = row ? boundInnerTitle(plan, row) : plan.section.label;
+
+  // What this chapter measured, put on the shelf the terminus reads. Nothing is fetched for it —
+  // these are the same three results the view above is already drawing — and it is reported only
+  // once the outer probe has landed, because a ledger with no rows has measured nothing yet.
+  const evidence = React.useMemo(
+    (): BoundEvidence | null =>
+      run.outer === null || rows.length === 0
+        ? null
+        : {
+            plan,
+            rows,
+            outer: run.outer,
+            grid: showGrid ? build : null,
+            columns: grid.columns,
+            cells: grid.cells,
+            answers: run.answers,
+          },
+    [build, grid.cells, grid.columns, plan, rows, run.answers, run.outer, showGrid],
+  );
+  useReportEvidence(plan.section.id, evidence);
 
   // Picking a cell binds its row as well: the cell belongs to that outer row, and leaving the
   // cursor somewhere else would put one row's SQL beside another row's ring.
@@ -149,6 +171,13 @@ function BoundWalk({
       grid.pick(grid.picked?.row === at && grid.picked.column === column ? null : { row: at, column });
     },
     [bind, grid, onPause],
+  );
+
+  // The same card the scene builds, so the panel's sentences and the card on stage are written from
+  // one set of values rather than two that could drift.
+  const answer = React.useMemo(
+    () => answerView({ plan, row, inner: inner?.ok ? inner.result : null, error: inner && !inner.ok ? inner.error : null }),
+    [inner, plan, row],
   );
 
   const column = grid.columns.find((entry) => entry.key === grid.picked?.column) ?? null;
@@ -246,6 +275,7 @@ function BoundWalk({
             />
           </div>
           <BoundPanel
+            answer={answer}
             caption={caption}
             cell={
               column && grid.picked

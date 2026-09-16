@@ -8,9 +8,10 @@
 
 import type { Cell, StatementResult } from "@perch/protocol";
 import type { BoundPlan, BoundRow } from "../bound";
+import { answerView } from "./answer";
 import { colsOf, positional, visibleIndices, widthFor } from "./columns";
 import type { Col, Row, Scene, TableView } from "./types";
-import { plain, tables } from "./view";
+import { plain } from "./view";
 
 /** The match count's own column id, which no positional column can collide with. */
 const MATCHES = "matches";
@@ -70,7 +71,16 @@ export function boundScene(args: {
     settled: true,
   };
 
-  return tables([outerView, innerCard(title, inner, innerError)], inner?.rowCount ?? null, false);
+  // The right half, per kind. IN and a scalar get a card of their own — a value list and an
+  // equation — and everything else keeps the rows, which is what presence looks like.
+  const answer = answerView({ plan, row: rows[current] ?? null, inner, error: innerError });
+  return {
+    kind: "tables",
+    tables: answer === null ? [outerView, innerCard(title, inner, innerError)] : [outerView],
+    tight: false,
+    count: inner?.rowCount ?? null,
+    ...(answer === null ? {} : { answer }),
+  };
 }
 
 /**

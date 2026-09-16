@@ -11,11 +11,13 @@ import { cn } from "../../lib/utils";
 import { Button } from "../../ui/button";
 import { Spinner } from "../../ui/spinner";
 import { formatCell } from "../results-grid";
+import { AnswerCard } from "./answer-card";
 import { BucketsScene } from "./buckets";
 import type { SourceRef } from "./clauses";
 import { GridCard } from "./grid-card";
 import { STAGGER_MS } from "./narration";
 import type { Col, Row as RowView, Scene, TableView } from "./scenes";
+import { TerminusCard } from "./terminus-card";
 import { TickNumber } from "./tick-number";
 import type { StationState } from "./use-walk";
 import { VerdictMark } from "./verdict-mark";
@@ -170,7 +172,13 @@ function useEdges(ref: React.RefObject<HTMLDivElement | null>): { left: boolean;
   return edges;
 }
 
-/** The cards of a scene in a row, with the grid — when there is one — first and widest. */
+/**
+ * The cards of a scene in a row, with the grid — when there is one — first and widest.
+ *
+ * The terminus is the one card that is NOT in that row: it belongs under the result it explains,
+ * because it is a second thought about the same rows rather than a step beside them, so the whole
+ * arrangement becomes a column when there is one.
+ */
 function TablesScene({
   scene,
   sourceLink,
@@ -179,21 +187,27 @@ function TablesScene({
   sourceLink: (source: SourceRef) => SourceLink | null;
 }): React.ReactElement {
   const t = useT();
+  const terminus = scene.kind === "tables" ? scene.terminus : undefined;
+  const answer = scene.kind === "tables" ? scene.answer : undefined;
   return (
-    <motion.div
-      className={cn(
-        "relative flex items-start",
-        scene.kind === "grid" ? "gap-6" : scene.tight ? "gap-3" : "gap-12",
-      )}
-      layout
-      transition={t.spring}
-    >
-      <AnimatePresence initial={false} mode="popLayout">
-        {scene.kind === "grid" && <GridCard grid={scene.grid} key={scene.grid.key} />}
-        {scene.tables.map((view) => (
-          <Table key={view.key} sourceLink={sourceLink} view={view} />
-        ))}
-      </AnimatePresence>
+    <motion.div className="flex flex-col items-start gap-3" layout transition={t.spring}>
+      <motion.div
+        className={cn(
+          "relative flex items-start",
+          scene.kind === "grid" ? "gap-6" : scene.tight ? "gap-3" : "gap-12",
+        )}
+        layout
+        transition={t.spring}
+      >
+        <AnimatePresence initial={false} mode="popLayout">
+          {scene.kind === "grid" && <GridCard grid={scene.grid} key={scene.grid.key} />}
+          {scene.tables.map((view) => (
+            <Table key={view.key} sourceLink={sourceLink} view={view} />
+          ))}
+          {answer && <AnswerCard key={answer.key} view={answer} />}
+        </AnimatePresence>
+      </motion.div>
+      {terminus && <TerminusCard key={terminus.key} view={terminus} />}
     </motion.div>
   );
 }

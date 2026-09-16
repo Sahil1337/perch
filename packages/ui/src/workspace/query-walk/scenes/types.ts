@@ -116,6 +116,65 @@ export type TableView = {
   readonly error?: string;
 };
 
+/** One value the subquery of an IN returned: a piece of the hay the needle is looked for in. */
+export type ValueChip = {
+  readonly key: string;
+  readonly text: string;
+  /** This is the value the outer row's left expression equals: the needle, found. */
+  readonly match: boolean;
+  /**
+   * A null among the values, which under `NOT IN` is fatal to every row.
+   *
+   * `x not in (a, null)` compares x against every value with `=`; a comparison to null is unknown,
+   * so the predicate can never be proved true and no row passes, however unlike the other values x
+   * is. Marking the row is what turns a table that looks fine into the reason the result is empty.
+   */
+  readonly poison: boolean;
+};
+
+/**
+ * The right half of a per-row ledger, which is a different picture for each predicate kind.
+ *
+ * EXISTS is absent from this union on purpose: presence is a question about ROWS, and the rows are
+ * an ordinary card. IN is a question about membership, so its card is a value list rather than a
+ * table — a table invites the eye to read columns that are not the point. A scalar is a question
+ * about one comparison, so its card is that comparison, three cells wide.
+ */
+export type AnswerView =
+  | {
+      readonly kind: "values";
+      readonly key: string;
+      readonly title: string;
+      /** How the needle is labelled: the left expression as written, `s.dept_name`. */
+      readonly needleLabel: string;
+      /** The outer row's value for it, spelled as the SQL spells it. */
+      readonly needle: string;
+      readonly values: readonly ValueChip[];
+      readonly total: number | null;
+      readonly truncated: boolean;
+      readonly verdict: "pass" | "fail";
+      readonly empty: string;
+      readonly error: string | null;
+    }
+  | {
+      readonly kind: "equation";
+      readonly key: string;
+      readonly title: string;
+      /** The left expression as written, and the outer row's value for it. */
+      readonly leftLabel: string;
+      readonly left: string;
+      /** The comparison operator, exactly as the user typed it. */
+      readonly operator: string;
+      /** The one value the subquery returned, or `null` when it returned no row at all. */
+      readonly right: string;
+      readonly verdict: "pass" | "fail";
+      /** The subquery returned no row, so the value is null and the comparison is unknown. */
+      readonly missing: boolean;
+      /** Rows the subquery returned when that is more than one, which SQL makes an error. */
+      readonly many: number | null;
+      readonly error: string | null;
+    };
+
 export type Summary = { readonly label: string; readonly value: Cell; readonly num: boolean };
 
 export type BucketView = {
@@ -127,12 +186,44 @@ export type BucketView = {
   readonly summary: readonly Summary[] | null;
 };
 
+/** One row of the nearest-miss card: an outer row, and how far it was from passing. */
+export type NearRow = {
+  readonly key: string;
+  readonly cells: Readonly<Record<string, Cell>>;
+  /** `short by 1: CS-319`, `closest: 96.0 against 98.7`, `nothing in takes for s.ID = '12345'`. */
+  readonly gap: string;
+};
+
+/**
+ * Why the result is empty, and which rows came closest to not making it so.
+ *
+ * It is a VIEW choice and never a step the database took: the rows are re-ordered by how close they
+ * came, which no ORDER BY asked for, so the card arrives settled and nothing about it animates. See
+ * `terminus.ts` for what "close" means per predicate kind and for why some kinds have no such thing.
+ */
+export type TerminusView = {
+  readonly key: string;
+  readonly title: string;
+  /** The line the empty result card carries: `no row survived not exists (…)`. */
+  readonly why: string;
+  readonly cols: readonly Col[];
+  /** The header over the gap column, which names the measure: `how far`, `what it needed`. */
+  readonly gapLabel: string;
+  readonly rows: readonly NearRow[];
+  /** What the card means, in a sentence, for the narrator beside the stage. */
+  readonly sentence: string;
+};
+
 export type Scene =
   | {
       readonly kind: "tables";
       readonly tables: readonly TableView[];
       readonly tight: boolean;
       readonly count: number | null;
+      /** The per-kind right half of a bound ledger, when the kind is not EXISTS. */
+      readonly answer?: AnswerView;
+      /** Under an empty result: the rows that came closest, and why none of them made it. */
+      readonly terminus?: TerminusView;
     }
   | {
       readonly kind: "buckets";

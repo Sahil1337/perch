@@ -11,6 +11,7 @@ import * as React from "react";
 import { Button } from "../../ui/button";
 import { Kbd } from "../../ui/kbd";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../../ui/tooltip";
+import { EvidenceContext, useEvidenceStore } from "./bound-evidence";
 import { BoundSection } from "./bound-section";
 import { Chapters } from "./chapters";
 import type { SourceRef } from "./clauses";
@@ -22,6 +23,7 @@ import { buildScene, countAt, errorOf, inputCount, sampleId } from "./scenes";
 import { SectionHold } from "./section-hold";
 import { SkippedNote } from "./skipped-note";
 import { Stage } from "./stage";
+import { buildTerminus } from "./terminus";
 import {
   runsPerRow,
   stationState,
@@ -77,6 +79,9 @@ function ownsArrowKeys(target: EventTarget | null): boolean {
 
 export function WalkPlayer({ data, probe }: { data: ProgramData; probe: Probe }): React.ReactElement {
   const { program, sections } = data;
+  // What the bound chapters measured, held for the whole program so the last station can explain an
+  // empty result out of numbers that have already been fetched.
+  const store = useEvidenceStore(program);
 
   // Every section's station states, not just the open one: stepping out of the end of a chapter
   // has to know which station the next chapter starts on before it gets there.
@@ -312,10 +317,34 @@ export function WalkPlayer({ data, probe }: { data: ProgramData; probe: Probe })
     return () => window.removeEventListener("keydown", onKey, true);
   }, [togglePlay, stepForward, stepBack]);
 
-  const scene = React.useMemo(
+  const built = React.useMemo(
     () => (walk ? buildScene(stationIndex, phase, walk) : null),
     [phase, stationIndex, walk],
   );
+  // The nearest-miss card, and only on the MAIN chapter: an empty CTE is an intermediate result and
+  // the query around it may well want it empty, where an empty final result is the answer itself.
+  const terminus = React.useMemo(
+    () =>
+      walk && run?.section.id === program.mainId
+        ? buildTerminus({
+            walk,
+            index: stationIndex,
+            dialect: program.dialect,
+            evidence: store.evidence,
+          })
+        : null,
+    [program.dialect, program.mainId, run?.section.id, stationIndex, store.evidence, walk],
+  );
+  // The card explaining the emptiness, and the line on the empty card that introduces it. The line
+  // replaces `No rows.`, which is true and says nothing about which test emptied them.
+  const scene = React.useMemo(() => {
+    if (built === null || terminus === null || built.kind !== "tables") return built;
+    return {
+      ...built,
+      terminus,
+      tables: built.tables.map((view, at) => (at === 0 ? { ...view, empty: terminus.why } : view)),
+    };
+  }, [built, terminus]);
   const sentence = React.useMemo(
     () => (walk ? sentenceFor(stationIndex, walk) : ""),
     [stationIndex, walk],
@@ -344,85 +373,87 @@ export function WalkPlayer({ data, probe }: { data: ProgramData; probe: Probe })
 
   return (
     <SpeedContext.Provider value={speed}>
-      <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
-        {strip && (
-          <div className="flex min-w-0 shrink-0 flex-col gap-0.5 border-b pb-2">
-            {sections.length > 1 && (
-              <Chapters
-                active={sectionIndex}
-                onJump={gotoSection}
-                sections={sections}
-                writtenOrder={program.setOp !== null}
-              />
-            )}
-            {program.skipped.length > 0 && <SkippedNote parts={program.skipped} />}
-          </div>
-        )}
-
-        <div className="flex min-w-0 items-start gap-4">
-          {walk && (
-            <Rail active={stationIndex} onJump={goto} states={states} stations={walk.stations} />
+      <EvidenceContext.Provider value={store}>
+        <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
+          {strip && (
+            <div className="flex min-w-0 shrink-0 flex-col gap-0.5 border-b pb-2">
+              {sections.length > 1 && (
+                <Chapters
+                  active={sectionIndex}
+                  onJump={gotoSection}
+                  sections={sections}
+                  writtenOrder={program.setOp !== null}
+                />
+              )}
+              {program.skipped.length > 0 && <SkippedNote parts={program.skipped} />}
+            </div>
           )}
-          <div aria-label="Playback" className="ms-auto flex shrink-0 items-center gap-1" role="toolbar">
-            <Control disabled={previous === null} hint="←" label="Step back" onClick={stepBack}>
-              <SkipBackIcon />
-            </Control>
-            <Control hint="space" label={playing ? "Pause" : "Play"} onClick={togglePlay} primary>
-              {playing ? <PauseIcon /> : <PlayIcon />}
-            </Control>
-            <Control disabled={next === null} hint="→" label="Step forward" onClick={stepForward}>
-              <SkipForwardIcon />
-            </Control>
-            <div aria-hidden className="mx-1 h-4 w-px bg-border" />
-            <Button
-              aria-label={`Speed ${speed}x, click to change`}
-              onClick={() => setSpeed((s) => (s === 1 ? 0.5 : 1))}
-              size="xs"
-              variant="outline"
-            >
-              <span className="font-mono tabular-nums">{speed === 1 ? "1×" : "0.5×"}</span>
-            </Button>
-          </div>
-        </div>
 
-        {walk && station && scene ? (
-          <div className="grid min-h-0 flex-1 gap-4 md:grid-cols-3">
-            <div className="flex min-h-0 min-w-0 flex-col md:col-span-2">
-              <Stage
-                scene={scene}
-                sceneKey={run?.section.id ?? ""}
-                sourceLink={sourceLink}
+          <div className="flex min-w-0 items-start gap-4">
+            {walk && (
+              <Rail active={stationIndex} onJump={goto} states={states} stations={walk.stations} />
+            )}
+            <div aria-label="Playback" className="ms-auto flex shrink-0 items-center gap-1" role="toolbar">
+              <Control disabled={previous === null} hint="←" label="Step back" onClick={stepBack}>
+                <SkipBackIcon />
+              </Control>
+              <Control hint="space" label={playing ? "Pause" : "Play"} onClick={togglePlay} primary>
+                {playing ? <PauseIcon /> : <PlayIcon />}
+              </Control>
+              <Control disabled={next === null} hint="→" label="Step forward" onClick={stepForward}>
+                <SkipForwardIcon />
+              </Control>
+              <div aria-hidden className="mx-1 h-4 w-px bg-border" />
+              <Button
+                aria-label={`Speed ${speed}x, click to change`}
+                onClick={() => setSpeed((s) => (s === 1 ? 0.5 : 1))}
+                size="xs"
+                variant="outline"
+              >
+                <span className="font-mono tabular-nums">{speed === 1 ? "1×" : "0.5×"}</span>
+              </Button>
+            </div>
+          </div>
+
+          {walk && station && scene ? (
+            <div className="grid min-h-0 flex-1 gap-4 md:grid-cols-3">
+              <div className="flex min-h-0 min-w-0 flex-col md:col-span-2">
+                <Stage
+                  scene={scene}
+                  sceneKey={run?.section.id ?? ""}
+                  sourceLink={sourceLink}
+                  state={state}
+                />
+              </div>
+              <Narrator
+                count={count}
+                error={error}
+                input={input}
+                onPhase={gotoPhase}
+                phase={phase}
+                phases={stationPhases}
+                result={walk.results[stationIndex]}
+                sentence={terminus === null ? sentence : `${sentence} ${terminus.sentence}`}
+                sql={walk.text}
                 state={state}
+                station={station}
               />
             </div>
-            <Narrator
-              count={count}
-              error={error}
-              input={input}
-              onPhase={gotoPhase}
-              phase={phase}
-              phases={stationPhases}
-              result={walk.results[stationIndex]}
-              sentence={sentence}
-              sql={walk.text}
-              state={state}
-              station={station}
+          ) : run && boundView ? (
+            <BoundSection
+              onDone={advance}
+              onOpenSection={openSection}
+              onPause={pause}
+              playing={playing}
+              probe={probe}
+              program={program}
+              section={run.section}
             />
-          </div>
-        ) : run && boundView ? (
-          <BoundSection
-            onDone={advance}
-            onOpenSection={openSection}
-            onPause={pause}
-            playing={playing}
-            probe={probe}
-            program={program}
-            section={run.section}
-          />
-        ) : run ? (
-          <SectionHold section={run.section} />
-        ) : null}
-      </div>
+          ) : run ? (
+            <SectionHold section={run.section} />
+          ) : null}
+        </div>
+      </EvidenceContext.Provider>
     </SpeedContext.Provider>
   );
 }

@@ -23,6 +23,7 @@
 import { MySQL, PostgreSQL } from "@codemirror/lang-sql";
 import type { Dialect } from "@perch/protocol";
 import {
+  bareName,
   countingRewrite,
   isSetOp,
   isUnsupported,
@@ -605,7 +606,7 @@ function addChildren(
       // table computed once — and anything correlated among them binds to THIS section, whose grid
       // is where its rows would come from.
       if (grid !== null && sameRange(grid.inner.range, predicate.range)) {
-        absorbed.push(predicateLabel(predicate));
+        absorbed.push(predicateLabel(predicate, sql));
         const body = compose(sql.slice(predicate.body.from, predicate.body.to), inner, build.dialect);
         const parsedBody = parseStatement(body, build.dialect);
         if (!isUnsupported(parsedBody) && !isSetOp(parsedBody)) {
@@ -630,7 +631,7 @@ function addChildren(
         sql: compose(sql.slice(predicate.body.from, predicate.body.to), inner, build.dialect),
         prefix: renderPrefix(inner),
         path: `${path}.${slot}:${index}`,
-        label: predicateLabel(predicate),
+        label: predicateLabel(predicate, sql),
         origin: { kind: "predicate", predicate },
         // A subquery nested inside a per-row section is itself per-row, even when nothing in its
         // own text is correlated: it cannot run until the row above it exists.
@@ -705,7 +706,7 @@ function predicateBinding(
     if (predicate.kind === "scalar" && countingRewrite(predicate) === null) {
       build.skipped.push({
         why: "inline",
-        label: predicateLabel(predicate),
+        label: predicateLabel(predicate, sql),
         reason: "A correlated scalar subquery that already aggregates has no per-row result to walk.",
         sql: sql.slice(predicate.range.from, predicate.range.to),
       });
@@ -729,6 +730,8 @@ function predicateBinding(
  * and for IN a list that bound outward would compare the outer row to itself — a query nobody
  * writes. That is a judgement call, and it is the one place this can still say "certain" about
  * something a catalogue would disagree with.
+ *
+ * A bare name found in one of those ranges is not the end of it: see `resolvesLocally`.
  */
 function isCertainlyUncorrelated(
   predicate: SubqueryPredicate,
@@ -746,7 +749,41 @@ function isCertainlyUncorrelated(
     if (join.range.to > join.source.range.to) ranges.push({ from: join.source.range.to, to: join.range.to });
   }
   if (predicate.kind === "scalar") ranges.push(parsed.selectList);
-  return !hasBareColumnRef(sql, dialect, ranges);
+  const bare = bareColumnRefs(sql, dialect, ranges);
+  if (bare.length === 0) return true;
+  return resolvesLocally(bare, parsed, dialect);
+}
+
+/**
+ * Whether every bare name in a subquery is provably a column of the subquery's own source.
+ *
+ * The conservatism above exists because `course_id` with no table in front of it cannot be resolved
+ * without a catalogue — and against a real table there is none to read, so it stays uncertain. But
+ * when the source is a CTE the walk has a catalogue, and it is one the program itself built: the
+ * CTE's output columns are its select list, which is text. `advises` inside
+ * `select i_id from advisor_teaches where advises = …` is therefore not a maybe — it is the CTE's
+ * own column, the subquery is uncorrelated, and wave 8's warning on it was simply false.
+ *
+ * Three things keep the conservatism where it is earned. The subquery must have exactly ONE source,
+ * because with two the name could belong to either and knowing one catalogue settles nothing. That
+ * source must be a CTE, because a plain table's columns are in the database and not in the query.
+ * And the CTE's own list must NAME all of its columns — a `select *` inside it, or a set operation,
+ * puts the answer back in the catalogue — with every bare name found among them; one that is not is
+ * exactly the reference that might point outward, and it keeps the caveat for the whole subquery.
+ */
+function resolvesLocally(
+  bare: readonly string[],
+  parsed: ParsedSelect,
+  dialect: Dialect,
+): boolean {
+  if (parsed.joins.length > 0) return false;
+  if (parsed.first.kind !== "cte" || parsed.first.body === null) return false;
+  // The CTE's body is a range into the same text, because the parse was seeded with the CTEs the
+  // enclosing WITH put in scope; re-parsing it is how its select list becomes a list of names.
+  const body = parseStatement(parsed.text.slice(parsed.first.body.from, parsed.first.body.to), dialect);
+  if (isUnsupported(body) || isSetOp(body) || body.selectNames === null) return false;
+  const known = new Set(body.selectNames.map((name) => name.toLowerCase()));
+  return bare.every((name) => known.has(name));
 }
 
 /**
@@ -794,9 +831,37 @@ function compose(body: string, scope: Scope, dialect: Dialect): string {
   return `${prefix}${trimmed}`;
 }
 
-function predicateLabel(predicate: SubqueryPredicate): string {
+/**
+ * What a subquery predicate is CALLED on the chapter strip.
+ *
+ * `exists`, `in` and their negations are named by the table they read, which is the thing the
+ * reader is looking for: `not exists takes`. A scalar cannot be, and that was wave 8's bug — two
+ * scalars over one CTE both came out as the CTE's own name, so `claimLabel` numbered them and the
+ * strip read as if the CTE had been sectioned three times over. What tells a scalar apart from its
+ * neighbours is the COMPARISON it sits in, so that is what names it: `i.ID = (…)`, `advises = (…)`.
+ * Both halves are the user's own spelling and neither can be mistaken for the table's name.
+ *
+ * `sql` is the text the predicate's ranges index — the statement the predicate was found in, never
+ * the subquery's own text.
+ */
+function predicateLabel(predicate: SubqueryPredicate, sql: string): string {
   const source = predicate.parsed.kind === "select" ? predicate.parsed.first.name : "subquery";
-  return predicate.kind === "scalar" ? source : `${predicate.kind} ${source}`;
+  if (predicate.kind !== "scalar") return `${predicate.kind} ${source}`;
+  const { left, operator } = predicate;
+  // Written the other way round — `(select …) > 5` — the compared expression sits on the RIGHT of
+  // the operator, and a label that swapped the sides would be quoting something nobody typed.
+  if (left === null || operator === null) return source;
+  const text = clip(sql.slice(left.from, left.to));
+  return left.from > predicate.body.to ? `(…) ${operator} ${text}` : `${text} ${operator} (…)`;
+}
+
+/** Long enough for a comparison anyone writes, short enough that the strip truncates a run-on
+ *  expression rather than a name that was nearly readable. */
+const LABEL_CHARS = 28;
+
+function clip(text: string): string {
+  const one = text.replace(/\s+/g, " ").trim();
+  return one.length <= LABEL_CHARS ? one : `${one.slice(0, LABEL_CHARS - 1)}…`;
 }
 
 /** The first free spelling of a label, so two `not exists takes` sections stay tellable apart. */
@@ -863,19 +928,25 @@ function parserFor(dialect: Dialect): typeof PostgreSQL.language.parser {
 }
 
 /**
- * Whether any of `ranges` holds a column reference nobody qualified.
+ * Every column reference in `ranges` that nobody qualified, lower-cased and de-quoted.
  *
  * `CompositeIdentifier` is `s.ID` — already qualified, and wave 1's correlation check has had its
  * say about it. A nested `(select …)` is skipped: it is its own scope and its own section, and what
  * it leaves unqualified is its own problem, not this one's.
+ *
+ * The names rather than a bare boolean, because the caller can now sometimes RESOLVE one: a name
+ * that is an output column of the CTE the subquery reads is provably local, and telling that from a
+ * name that is not needs the name itself.
  */
-function hasBareColumnRef(text: string, dialect: Dialect, ranges: readonly Range[]): boolean {
-  if (ranges.length === 0) return false;
+function bareColumnRefs(text: string, dialect: Dialect, ranges: readonly Range[]): string[] {
+  if (ranges.length === 0) return [];
   const tree = parserFor(dialect).parse(text);
-  return ranges.some((range) => scanBare(nodeContaining(tree.topNode, range), text, range));
+  const out: string[] = [];
+  for (const range of ranges) scanBare(nodeContaining(tree.topNode, range), text, range, out);
+  return out;
 }
 
-function scanBare(node: SyntaxNode, text: string, range: Range): boolean {
+function scanBare(node: SyntaxNode, text: string, range: Range, out: string[]): void {
   for (let child = node.firstChild; child; child = child.nextSibling) {
     if (child.to <= range.from || child.from >= range.to) continue;
     if (child.name === "CompositeIdentifier") continue;
@@ -884,12 +955,12 @@ function scanBare(node: SyntaxNode, text: string, range: Range): boolean {
       // follows it with no gap is what tells the two apart.
       const next = child.nextSibling;
       if (next && next.name === "Parens" && next.from === child.to) continue;
-      return true;
+      out.push(bareName(text.slice(child.from, child.to)).toLowerCase());
+      continue;
     }
     if (child.name === "Parens" && isSelectParens(child, text)) continue;
-    if (scanBare(child, text, range)) return true;
+    scanBare(child, text, range, out);
   }
-  return false;
 }
 
 function isSelectParens(parens: SyntaxNode, text: string): boolean {

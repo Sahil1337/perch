@@ -32,6 +32,13 @@ export type BoundRun = {
   readonly inner: QueryOutcome | undefined;
   /** The statement that produced them, literals and all — this is the SQL worth reading. */
   readonly innerSql: string | null;
+  /**
+   * Every row probe that has landed, by outer row index.
+   *
+   * Sparse, because the probes are lazy: this is the cache above read from the outside, so a later
+   * chapter can use what was already asked for without asking for any of it again.
+   */
+  readonly answers: ReadonlyMap<number, StatementResult>;
 };
 
 function messageOf(error: unknown): string {
@@ -121,6 +128,14 @@ export function useBoundRun(plan: BoundPlan, probe: Probe): BoundRun {
     })();
   }, [cached, current, innerSql, probe]);
 
+  // Only the results that came back, so a caller reading this never has to ask whether an entry is
+  // a table or an error message.
+  const answers = React.useMemo(() => {
+    const out = new Map<number, StatementResult>();
+    for (const [index, outcome] of rowResults) if (outcome.ok) out.set(index, outcome.result);
+    return out;
+  }, [rowResults]);
+
   return {
     outer: sample,
     outerError: outer && !outer.ok ? outer.error : null,
@@ -130,5 +145,6 @@ export function useBoundRun(plan: BoundPlan, probe: Probe): BoundRun {
     bind: setWanted,
     inner: cached,
     innerSql,
+    answers,
   };
 }

@@ -19,17 +19,22 @@ import { EMPTY, type Scene } from "./types";
 import { capCols } from "./view";
 
 export type {
+  AnswerView,
   BucketView,
   Col,
   GridCellView,
   GridGroup,
   GridRowView,
   GridView,
+  NearRow,
   Row,
   Scene,
   Summary,
   TableView,
+  TerminusView,
+  ValueChip,
 } from "./types";
+export { answerView } from "./answer";
 export { boundScene, innerCard } from "./bound";
 export { gridScene } from "./grid";
 export { countAt, countValue, errorOf, inputCount, previousIndex, sampleId } from "./results";

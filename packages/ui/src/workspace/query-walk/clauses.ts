@@ -89,6 +89,17 @@ export type ParsedSelect = {
   readonly selectClause: Range;
   /** Each select-list item's expression, aliases stripped, for positional GROUP BY / ORDER BY. */
   readonly selectItems: readonly string[];
+  /**
+   * The names this SELECT's output columns have, when the text settles all of them.
+   *
+   * Null the moment a `*` appears anywhere in the list: what a star expands to is a fact about the
+   * catalogue and not about the query, so a partial list would be worse than none — a caller
+   * asking "is this one of the output columns" would get a confident no for a column the star
+   * really does produce. An item that is neither an alias nor a plain column reference contributes
+   * nothing: `count(*)` is named by the database, not by the text, and guessing `count` would be
+   * the same mistake one item smaller.
+   */
+  readonly selectNames: readonly string[] | null;
   readonly fromKeyword: Range;
   /** `FROM` through the last join's condition. */
   readonly from: Range;
@@ -530,7 +541,9 @@ function parseTokens(
   while (i < toks.length && kwAt(toks, i) !== "from" && !isClauseWord(kwAt(toks, i))) i++;
   if (i === listStart) return { kind: "unsupported", reason: "This SELECT has no columns." };
   const selectList: Range = { from: toks[listStart]!.from, to: toks[i - 1]!.to };
-  const selectItems = splitItems(toks.slice(listStart, i), text).map((item) => stripAlias(item, text));
+  const listItems = splitItems(toks.slice(listStart, i), text);
+  const selectItems = listItems.map((item) => stripAlias(item, text));
+  const selectNames = outputNames(listItems, text);
 
   if (kwAt(toks, i) !== "from") {
     return { kind: "unsupported", reason: "This query has no FROM clause, so there is nothing to walk." };
@@ -683,6 +696,7 @@ function parseTokens(
     selectList,
     selectClause: { from: selectKw.from, to: selectList.to },
     selectItems,
+    selectNames,
     fromKeyword: { from: fromKw.from, to: fromKw.to },
     from: { from: fromKw.from, to: fromEnd },
     first,
@@ -1288,6 +1302,68 @@ function sliceTokens(tokens: readonly Token[], text: string): string {
   const last = tokens[tokens.length - 1];
   if (!first || !last) return "";
   return text.slice(first.from, last.to);
+}
+
+/**
+ * What the output columns of a select list are CALLED, or null when the list does not say.
+ *
+ * Three cases and nothing else, because anything cleverer would be a guess about the database's
+ * own naming: `expr as name` is called `name`, a bare or qualified column reference is called by
+ * its last part, and a star makes the whole list unknowable — `*` names whatever the catalogue
+ * holds, and the one caller for this asks "is this name definitely NOT an output column", which a
+ * list missing the star's columns would answer wrongly and confidently.
+ */
+function outputNames(items: readonly (readonly Token[])[], text: string): string[] | null {
+  const names: string[] = [];
+  for (const item of items) {
+    const n = item.length;
+    const last = item[n - 1];
+    if (!last) continue;
+    if (n >= 3 && item[n - 2]?.kw === "as") {
+      names.push(bareName(last.text));
+      continue;
+    }
+    // A `*`, on its own or as `t.*`, is the case that makes the whole list unknown.
+    if (sliceTokens(item, text).trimEnd().endsWith("*")) return null;
+    // One token, and it is a name: `i_id`, `a.i_id`, `"Total"`. Anything else — an arithmetic
+    // expression, a function call, a CASE — is named by the database rather than by this text.
+    if (n === 1 && IDENT.has(last.name)) names.push(bareName(last.text));
+  }
+  return names;
+}
+
+/**
+ * The depth-zero `AND` conjuncts of a clause body, in source order.
+ *
+ * `a and b and c` is three separate tests a row has to pass, and both callers here care about them
+ * one at a time: the program asks whether ONE of them is the subquery that emptied the result, and
+ * the walk asks how many of them a row failed. An `or` anywhere at depth zero collapses the answer
+ * to a single conjunct — the body as a whole — because `a and (b or c)` is three tests but
+ * `a or b and c` is not, and splitting the second one would invent a structure the SQL does not
+ * have. A conjunct wrapped in its own parentheses keeps them: the range is the user's text.
+ */
+export function conjuncts(text: string, body: Range, dialect: Dialect): Range[] {
+  const tree = parserFor(dialect).parse(text);
+  const host = nodeContaining(tree.topNode, body);
+  const toks = children(host, text).filter(
+    (token) => token.from >= body.from && token.to <= body.to && token.name !== "(" && token.name !== ")",
+  );
+  if (toks.some((token) => token.kw === "or")) return [body];
+  const out: Range[] = [];
+  let start: Token | undefined;
+  let end: Token | undefined;
+  for (const token of toks) {
+    if (token.kw === "and") {
+      if (start && end) out.push({ from: start.from, to: end.to });
+      start = undefined;
+      end = undefined;
+      continue;
+    }
+    start ??= token;
+    end = token;
+  }
+  if (start && end) out.push({ from: start.from, to: end.to });
+  return out.length === 0 ? [body] : out;
 }
 
 /** `sum(total) as revenue` → `sum(total)`. Only the explicit AS form is recognised. */

@@ -4,7 +4,16 @@
 // it means what the user wrote. A newline goes before anything appended: a `-- comment` at the end
 // of a clause would otherwise swallow the `limit` that follows it.
 
-import { bareName, type JoinClause, type ParsedSelect, type Range, type SourceRef, WALK_PREFIX } from "./clauses";
+import type { Dialect } from "@perch/protocol";
+import {
+  bareName,
+  conjuncts,
+  type JoinClause,
+  type ParsedSelect,
+  type Range,
+  type SourceRef,
+  WALK_PREFIX,
+} from "./clauses";
 
 /** The one definition lives in `clauses.ts`, where the parser and the query builders can both
  *  reach it; this keeps the name importable from here, which is where it was first spelled. */
@@ -34,6 +43,17 @@ export const keyColumn = (index: number): string => `${WALK_PREFIX}k${index}`;
 export const MATCH_COLUMN = `${WALK_PREFIX}n`;
 /** One correlated reference's value on the outer row, under a name the walk owns. */
 export const bindColumn = (index: number): string => `${WALK_PREFIX}v${index}`;
+/**
+ * The outer row's value for the expression a predicate compares — `s.dept_name` in
+ * `s.dept_name in (select …)`.
+ *
+ * It rides on the outer probe that already runs rather than costing a statement of its own, and it
+ * is what lets an IN light the matching value in the list and a scalar show its equation. EXISTS
+ * has no such expression and the probe simply does not ask for one.
+ */
+export const LEFT_COLUMN = `${WALK_PREFIX}left`;
+/** One depth-zero conjunct of a WHERE, evaluated per row: how far from passing a failing row was. */
+export const conjunctColumn = (index: number): string => `${WALK_PREFIX}c${index}`;
 /**
  * The two names the grid probe adds on top of those.
  *
@@ -399,7 +419,7 @@ export function buildResultStation(text: string): Station {
   };
 }
 
-export function buildStations(parsed: ParsedSelect): Station[] {
+export function buildStations(parsed: ParsedSelect, dialect: Dialect): Station[] {
   const { text } = parsed;
   const slice = (range: Range): string => text.slice(range.from, range.to);
   const withPrefix = parsed.with ? `${slice(parsed.with)}\n` : "";
@@ -468,6 +488,13 @@ export function buildStations(parsed: ParsedSelect): Station[] {
   /* WHERE */
   {
     const base = lines("select *", fullFrom, where);
+    // One boolean per depth-zero conjunct, beside the verdict the station already asks for. It is
+    // the same statement with wider columns, not a second probe, and it is the only measure of
+    // "how close did this row come" that exists for free: a row that failed one of three tests got
+    // further than a row that failed all three. A single-conjunct WHERE adds nothing, because the
+    // one column would be the verdict again under another name.
+    const parts = parsed.where ? conjuncts(text, parsed.where.body, dialect) : [];
+    const tests = parts.length > 1 ? parts.map((part, index) => `, (${slice(part)}) as ${conjunctColumn(index)}`) : [];
     const queries: Query[] = parsed.where
       ? [
           sample(base),
@@ -475,7 +502,12 @@ export function buildStations(parsed: ParsedSelect): Station[] {
           {
             id: "verdict",
             label: "Row test",
-            sql: limited(lines(`select *, (${slice(parsed.where.body)}) as ${PASS_COLUMN}`, fullFrom)),
+            sql: limited(
+              lines(
+                `select *, (${slice(parsed.where.body)}) as ${PASS_COLUMN}${tests.join("")}`,
+                fullFrom,
+              ),
+            ),
           },
         ]
       : [];

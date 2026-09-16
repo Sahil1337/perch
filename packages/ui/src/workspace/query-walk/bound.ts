@@ -31,7 +31,7 @@ import {
 import { gridBuild, type GridBuild } from "./grid";
 import { sectionById, type Program, type Section } from "./program";
 import { truthy } from "./scenes/columns";
-import { bindColumn, MATCH_COLUMN, PASS_COLUMN } from "./steps";
+import { bindColumn, LEFT_COLUMN, MATCH_COLUMN, PASS_COLUMN } from "./steps";
 
 export { bindColumn, MATCH_COLUMN };
 
@@ -47,6 +47,8 @@ export type BoundPlan = {
   readonly section: Section;
   readonly outer: Section;
   readonly predicate: SubqueryPredicate;
+  /** The predicate as the user wrote it, on one line, for quoting in a sentence. */
+  readonly predicateText: string;
   readonly columns: readonly BoundColumn[];
   /** The outer query carrying the bound values, the verdict and the match count. */
   readonly outerSql: string;
@@ -66,6 +68,14 @@ export type BoundPlan = {
   readonly refs: readonly { readonly ref: string; readonly range: Range }[];
   /** The select list may be widened to `*`: see `boundRowSql`. */
   readonly star: boolean;
+  /**
+   * The expression the predicate compares, as the user wrote it: `s.dept_name`, `s.tot_cred`.
+   *
+   * Null for EXISTS, which compares nothing — it asks only whether rows came back. For IN and for a
+   * scalar it is the left-hand side of the whole lesson, so the outer probe brings its value back
+   * per row and the panel can pair the needle with the hay.
+   */
+  readonly left: string | null;
 };
 
 /** A bound section the walk cannot probe on its own, and the sentence that says why. */
@@ -135,12 +145,14 @@ export function boundPlan(program: Program, section: Section): BoundPlan | Bound
   const wrap = rewrite === null && !collapsesToOneRow(predicate) ? countingWrap(predicate) : null;
   const counting = rewrite ?? wrap;
 
+  const left = predicate.left === null ? null : host.text.slice(predicate.left.from, predicate.left.to);
   const verdictSql = outerProbeSql(host, predicate, columns, null);
   return {
     kind: "plan",
     section,
     outer,
     predicate,
+    predicateText: host.text.slice(predicate.range.from, predicate.range.to).replace(/\s+/g, " ").trim(),
     columns,
     outerSql: counting === null ? verdictSql : outerProbeSql(host, predicate, columns, counting),
     verdictSql,
@@ -149,6 +161,7 @@ export function boundPlan(program: Program, section: Section): BoundPlan | Bound
     dialect,
     refs: refRanges(body.text, dialect, binding.columns),
     star: canWiden(body, predicate.kind),
+    left,
   };
 }
 
@@ -176,9 +189,14 @@ function outerProbeSql(
   const text = outer.text.slice(predicate.range.from, predicate.range.to);
   // The closing parenthesis goes on its own line every time: a `-- comment` on the last line of the
   // user's predicate would otherwise swallow the `) as …` that follows it.
+  const left = predicate.left;
   const list = [
     outer.text.slice(outer.selectList.from, outer.selectList.to),
     ...columns.map((column) => `(${column.ref}) as ${column.column}`),
+    // The compared expression, when there is one. It is the outer query's own text spliced into the
+    // outer query's own select list, so it costs a column on a statement that was already going to
+    // run and never a statement of its own.
+    ...(left === null ? [] : [`(${outer.text.slice(left.from, left.to)}) as ${LEFT_COLUMN}`]),
     `(${text}\n) as ${PASS_COLUMN}`,
     ...(counting === null ? [] : [`(${counting}\n) as ${MATCH_COLUMN}`]),
   ];
@@ -358,6 +376,15 @@ export type BoundRow = {
   readonly pass: boolean;
   /** The correlated references that are null here, which is why the subquery can match nothing. */
   readonly nulls: readonly string[];
+  /**
+   * The outer row's value for the expression the predicate compares, and its literal.
+   *
+   * Both null for EXISTS, which compares nothing, and for a plan whose probe could not be asked for
+   * the column. `leftLiteral` is spelled by `sqlLiteral` so a value shown beside the subquery's own
+   * values is spelled the way the SQL would spell it and the two can be compared by eye.
+   */
+  readonly left: Cell;
+  readonly leftLiteral: string | null;
 };
 
 /**
@@ -372,6 +399,7 @@ export function boundRows(plan: BoundPlan, result: StatementResult): BoundRow[] 
     result.columns.findIndex((column) => column.name.toLowerCase() === name.toLowerCase());
   const passAt = at(PASS_COLUMN);
   const matchAt = at(MATCH_COLUMN);
+  const leftAt = plan.left === null ? -1 : at(LEFT_COLUMN);
   const valueAt = plan.columns.map((column) => at(column.column));
 
   return result.rows.map((row, index) => {
@@ -386,10 +414,13 @@ export function boundRows(plan: BoundPlan, result: StatementResult): BoundRow[] 
     // `count(*)` is never null, but a cell that somehow is must not become a confident 0.
     const raw = matchAt < 0 ? null : (row[matchAt] ?? null);
     const count = raw === null ? null : Number(raw);
+    const left = leftAt < 0 ? null : (row[leftAt] ?? null);
     return {
       key: `outer:${index}`,
       values,
       literals,
+      left,
+      leftLiteral: leftAt < 0 ? null : sqlLiteral(left, plan.dialect, result.columns[leftAt]),
       matches: count === null || !Number.isFinite(count) ? null : count,
       // A predicate that evaluates to NULL — `x not in (…)` over a column holding nulls — is not
       // true, and a WHERE drops the row exactly as it drops a false one. So anything that is not

@@ -26,8 +26,13 @@ import {
   gridCellSentence,
   gridRowSentence,
   gridSentence,
+  membershipSentence,
+  notInNullSentence,
+  scalarSentence,
+  scalarShapeSentence,
 } from "./narration";
 import { Sentence } from "./narrator";
+import type { AnswerView } from "./scenes";
 import { SqlParts } from "./sql-parts";
 import type { GridColumn } from "./use-grid";
 import type { QueryOutcome } from "./use-walk";
@@ -51,6 +56,7 @@ export function BoundPanel({
   plan,
   grid,
   gridColumns,
+  answer,
   row,
   cell,
   caption,
@@ -63,6 +69,14 @@ export function BoundPanel({
   readonly grid: GridBuild | null;
   /** Driving rows across the grid, for "3 of the 5 rows of RequiredCourses". */
   readonly gridColumns: number;
+  /**
+   * The card beside the ledger, when the kind has one of its own.
+   *
+   * It is what the sentences for IN and for a scalar are written from — the needle and its match,
+   * the value that came back, the row count that broke the one-row promise — so the panel and the
+   * card can never disagree about what the subquery answered.
+   */
+  readonly answer: AnswerView | null;
   /** Null until the outer probe has landed and there is a row to stand on. */
   readonly row: BoundRow | null;
   readonly cell: PickedCell | null;
@@ -74,6 +88,10 @@ export function BoundPanel({
   const [tab, setTab] = React.useState("ran");
   const nulls = boundNullSentence(row?.nulls ?? []);
   const countless = boundCountSentence(plan);
+  // The two caveats only IN and a scalar have: the null that sinks every row of a NOT IN, and the
+  // exactly-one-row promise a scalar subquery makes.
+  const poison = answer === null ? null : notInNullSentence(plan, answer);
+  const shape = answer === null ? null : scalarShapeSentence(plan, answer);
   const rowParts = React.useMemo(() => (row ? boundRowParts(plan, row) : null), [plan, row]);
 
   return (
@@ -103,13 +121,7 @@ export function BoundPanel({
         </p>
         {row && (
           <p className="mt-2 text-foreground text-sm leading-relaxed">
-            <Sentence
-              text={
-                grid
-                  ? gridRowSentence(plan, grid, row, gridColumns)
-                  : boundRowSentence(plan, row)
-              }
-            />
+            <Sentence text={rowSentence({ plan, grid, gridColumns, answer, row })} />
           </p>
         )}
         {/* The cell's own sentence, which only exists once one is picked. It sits after the row's
@@ -139,6 +151,16 @@ export function BoundPanel({
       {countless && (
         <p className="rounded-md border bg-muted/40 p-2.5 text-muted-foreground text-xs leading-relaxed">
           <Sentence text={countless} />
+        </p>
+      )}
+      {poison && (
+        <p className="rounded-md border border-destructive/30 bg-destructive/8 p-2.5 text-destructive-foreground text-xs leading-relaxed">
+          <Sentence text={poison} />
+        </p>
+      )}
+      {shape && (
+        <p className="rounded-md border bg-muted/40 p-2.5 text-muted-foreground text-xs leading-relaxed">
+          <Sentence text={shape} />
         </p>
       )}
 
@@ -212,6 +234,27 @@ export function BoundPanel({
       </Tabs>
     </aside>
   );
+}
+
+/**
+ * What happened for the bound row, in the vocabulary of its own predicate kind.
+ *
+ * A grid answers in driving rows, IN answers in membership, a scalar answers in one comparison, and
+ * EXISTS answers in rows — four different sentences because they are four different questions, and
+ * the shared one they used to have was only ever right about the last of them.
+ */
+function rowSentence(args: {
+  readonly plan: BoundPlan;
+  readonly grid: GridBuild | null;
+  readonly gridColumns: number;
+  readonly answer: AnswerView | null;
+  readonly row: BoundRow;
+}): string {
+  const { plan, grid, gridColumns, answer, row } = args;
+  if (grid) return gridRowSentence(plan, grid, row, gridColumns);
+  if (answer?.kind === "values") return membershipSentence(plan, row, answer);
+  if (answer?.kind === "equation") return scalarSentence(plan, row, answer);
+  return boundRowSentence(plan, row);
 }
 
 /** The substitutions a cell's SQL made, spelled the way the panel highlights them. */
