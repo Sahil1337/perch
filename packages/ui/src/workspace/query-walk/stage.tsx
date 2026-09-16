@@ -372,9 +372,13 @@ function Row({
   return (
     <motion.div
       animate={{ opacity: 1 }}
+      // `aria-current` rather than colour alone: the ring says "this is the row bound right now" to
+      // a sighted reader, and nothing at all to anyone using a screen reader without it.
+      aria-current={row.current ? "true" : undefined}
       className={cn(
         "relative flex overflow-hidden border-b border-border/70 transition-colors delay-(--d) duration-200 last:border-b-0",
         verdict === "fail" && "bg-destructive/8",
+        row.current && "z-10 ring-1 ring-info ring-inset",
       )}
       exit={{ height: 0, opacity: 0, transition: collapseAfter(t, index * 0.045) }}
       initial={{ opacity: 0 }}

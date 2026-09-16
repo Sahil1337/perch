@@ -11,6 +11,7 @@
 
 import type { RunRecord, StatementResult } from "@perch/protocol";
 import * as React from "react";
+import { boundPlan } from "./bound";
 import { isSetOp, type ParsedSelect } from "./clauses";
 import type { Program, Section } from "./program";
 import { buildStations, SAMPLE_ROWS, type Station } from "./steps";
@@ -117,12 +118,27 @@ export function useWalk(parsed: ParsedSelect, probe: Probe): WalkData {
 /**
  * Where a section of a program has got to.
  *
- * `bound` is the one that is not a phase of loading: the section runs once per row of its outer
- * section, which wave 4 adds. Its stations are built — the walk is real and can be shown — but
- * probing it once here would run a query whose correlated columns have nothing bound to them and
- * present the answer as if it meant something, so nothing is run at all.
+ * Three of these are phases of loading and three are not. `per-row` and `held` are both correlated
+ * sections, and the difference between them is whether there is anything to bind them TO: a
+ * `per-row` section has a settled table of outer rows, so `BoundSection` probes it a row at a time
+ * and owns its own playback; a `held` one is bound to a section that is itself per-row, so its outer
+ * rows do not exist until a row of that one has been picked. Neither is ever run by the loop below —
+ * running a correlated query once with nothing bound to its columns would print an answer that is
+ * true of no row.
  */
-export type SectionStatus = "pending" | "running" | "done" | "bound" | "unwalkable";
+export type SectionStatus =
+  | "pending"
+  | "running"
+  | "done"
+  | "per-row"
+  | "held"
+  | "unwalkable";
+
+/** Whether the section runs once per row of another, and so is not stepped through station by
+ *  station. Both kinds hand the stage to a view of their own instead of to the station walk. */
+export function runsPerRow(status: SectionStatus): boolean {
+  return status === "per-row" || status === "held";
+}
 
 export type SectionRun = {
   readonly section: Section;
@@ -162,10 +178,18 @@ type ProgramState = {
   readonly entries: readonly SectionState[];
 };
 
-function planSection(section: Section): SectionPlan {
+/**
+ * A section's plan, which needs the whole program rather than the section alone: whether a bound
+ * section can actually be bound depends on what its OUTER section is, and that is a lookup.
+ */
+function planSection(program: Program, section: Section): SectionPlan {
   const parsed = isSetOp(section.parsed) ? null : section.parsed;
+  const bound =
+    section.binding.kind === "bound" && boundPlan(program, section).kind === "plan"
+      ? "per-row"
+      : "held";
   const status: SectionStatus =
-    parsed === null ? "unwalkable" : section.binding.kind === "bound" ? "bound" : "pending";
+    parsed === null ? "unwalkable" : section.binding.kind === "bound" ? bound : "pending";
   return { section, parsed, stations: parsed ? buildStations(parsed) : [], status };
 }
 
@@ -175,7 +199,10 @@ const initialState = (plan: SectionPlan): SectionState => ({
 });
 
 export function useProgram(program: Program, probe: Probe): ProgramData {
-  const plans = React.useMemo(() => program.sections.map(planSection), [program]);
+  const plans = React.useMemo(
+    () => program.sections.map((section) => planSection(program, section)),
+    [program],
+  );
   const [state, setState] = React.useState<ProgramState>(() => ({
     plans,
     entries: plans.map(initialState),

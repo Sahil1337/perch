@@ -11,6 +11,7 @@ import * as React from "react";
 import { Button } from "../../ui/button";
 import { Kbd } from "../../ui/kbd";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../../ui/tooltip";
+import { BoundSection } from "./bound-section";
 import { Chapters } from "./chapters";
 import type { SourceRef } from "./clauses";
 import { HOLD_MS, phasesFor, sentenceFor, type Phase } from "./narration";
@@ -21,15 +22,25 @@ import { buildScene, countAt, errorOf, inputCount, sampleId } from "./scenes";
 import { SectionHold } from "./section-hold";
 import { SkippedNote } from "./skipped-note";
 import { Stage } from "./stage";
-import { stationState, type ProgramData, type SectionRun, type StationState } from "./use-walk";
+import {
+  runsPerRow,
+  stationState,
+  type ProgramData,
+  type Probe,
+  type SectionRun,
+  type StationState,
+} from "./use-walk";
 import { SpeedContext } from "./walk-motion";
 
 type Pos = { section: number; station: number; phase: number };
 
 /**
- * A section that cannot run — bound, or a set-operation combine — still gets a beat of playback.
- * Skipping past it silently would say it is not part of the query, which is the one thing the
- * placeholder it shows exists to deny.
+ * A section with no station walk still gets a beat of playback. Skipping past it silently would say
+ * it is not part of the query, which is the one thing the placeholder it shows exists to deny.
+ *
+ * A `per-row` section is the exception and is NOT on this clock: it has a timeline of its own, one
+ * beat per outer row, and it says when it is finished by calling `onDone`. Marching past it after
+ * 2.2 seconds would cut it off in the middle of the only thing it exists to show.
  */
 const HOLD_PHASE: readonly Phase[] = [{ ms: 2200, label: "not run" }];
 
@@ -37,16 +48,34 @@ const NO_STATES: readonly StationState[] = [];
 
 /** The walk to step through, or null when the section holds a placeholder instead of running. */
 function walkOf(run: SectionRun | undefined): SectionRun["walk"] {
-  return run && run.status !== "bound" ? run.walk : null;
+  return run && !runsPerRow(run.status) ? run.walk : null;
 }
 
+/**
+ * Whether the focused control wants the arrow keys for itself.
+ *
+ * The walk binds them on `window` in the capture phase, which is what lets them step the scene from
+ * wherever focus happens to sit — and which also means a control that steers with arrows cannot get
+ * them back by stopping propagation. A text field never wanted them; neither does the bound
+ * section's scrubber, which is a slider and moves by one row per press.
+ */
 function isTypingTarget(target: EventTarget | null): boolean {
   const element = target as HTMLElement | null;
   if (!element || typeof element.tagName !== "string") return false;
   return element.tagName === "INPUT" || element.tagName === "TEXTAREA" || element.isContentEditable;
 }
 
-export function WalkPlayer({ data }: { data: ProgramData }): React.ReactElement {
+function ownsArrowKeys(target: EventTarget | null): boolean {
+  if (isTypingTarget(target)) return true;
+  const element = target as HTMLElement | null;
+  return (
+    element !== null &&
+    typeof element.closest === "function" &&
+    element.closest('[role="slider"]') !== null
+  );
+}
+
+export function WalkPlayer({ data, probe }: { data: ProgramData; probe: Probe }): React.ReactElement {
   const { program, sections } = data;
 
   // Every section's station states, not just the open one: stepping out of the end of a chapter
@@ -153,6 +182,16 @@ export function WalkPlayer({ data }: { data: ProgramData }): React.ReactElement 
   const at: Pos = { section: sectionIndex, station: stationIndex, phase };
   /** The section has nothing to run: the stage shows why instead of a walk. */
   const holding = walk === null || station === null;
+  /** The section hands its stage to `BoundSection` rather than to the station walk. */
+  const boundView = run !== undefined && runsPerRow(run.status);
+  /**
+   * …and it has rows to step through, so it owns the clock as well as the stage.
+   *
+   * A `held` section is deliberately NOT included: it shows a note and nothing else, so it keeps the
+   * ordinary 2.2-second hold. Letting it take the clock would stall playback there for good, because
+   * a note has no last row to finish on and would never say it was done.
+   */
+  const perRow = run?.status === "per-row";
 
   // Memoised on the position's parts rather than on `at`, which is a fresh object every render:
   // these two are the dependency of every control and of the key bindings.
@@ -200,6 +239,23 @@ export function WalkPlayer({ data }: { data: ProgramData }): React.ReactElement 
     if (!playing && next === null) setPos(enter(0, "start"));
     setPlaying((p) => !p);
   }, [enter, next, playing]);
+  /** The bound section's scrubber was grabbed: stop where we are, and stay stopped. */
+  const pause = React.useCallback(() => {
+    touched.current = true;
+    setPlaying(false);
+  }, []);
+
+  // `next` through a ref, so the callback a per-row section holds for the whole time it is on screen
+  // never has to be rebuilt — a new identity would restart its row timer on every render.
+  const nextRef = React.useRef(next);
+  React.useEffect(() => {
+    nextRef.current = next;
+  }, [next]);
+  const advance = React.useCallback(() => {
+    const target = nextRef.current;
+    if (target) setPos(target);
+    else setPlaying(false);
+  }, []);
 
   // Auto-play a beat after there is something to show, unless the reader took the controls first.
   // A program whose first chapter cannot run counts as settled straight away: its placeholder is
@@ -217,6 +273,9 @@ export function WalkPlayer({ data }: { data: ProgramData }): React.ReactElement 
   // still loading holds the player until its results land, then this effect re-runs.
   React.useEffect(() => {
     if (!playing || !settled) return;
+    // A per-row section keeps its own time — one beat per outer row — and calls `advance` when it
+    // has shown the last one. Its chapter would otherwise end after a single 2.2-second hold.
+    if (perRow) return;
     if (next === null) {
       setPlaying(false);
       return;
@@ -226,7 +285,7 @@ export function WalkPlayer({ data }: { data: ProgramData }): React.ReactElement 
     const rest = phase === lastPhase ? HOLD_MS : 0;
     const id = setTimeout(() => setPos(next), (dwell + rest) / speed);
     return () => clearTimeout(id);
-  }, [holding, lastPhase, next, phase, playing, settled, speed, stationPhases]);
+  }, [holding, lastPhase, next, perRow, phase, playing, settled, speed, stationPhases]);
 
   // Bound only while the walk is mounted, which is only while the dialog is open. The dialog is
   // modal, so the editor never sees these; typing targets inside it still keep their keys. Capture
@@ -234,11 +293,13 @@ export function WalkPlayer({ data }: { data: ProgramData }): React.ReactElement 
   // from bubbling, and the arrows must step the walk wherever focus happens to sit.
   React.useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
-      if (isTypingTarget(event.target)) return;
       if (event.metaKey || event.ctrlKey || event.altKey) return;
       if (event.key === " ") {
+        if (isTypingTarget(event.target)) return;
         event.preventDefault();
         togglePlay();
+      } else if (ownsArrowKeys(event.target)) {
+        return;
       } else if (event.key === "ArrowRight") {
         event.preventDefault();
         stepForward();
@@ -343,8 +404,18 @@ export function WalkPlayer({ data }: { data: ProgramData }): React.ReactElement 
               station={station}
             />
           </div>
+        ) : run && boundView ? (
+          <BoundSection
+            onDone={advance}
+            onOpenSection={openSection}
+            onPause={pause}
+            playing={playing}
+            probe={probe}
+            program={program}
+            section={run.section}
+          />
         ) : run ? (
-          <SectionHold onOpenSection={openSection} program={program} section={run.section} />
+          <SectionHold section={run.section} />
         ) : null}
       </div>
     </SpeedContext.Provider>

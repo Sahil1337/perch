@@ -20,6 +20,8 @@ export type Row = {
   readonly verdict?: "pass" | "fail";
   readonly testIndex?: number;
   readonly hl?: readonly string[];
+  /** The row playback is standing on, in a card the reader scrubs through rather than watches once. */
+  readonly current?: boolean;
 };
 
 export type TableView = {

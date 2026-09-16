@@ -1,7 +1,8 @@
 // One sentence per station, naming the real tables, keys and columns from the user's query, and
 // the phases each station plays through.
 
-import type { JoinClause } from "./clauses";
+import type { BoundPlan, BoundRow } from "./bound";
+import type { JoinClause, SubqueryPredicateKind } from "./clauses";
 import { previousIndex, sampleId } from "./scenes";
 import { caseExpressions, sourceTitle, WALK_PREFIX, type WindowFn, windowFunctions } from "./steps";
 import type { StationState, WalkData } from "./use-walk";
@@ -14,6 +15,11 @@ export const STAGGER_MS = 110;
 export const HOLD_MS = 1000;
 
 const code = (text: string): string => `\`${text.replace(/\s+/g, " ").trim()}\``;
+
+function list(parts: readonly string[]): string {
+  if (parts.length <= 1) return parts[0] ?? "";
+  return `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
+}
 
 /** `dept_name` and `dept_name and year`: the partition, named the way the user wrote it. */
 function paneKeys(fn: WindowFn): string {
@@ -236,4 +242,101 @@ export function phasesFor(index: number, walk: WalkData, state: StationState): P
         { ms: 900, label: "rest dropped" },
       ];
   }
+}
+
+/* ── The bound section ─────────────────────────────────────────────────────────────────────────
+ *
+ * A section that runs once per outer row has no station walk, so it has no station sentences. What
+ * it has instead is one sentence about the section — what correlation means for it — and one about
+ * whichever outer row is currently bound, which changes as playback moves through them.
+ */
+
+/**
+ * One outer row's turn before playback binds the next.
+ *
+ * `HOLD_MS` is the rest every station takes on its settled state, and two row staggers is how long
+ * the inner card's rows take to finish arriving, so a row holds for exactly as long as it takes to
+ * look at. The speed control divides it the same way it divides every other schedule here.
+ */
+export const ROW_HOLD_MS = HOLD_MS + STAGGER_MS * 2;
+
+/** What the predicate needs of the subquery's rows, as a noun phrase: "`exists` needs …". */
+function passRule(kind: SubqueryPredicateKind): string {
+  switch (kind) {
+    case "not exists":
+      return "no rows at all";
+    case "exists":
+      return "at least one row";
+    case "in":
+      return "a row holding the value on the left";
+    case "not in":
+      return "no row holding the value on the left";
+    case "scalar":
+      return "a single value the comparison holds against";
+  }
+}
+
+/** `s.ID = '12345'`, the substitution this row's probe actually made, for a card title or a note. */
+export function bindingText(plan: BoundPlan, row: BoundRow): string {
+  return plan.columns
+    .map((column) => `${column.ref} = ${row.literals.get(column.ref) ?? "null"}`)
+    .join(", ");
+}
+
+/** What this section IS: why it has no single result, and what its outer query wants from it. */
+export function boundSentence(plan: BoundPlan): string {
+  const columns = list(plan.columns.map((column) => code(column.ref)));
+  const named = columns === "" ? "a value from the row it sits inside" : columns;
+  return `Every row of ${plan.outer.label} hands this subquery its own ${named}, so it does not run once — it runs again for each of them, and the rows it comes back with change every time. ${code(plan.predicate.kind)} then passes the outer row only when the answer is ${passRule(plan.predicate.kind)}.`;
+}
+
+/** What happened for the row currently bound: the values put in, the rows that came back, the verdict. */
+export function boundRowSentence(plan: BoundPlan, row: BoundRow): string {
+  const bound = list(
+    plan.columns.map((column) => code(`${column.ref} = ${row.literals.get(column.ref) ?? "null"}`)),
+  );
+  const answer =
+    row.matches === null
+      ? "the subquery runs with those values in place of the outer row's"
+      : row.matches === 0
+        ? "the subquery comes back empty"
+        : `the subquery comes back with ${row.matches} ${row.matches === 1 ? "row" : "rows"}`;
+  const verdict = row.pass ? "passes" : "fails";
+  return `With ${bound}, ${answer}, so this row ${verdict}: ${code(plan.predicate.kind)} needs ${passRule(plan.predicate.kind)}.`;
+}
+
+/**
+ * The null sentence, which is a lesson rather than an edge case.
+ *
+ * A correlated value that is null makes every comparison against it unknown, not false, so the
+ * subquery matches nothing however full the table is. The walk writes `= null` rather than quietly
+ * turning it into `is null`, because `= null` is what the database evaluates and repairing it would
+ * hide the only reason this row's answer is empty.
+ */
+export function boundNullSentence(refs: readonly string[]): string | null {
+  if (refs.length === 0) return null;
+  const named = list(refs.map(code));
+  const plural = refs.length > 1;
+  return `${named} ${plural ? "are" : "is"} null on this row, so every comparison against ${plural ? "them" : "it"} is unknown rather than false and no row can match, however full the table is. ${code("= null")} is never true — not even against another null — which is why this answer is empty and why SQL has ${code("is null")} for the test people mean.`;
+}
+
+/** Why there is no match count, when there is none. Null when the count came back. */
+export function boundCountSentence(plan: BoundPlan): string | null {
+  if (plan.counting !== null) return null;
+  return `There is no match count beside these rows. ${
+    plan.wrapped
+      ? "Counting a subquery of this shape means wrapping it in a derived table, and this database would not resolve the outer row through one — that is a limit of the dialect, not a fault in the query."
+      : "This subquery already collapses to a single row whatever matched, so counting it would say 1 for every outer row and mean nothing."
+  } The verdict beside each row is ${code(plan.predicate.kind)} itself, asked of the database, so it still holds.`;
+}
+
+/** One beat per outer row, labelled the way the phase caption above a station's sentence is. */
+export function boundPhases(rows: readonly BoundRow[]): Phase[] {
+  return rows.map((row, index) => ({
+    ms: ROW_HOLD_MS,
+    label:
+      row.matches === null
+        ? `row ${index + 1} of ${rows.length} · ${row.pass ? "passes" : "fails"}`
+        : `row ${index + 1} of ${rows.length} · ${row.matches} ${row.matches === 1 ? "match" : "matches"}`,
+  }));
 }

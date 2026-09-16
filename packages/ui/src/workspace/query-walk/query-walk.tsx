@@ -59,5 +59,5 @@ export function QueryWalk({ sql }: { sql: string }): React.ReactElement {
 
 /** A component of its own only so `useProgram` is never called for a statement that has no program. */
 function Walk({ program, probe }: { program: Program; probe: Probe }): React.ReactElement {
-  return <WalkPlayer data={useProgram(program, probe)} />;
+  return <WalkPlayer data={useProgram(program, probe)} probe={probe} />;
 }

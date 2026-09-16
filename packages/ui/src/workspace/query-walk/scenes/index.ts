@@ -18,6 +18,7 @@ import { EMPTY, type Scene } from "./types";
 import { capCols } from "./view";
 
 export type { BucketView, Col, Row, Scene, Summary, TableView } from "./types";
+export { boundScene } from "./bound";
 export { countAt, countValue, errorOf, inputCount, previousIndex, sampleId } from "./results";
 
 export function buildScene(index: number, phase: number, walk: WalkData): Scene {

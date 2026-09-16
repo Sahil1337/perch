@@ -1083,9 +1083,71 @@ function isAggregateCall(item: string): boolean {
   return AGGREGATES.has(item.slice(0, open).trim().toLowerCase());
 }
 
+/**
+ * Whether the subquery already collapses to exactly one row, whatever matched.
+ *
+ * This is the shape `countingWrap` is a trap for: it wraps the body untouched, so counting an
+ * aggregate that returns one row returns 1 for every outer row — a number that looks like a match
+ * count, is not one, and cannot be told apart from a real single match once it is on screen. A
+ * caller must ask this before trusting a wrapped count and show no count at all when it is true.
+ * GROUP BY is deliberately not included: it returns one row PER GROUP, so counting those rows
+ * really does count something the reader can see.
+ */
+export function collapsesToOneRow(predicate: SubqueryPredicate): boolean {
+  const parsed = predicate.parsed;
+  if (parsed.kind !== "select") return false;
+  return parsed.groupBy === null && parsed.selectItems.some(isAggregateCall);
+}
+
+/**
+ * Where each of `refs` is written inside `text`, as ranges, so a caller can splice a value over it.
+ *
+ * Only `CompositeIdentifier` nodes are matched, which is the same node the correlation check
+ * reported them from, and the comparison goes through `splitRef` so `"s"."ID"` and `s.id` are
+ * recognised as the reference `s.ID` the caller asked for. Riding on the parse rather than on a
+ * search is what keeps a reference named inside a string literal or a comment from being rewritten:
+ * neither is a `CompositeIdentifier`, so neither is ever returned.
+ *
+ * Scope is NOT re-checked, and there is one shape where that shows. A reference is only ever asked
+ * for because the correlation check said it points outward, and it says that only when no scope in
+ * the query defines the qualifier — so every occurrence of it normally means the same row. The
+ * exception is a subquery nested inside this one that declares the very same alias: its own `s.ID`
+ * is local, and this returns it alongside the outer ones. Re-deriving scope per occurrence would fix
+ * it; it is not done here because an alias shadowing the outer query's alias, inside a subquery of a
+ * correlated subquery, is a query nobody writes, and the cost of being wrong about it is one
+ * substitution in the displayed SQL rather than a wrong answer anywhere else.
+ */
+export function refRanges(
+  text: string,
+  dialect: Dialect,
+  refs: readonly string[],
+): { readonly ref: string; readonly range: Range }[] {
+  const wanted = new Map(refs.map((ref) => [normalizeRef(ref), ref]));
+  const out: { ref: string; range: Range }[] = [];
+  const visit = (node: SyntaxNode): void => {
+    for (let child = node.firstChild; child; child = child.nextSibling) {
+      if (child.name === "CompositeIdentifier") {
+        const ref = wanted.get(normalizeRef(text.slice(child.from, child.to)));
+        if (ref !== undefined) out.push({ ref, range: { from: child.from, to: child.to } });
+        continue;
+      }
+      visit(child);
+    }
+  };
+  visit(parserFor(dialect).parse(text).topNode);
+  return out;
+}
+
+/** `"s"."ID"` and `s.id` are the same reference; a bare `id` is not, and never matches one. */
+function normalizeRef(ref: string): string {
+  const { qualifier, column } = splitRef(ref);
+  return `${(qualifier ?? "").toLowerCase()}.${column.toLowerCase()}`;
+}
+
 /** Rebuilds `statement` with each edit's range swapped for its replacement, everything between
- *  them kept exactly as the user typed it. */
-function spliceRanges(
+ *  them kept exactly as the user typed it. An edit that overlaps one already applied is dropped,
+ *  which is how a reference sitting inside a replaced select list disappears with it. */
+export function spliceRanges(
   text: string,
   statement: Range,
   edits: readonly { range: Range; with: string }[],

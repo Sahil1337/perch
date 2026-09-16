@@ -5,7 +5,7 @@
 // contents and every entry stays one click away, which is the whole reason the breadcrumb stack it
 // replaced could go.
 
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import type * as React from "react";
 import { cn } from "../../lib/utils";
 import { Spinner } from "../../ui/spinner";
@@ -21,10 +21,43 @@ function note(run: SectionRun): string {
       return "running";
     case "done":
       return "done";
-    case "bound":
+    case "per-row":
       return "runs once per row of the section above it";
+    case "held":
+      return "runs per row, and needs its parent's row bound first";
     case "unwalkable":
       return "combines the branches";
+  }
+}
+
+/**
+ * What the open section IS, in the query the user wrote.
+ *
+ * The station rail below says FROM, JOIN, WHERE — but a CTE's FROM and the final query's FROM look
+ * identical on it, and the SQL in the narrator is the section's own text with its WITH prefix
+ * already spliced away. So without this line there is nothing on screen that answers "am I looking
+ * at the CTE or at the query that reads it", which is the first thing anyone asks.
+ */
+function describe(run: SectionRun, sections: readonly SectionRun[]): string {
+  const { origin, binding } = run.section;
+  const outer =
+    binding.kind === "bound"
+      ? (sections.find((entry) => entry.section.id === binding.outer)?.section.label ??
+        "the query above it")
+      : null;
+  switch (origin.kind) {
+    case "cte":
+      return "declared by WITH, and computed once before anything that reads it.";
+    case "derived":
+      return "a subquery in FROM, computed before the query around it.";
+    case "predicate":
+      return outer
+        ? `an ${origin.predicate.kind} subquery, re-run for every row of ${outer}.`
+        : `an ${origin.predicate.kind} subquery. Nothing in it depends on the outer row, so it is computed once.`;
+    case "branch":
+      return `branch ${origin.index + 1} of the set operation.`;
+    case "main":
+      return "the query's final result.";
   }
 }
 
@@ -52,6 +85,8 @@ export function Chapters({
   writtenOrder: boolean;
 }): React.ReactElement {
   const t = useT();
+  /** The chapter the rail below is walking, which the caption under the strip describes. */
+  const open = sections[active];
   return (
     <div className="flex min-w-0 flex-col gap-1">
       {/* The padding is load-bearing for the same reason it is on the station rail: `overflow-x-auto`
@@ -84,6 +119,27 @@ export function Chapters({
           })}
         </ol>
       </nav>
+      {/* Which chapter is open, and what it is. Keyed on the section so it crossfades on a jump
+          rather than swapping text under the reader's eye mid-sentence. */}
+      <AnimatePresence initial={false} mode="wait">
+        {open && (
+          <motion.p
+            animate={{ opacity: 1 }}
+            className="px-1 text-muted-foreground text-xs"
+            exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }}
+            key={open.section.id}
+            transition={t.fade}
+          >
+            <span className="font-mono text-foreground">{open.section.label}</span>
+            <span className="tabular-nums">
+              {" "}
+              · {active + 1} of {sections.length}
+            </span>{" "}
+            — {describe(open, sections)}
+          </motion.p>
+        )}
+      </AnimatePresence>
       {/* Wave 1's rule, and the one place this screen could actively mislead: the branch list is
           flat and SQL binds INTERSECT tighter than UNION and EXCEPT, so a left-to-right reading of
           the strip is simply wrong. Saying so costs one line. */}
@@ -107,8 +163,12 @@ export function Chapters({
 
 /**
  * The mark in front of a chapter. Filled once the section has its rows, hollow while it waits, and
- * dashed when it is never going to run on its own — the same vocabulary the station rail uses, so
- * the two rows of dots mean the same thing.
+ * dashed when it does not run as one piece — the same vocabulary the station rail uses, so the two
+ * rows of dots mean the same thing.
+ *
+ * A `per-row` section gets the dash in the accent colour rather than the muted one: it is dashed
+ * because it has no single result, not because it is inert, and since wave 4 it really does run —
+ * once for every row of the section it is bound to.
  */
 function Dot({ status }: { status: SectionStatus }): React.ReactElement {
   if (status === "running") return <Spinner className="size-2.5 shrink-0" />;
@@ -121,7 +181,9 @@ function Dot({ status }: { status: SectionStatus }): React.ReactElement {
           ? "border-info bg-info"
           : status === "pending"
             ? "border-border bg-card"
-            : "border-dashed border-muted-foreground/60 bg-card",
+            : status === "per-row"
+              ? "border-dashed border-info bg-card"
+              : "border-dashed border-muted-foreground/60 bg-card",
       )}
     />
   );

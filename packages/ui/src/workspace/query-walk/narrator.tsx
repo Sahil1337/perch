@@ -17,7 +17,8 @@ import { TickNumber } from "./tick-number";
 import type { StationResult, StationState } from "./use-walk";
 import { useT } from "./walk-motion";
 
-function Sentence({ text }: { text: string }): React.ReactElement {
+/** A narrator sentence: the text, with everything between backticks set as the query's own code. */
+export function Sentence({ text }: { text: string }): React.ReactElement {
   return (
     <>
       {text.split("`").map((part, i) =>
