@@ -37,7 +37,7 @@ Browse your database. Write SQL. Inspect results.<br>
 <br>
 
 <p align="center">
-  <img src="docs/assets/demo.svg" alt="Typing a query in Perch, running it, and reading 12 rows back in 5 milliseconds" width="860">
+  <img src="docs/assets/demo.gif" alt="Typing a query in Perch, running it, and reading 12 rows back in 7 milliseconds" width="880">
 </p>
 
 <p align="center">
