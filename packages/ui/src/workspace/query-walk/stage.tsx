@@ -4,7 +4,7 @@
 // and stagger delays reach CSS as custom properties, so the layout stays in utility classes.
 
 import { AnimatePresence, LayoutGroup, motion } from "motion/react";
-import { ArrowDownIcon, ArrowUpIcon, FootprintsIcon } from "lucide-react";
+import { ArrowDownIcon, ArrowUpIcon, CornerUpRightIcon, TriangleAlertIcon } from "lucide-react";
 import * as React from "react";
 import type { Cell as CellValue } from "@perch/protocol";
 import { cn } from "../../lib/utils";
@@ -19,17 +19,20 @@ import { TickNumber } from "./tick-number";
 import type { StationState } from "./use-walk";
 import { collapseAfter, useSpeed, useT } from "./walk-motion";
 
+/**
+ * Where a FROM source came from, when it became a section of its own: the section's name, and a way
+ * to open it. Null for a plain table, and for a subquery the slicer never sliced.
+ */
+export type SourceLink = { readonly label: string; readonly onJump: () => void };
+
 export function Stage({
   scene,
   state,
-  error,
-  onWalk,
+  sourceLink,
 }: {
   scene: Scene;
   state: StationState;
-  /** The database's message when the station's sample failed. */
-  error: string | null;
-  onWalk: (source: SourceRef) => void;
+  sourceLink: (source: SourceRef) => SourceLink | null;
 }): React.ReactElement {
   const t = useT();
   const box = React.useRef<HTMLDivElement>(null);
@@ -59,8 +62,11 @@ export function Stage({
         <div className="flex min-h-full items-center-safe p-4 md:p-6">
           <div className="mx-auto w-max max-w-full">
             <LayoutGroup>
-              {scene.kind === "tables" ? (
-                <TablesScene onWalk={onWalk} scene={scene} />
+              {/* A station that failed or is not in the query has no scene: whatever the builder
+                  could still make of it is a half-built card, and the message below would print
+                  straight on top of it. */}
+              {state === "failed" || state === "absent" ? null : scene.kind === "tables" ? (
+                <TablesScene scene={scene} sourceLink={sourceLink} />
               ) : (
                 <BucketsScene scene={scene} />
               )}
@@ -84,14 +90,14 @@ export function Stage({
         {state === "failed" && (
           <motion.div
             animate={{ opacity: 1 }}
-            className="absolute inset-0 flex flex-col items-center justify-center gap-1 p-6 text-center"
+            className="absolute inset-0 flex items-center justify-center gap-2 p-6 text-center text-muted-foreground text-sm"
             exit={{ opacity: 0 }}
             initial={{ opacity: 0 }}
             key="failed"
             transition={t.fade}
           >
-            <p className="font-medium text-destructive-foreground text-sm">This step failed</p>
-            <p className="max-w-md font-mono text-muted-foreground text-xs">{error}</p>
+            <TriangleAlertIcon className="size-4 shrink-0 text-destructive-foreground" />
+            Nothing to show: this step did not run.
           </motion.div>
         )}
         {state === "absent" && (
@@ -153,10 +159,10 @@ function useEdges(ref: React.RefObject<HTMLDivElement | null>): { left: boolean;
 
 function TablesScene({
   scene,
-  onWalk,
+  sourceLink,
 }: {
   scene: Extract<Scene, { kind: "tables" }>;
-  onWalk: (source: SourceRef) => void;
+  sourceLink: (source: SourceRef) => SourceLink | null;
 }): React.ReactElement {
   const t = useT();
   return (
@@ -167,7 +173,7 @@ function TablesScene({
     >
       <AnimatePresence initial={false} mode="popLayout">
         {scene.tables.map((view) => (
-          <Table key={view.key} onWalk={onWalk} view={view} />
+          <Table key={view.key} sourceLink={sourceLink} view={view} />
         ))}
       </AnimatePresence>
     </motion.div>
@@ -178,10 +184,10 @@ type Item = { kind: "row"; row: RowView; index: number } | { kind: "cut"; label:
 
 function Table({
   view,
-  onWalk,
+  sourceLink,
 }: {
   view: TableView;
-  onWalk: (source: SourceRef) => void;
+  sourceLink: (source: SourceRef) => SourceLink | null;
 }): React.ReactElement {
   const t = useT();
   const items: Item[] = [];
@@ -192,7 +198,11 @@ function Table({
   const shown = view.rows.length;
   const total = view.total ?? null;
   const hidden = view.hidden ?? [];
-  const walkable = view.source && view.source.body !== null;
+  // A source that became its own section is a REFERENCE, not a detour: the rows on this card were
+  // computed there and the chapter is still on the strip. A source that did not become one — a
+  // plain table, or a subquery the slicer refused — offers nothing here; there is nowhere to go,
+  // and an unsliced subquery is already accounted for in the skipped note under the strip.
+  const link = view.source ? sourceLink(view.source) : null;
   return (
     <motion.div
       animate={{ opacity: 1 }}
@@ -217,14 +227,15 @@ function Table({
             </motion.span>
           </AnimatePresence>
         </span>
-        {walkable && view.source && (
+        {link && (
           <Button
+            aria-label={`Computed in ${link.label}, go to it`}
             className="ms-1"
-            onClick={() => onWalk(view.source!)}
+            onClick={link.onJump}
             size="xs"
             variant="outline"
           >
-            <FootprintsIcon /> Walk this
+            <CornerUpRightIcon /> {link.label}
           </Button>
         )}
         <span className="ms-auto whitespace-nowrap font-mono text-muted-foreground text-xs tabular-nums">

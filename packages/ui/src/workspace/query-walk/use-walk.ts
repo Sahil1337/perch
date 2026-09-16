@@ -149,6 +149,19 @@ type SectionState = {
   readonly results: readonly StationResult[];
 };
 
+/**
+ * The results, and the plans they were produced from.
+ *
+ * The plans are carried alongside because they are the only thing that tells one program's answers
+ * from another's. Two unrelated sections routinely have the same number of stations — nine is the
+ * common case — so a row's LENGTH settles nothing, and a program swap would otherwise hand the
+ * stage the previous program's rows under the new program's labels.
+ */
+type ProgramState = {
+  readonly plans: readonly SectionPlan[];
+  readonly entries: readonly SectionState[];
+};
+
 function planSection(section: Section): SectionPlan {
   const parsed = isSetOp(section.parsed) ? null : section.parsed;
   const status: SectionStatus =
@@ -163,14 +176,31 @@ const initialState = (plan: SectionPlan): SectionState => ({
 
 export function useProgram(program: Program, probe: Probe): ProgramData {
   const plans = React.useMemo(() => program.sections.map(planSection), [program]);
-  const [state, setState] = React.useState<readonly SectionState[]>(() => plans.map(initialState));
+  const [state, setState] = React.useState<ProgramState>(() => ({
+    plans,
+    entries: plans.map(initialState),
+  }));
+
+  // Reset during render rather than in an effect, so no frame is ever painted with the previous
+  // program's results. An effect runs after the paint, which is one frame of a section showing
+  // another section's rows — and the rows are the whole point of this screen.
+  const entries = state.plans === plans ? state.entries : plans.map(initialState);
+  if (state.plans !== plans) setState({ plans, entries });
 
   React.useEffect(() => {
     let cancelled = false;
-    setState(plans.map(initialState));
     const patch = (index: number, change: (entry: SectionState) => SectionState): void => {
       if (cancelled) return;
-      setState((previous) => previous.map((entry, i) => (i === index ? change(entry) : entry)));
+      setState((previous) =>
+        // A report that lands after the program changed belongs to the walk that has just been
+        // cancelled; writing it into the new program's row would corrupt it.
+        previous.plans !== plans
+          ? previous
+          : {
+              plans,
+              entries: previous.entries.map((entry, i) => (i === index ? change(entry) : entry)),
+            },
+      );
     };
 
     void (async () => {
@@ -203,12 +233,7 @@ export function useProgram(program: Program, probe: Probe): ProgramData {
     () => ({
       program,
       sections: plans.map((plan, index) => {
-        // The first render after `program` changes still holds the PREVIOUS program's state: the
-        // effect that resets it has not run yet. A leftover row of the wrong length would hand the
-        // stage another section's results, so the plan's own starting point stands in.
-        const held = state[index];
-        const entry =
-          held && held.results.length === plan.stations.length ? held : initialState(plan);
+        const entry = entries[index] ?? initialState(plan);
         return {
           section: plan.section,
           status: entry.status,
@@ -218,7 +243,7 @@ export function useProgram(program: Program, probe: Probe): ProgramData {
         };
       }),
     }),
-    [program, plans, state],
+    [program, plans, entries],
   );
 }
 

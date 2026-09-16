@@ -14,7 +14,7 @@ import { highlightSql } from "../sql-editor/highlight-sql";
 import type { Phase } from "./narration";
 import type { Station } from "./steps";
 import { TickNumber } from "./tick-number";
-import type { StationResult } from "./use-walk";
+import type { StationResult, StationState } from "./use-walk";
 import { useT } from "./walk-motion";
 
 function Sentence({ text }: { text: string }): React.ReactElement {
@@ -36,8 +36,10 @@ function Sentence({ text }: { text: string }): React.ReactElement {
 export function Narrator({
   sql,
   station,
+  state,
   result,
   sentence,
+  error,
   input,
   count,
   phase,
@@ -46,8 +48,11 @@ export function Narrator({
 }: {
   sql: string;
   station: Station;
+  state: StationState;
   result: StationResult | undefined;
   sentence: string;
+  /** The database's message when the station's sample failed. */
+  error: string | null;
   input: number | null;
   count: number | null;
   phase: number;
@@ -56,6 +61,7 @@ export function Narrator({
 }): React.ReactElement {
   const t = useT();
   const clause = station.clause;
+  const failed = state === "failed";
   const delta = input === null || count === null ? 0 : count - input;
   const queries = station.batches.flat();
   const [tab, setTab] = React.useState("query");
@@ -68,10 +74,14 @@ export function Narrator({
     >
       <div className="flex items-center gap-2">
         <h2 className="font-medium font-mono text-sm">{station.label}</h2>
-        <PhaseDots active={phase} onPhase={onPhase} phases={phases} />
-        <span className="font-mono text-muted-foreground text-xs tabular-nums">
-          {phase + 1}/{phases.length}
-        </span>
+        {!failed && (
+          <>
+            <PhaseDots active={phase} onPhase={onPhase} phases={phases} />
+            <span className="font-mono text-muted-foreground text-xs tabular-nums">
+              {phase + 1}/{phases.length}
+            </span>
+          </>
+        )}
       </div>
 
       {/* The phase caption and the sentence swap on their own keys, so a station change crossfades
@@ -82,20 +92,35 @@ export function Narrator({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             initial={{ opacity: 0, y: 4 }}
-            key={`${station.key}:${phase}`}
+            key={`${station.key}:${failed ? "failed" : phase}`}
             transition={t.fade}
           >
-            <p aria-live="polite" className="text-muted-foreground text-xs">
-              {phases[phase]?.label}
-            </p>
-            <p className="mt-1.5 text-foreground text-sm leading-relaxed">
-              <Sentence text={sentence} />
-            </p>
+            {failed ? (
+              // The one place the database's message is printed. The step it came from is under
+              // "SQL that ran", which is where a reader goes next.
+              <div className="rounded-md border border-destructive/30 bg-destructive/8 p-3">
+                <p className="font-medium text-destructive-foreground text-sm">
+                  This step could not run
+                </p>
+                <p className="mt-1 whitespace-pre-wrap font-mono text-destructive-foreground/90 text-xs leading-5">
+                  {error ?? "The database gave no reason."}
+                </p>
+              </div>
+            ) : (
+              <>
+                <p aria-live="polite" className="text-muted-foreground text-xs">
+                  {phases[phase]?.label}
+                </p>
+                <p className="mt-1.5 text-foreground text-sm leading-relaxed">
+                  <Sentence text={sentence} />
+                </p>
+              </>
+            )}
           </motion.div>
         </AnimatePresence>
       </motion.div>
 
-      <RowFlow count={count} delta={delta} input={input} />
+      {count !== null && <RowFlow count={count} delta={delta} input={input} />}
 
       <Tabs
         className="min-h-0 flex-1"
