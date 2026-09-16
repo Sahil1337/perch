@@ -1,7 +1,15 @@
 "use client";
 
 import type { Column } from "@perch/protocol";
-import { EyeIcon, KeyRoundIcon, LayersIcon, Link2Icon, Table2Icon } from "lucide-react";
+import {
+  ChevronDownIcon,
+  ChevronUpIcon,
+  EyeIcon,
+  KeyRoundIcon,
+  LayersIcon,
+  Link2Icon,
+  Table2Icon,
+} from "lucide-react";
 import * as React from "react";
 import { cn } from "../../lib/utils";
 import type { Point } from "./geometry";
@@ -20,6 +28,7 @@ export function TableCard({
   node,
   onHover,
   onPointerDown,
+  onToggle,
   referenced,
   selected,
   showSchema,
@@ -30,6 +39,8 @@ export function TableCard({
   node: Node;
   onHover: (key: string | null) => void;
   onPointerDown: (event: React.PointerEvent<HTMLDivElement>, key: string) => void;
+  /** Opens or closes this card's hidden columns. */
+  onToggle: (key: string) => void;
   /** Some other table points at this one's primary key. */
   referenced: boolean;
   selected: boolean;
@@ -77,10 +88,12 @@ export function TableCard({
         )}
       </div>
       <div className="py-1">
-        {table.columns.length === 0 ? (
-          <div className="flex h-6 items-center px-2.5 text-muted-foreground text-xs">No columns</div>
+        {node.rows.length === 0 ? (
+          <div className="flex h-6 items-center px-2.5 text-muted-foreground text-xs">
+            {table.columns.length === 0 ? "No columns" : "No keys"}
+          </div>
         ) : (
-          table.columns.map((column) => (
+          node.rows.map((column) => (
             <ColumnRow
               column={column}
               key={column.name}
@@ -88,6 +101,26 @@ export function TableCard({
               reference={references.get(column.name)}
             />
           ))
+        )}
+        {node.footer && (
+          // Opens this card alone. Stops the press here so it neither drags nor selects.
+          <button
+            className="flex h-6 w-full cursor-pointer items-center gap-1.5 px-2.5 text-muted-foreground text-xs outline-none hover:text-foreground focus-visible:text-foreground"
+            onClick={() => onToggle(node.key)}
+            onPointerDown={(event) => event.stopPropagation()}
+            type="button"
+          >
+            <span className="flex size-3.5 shrink-0 items-center justify-center">
+              {node.footer === "more" ? (
+                <ChevronDownIcon className="size-3" />
+              ) : (
+                <ChevronUpIcon className="size-3" />
+              )}
+            </span>
+            {node.footer === "more"
+              ? `${node.hidden} more ${node.hidden === 1 ? "column" : "columns"}`
+              : "Keys only"}
+          </button>
         )}
       </div>
     </div>

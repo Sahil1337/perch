@@ -1,16 +1,18 @@
 "use client";
 
-// The pulse runs FK → PK, the direction a lookup goes. It runs on every wire, all the time, at a
-// pace slow enough to read as travel; selecting a table dims everything that does not touch it.
+// The pulse runs FK → PK, the direction a lookup goes. It runs on every wire on screen, all the
+// time, at a pace slow enough to read as travel; selecting a table dims everything that does not
+// touch it.
 
-import { motion } from "motion/react";
 import type * as React from "react";
 import { cn } from "../../lib/utils";
 import type { Wire } from "./wires";
 
-/** How long one pulse takes to cross a wire, in seconds. */
+/** How long one pulse takes to cross a wire, in seconds. Matches `--animate-wire-pulse`. */
 const TRAVEL_S = 2.4;
-/** Fraction of a wire the pulse covers. */
+/** Pulses are staggered across this many phases so the picture does not blink in unison. */
+const PULSE_PHASES = 6;
+/** Fraction of a wire the pulse covers. The keyframe's starting offset is `1 + PULSE_LEN`. */
 const PULSE_LEN = 0.14;
 
 /**
@@ -51,23 +53,23 @@ export function WirePath({
         strokeWidth={1.5}
       />
       {/* The pulse: a dash one PULSE_LEN long on a path normalised to 1, walked one period per
-          cycle so exactly one pulse is on the wire at a time. Staggered by index so the picture
-          does not blink in unison. */}
+          cycle by the `wire-pulse` keyframe in styles.css, so exactly one pulse is on the wire at
+          a time. A CSS animation per wire, nothing on the main thread; the negative delay staggers
+          the phases and means no wire starts empty. */}
       {animate && (
-        <motion.path
-          animate={{ pathOffset: [-(1 + PULSE_LEN), 0] }}
-          className={cn("transition-colors", lit ? "stroke-info" : "stroke-info/70")}
+        <path
+          className={cn("animate-wire-pulse transition-colors", lit ? "stroke-info" : "stroke-info/70")}
           d={d}
           fill="none"
-          initial={{ pathLength: PULSE_LEN, pathSpacing: 1, pathOffset: -(1 + PULSE_LEN) }}
+          pathLength={1}
+          strokeDasharray={`${PULSE_LEN} 1`}
           strokeLinecap="round"
           strokeWidth={2}
-          transition={{
-            duration: TRAVEL_S,
-            ease: "linear",
-            repeat: Infinity,
-            delay: (index % 6) * (TRAVEL_S / 6),
-          }}
+          style={
+            {
+              "--wire-delay": `${-((index % PULSE_PHASES) * (TRAVEL_S / PULSE_PHASES))}s`,
+            } as React.CSSProperties
+          }
         />
       )}
       {/* Crow's foot at the referencing end: many rows can hold the same key. */}

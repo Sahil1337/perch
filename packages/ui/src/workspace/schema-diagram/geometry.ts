@@ -1,6 +1,4 @@
-import type { Table } from "@perch/protocol";
-
-// Every card is the same width and its height is a function of its column count, so the layout
+// Every card is the same width and its height is a function of its row count, so the layout
 // needs no measurement pass: the classes on the card (`w-64`, `h-8`, `h-6`, `py-1`) are these
 // numbers spelled as utilities, and the wires are drawn from the numbers.
 export const CARD_W = 256;
@@ -21,10 +19,19 @@ export const LOOP_REACH = 32;
 export const ORPHAN_GAP = 96;
 export const ORPHAN_COLS_MIN = 3;
 
-export type Point = { x: number; y: number };
+/** A table wider than this opens the view in keys-only mode. */
+export const COLLAPSE_AT = 12;
 
-export function cardHeight(table: Table): number {
-  return HEADER_H + BODY_PAD * 2 + Math.max(1, table.columns.length) * ROW_H;
+export type Point = { x: number; y: number };
+export type Rect = { x: number; y: number; w: number; h: number };
+
+export function intersects(a: Rect, b: Rect): boolean {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+/** Height of a card showing `rows` columns, plus the "N more" / "Keys only" row when it has one. */
+export function cardHeight(rows: number, footer: boolean): number {
+  return HEADER_H + BODY_PAD * 2 + Math.max(1, rows) * ROW_H + (footer ? ROW_H : 0);
 }
 
 /** Vertical centre of a column row inside its card; the header for a column that is not listed. */

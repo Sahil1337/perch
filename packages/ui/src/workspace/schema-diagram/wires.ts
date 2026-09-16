@@ -4,6 +4,7 @@ import {
   LANE_GAP,
   LOOP_REACH,
   type Point,
+  type Rect,
   rowCentre,
 } from "./geometry";
 import type { Edge, Node } from "./graph";
@@ -17,9 +18,20 @@ export type Wire = {
   /** Where it meets the referenced card. */
   end: Point;
   endDir: 1 | -1;
+  /** The x of the vertical leg. */
+  lane: number;
 };
 
-type Draft = Omit<Wire, "d"> & { lane: number };
+type Draft = Omit<Wire, "d">;
+
+/** The box a wire is drawn in, for deciding whether it is on screen. */
+export function wireBounds(wire: Wire): Rect {
+  const xs = [wire.start.x, wire.end.x, wire.lane];
+  const ys = [wire.start.y, wire.end.y];
+  const x = Math.min(...xs);
+  const y = Math.min(...ys);
+  return { x, y: y - 1, w: Math.max(...xs) - x, h: Math.max(...ys) - y + 2 };
+}
 
 /**
  * Wires are orthogonal — out of the card, along, down, along, in — with the vertical leg in the

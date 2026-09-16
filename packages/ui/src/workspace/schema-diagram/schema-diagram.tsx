@@ -1,20 +1,27 @@
 "use client";
 
+// A real schema has tables forty columns wide, which would make every card a screen tall, so past
+// a threshold the view opens in keys-only mode: each card shows the columns that take part in a
+// relation and a row saying how many it is not showing, and opens on request. Where the cards are
+// dragged to is remembered per database, so the picture you arranged is the one you come back to.
+
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
-import { RotateCcwIcon, ScanIcon, XIcon, ZoomInIcon, ZoomOutIcon } from "lucide-react";
+import { KeyRoundIcon, RotateCcwIcon, ScanIcon, XIcon, ZoomInIcon, ZoomOutIcon } from "lucide-react";
 import { useReducedMotion } from "motion/react";
 import * as React from "react";
 import { cn } from "../../lib/utils";
 import { Button } from "../../ui/button";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "../../ui/tooltip";
 import { useWorkspace } from "../context";
 import { asyncData } from "../types";
 import { Legend, Notice, ToolButton } from "./diagram-chrome";
-import { GAP_X, GAP_Y, type Point } from "./geometry";
-import { buildGraph, type Graph } from "./graph";
+import { CARD_W, GAP_X, GAP_Y, intersects, type Point, type Rect } from "./geometry";
+import { buildGraph, buildNode, type Graph, isWide, NO_TABLES } from "./graph";
 import { autoLayout } from "./layout";
+import { clearPositions, readPositions, storageKey, writePositions } from "./storage";
 import { TableCard } from "./table-card";
 import { WirePath, type WireState } from "./wire-path";
-import { routeWires } from "./wires";
+import { routeWires, wireBounds } from "./wires";
 
 const ZOOM_MIN = 0.2;
 const ZOOM_MAX = 2.5;
@@ -30,24 +37,48 @@ type Drag =
   | { kind: "pan"; pointerId: number; origin: Point; pan: Point; moved: boolean }
   | { kind: "card"; pointerId: number; key: string; origin: Point; at: Point; moved: boolean };
 
+/** The auto layout, with whatever this database's cards were dragged to last time put back. */
+function initialPositions(graph: Graph, storeKey: string | null): Map<string, Point> {
+  const positions = autoLayout(graph.nodes, graph.edges);
+  const stored = readPositions(storeKey);
+  if (stored) for (const [key, at] of stored) if (positions.has(key)) positions.set(key, at);
+  return positions;
+}
+
 export function SchemaDiagram({ focus }: { focus?: string }): React.ReactElement {
-  const { schema, database } = useWorkspace();
+  const { schema, database, connectionId } = useWorkspace();
   const data = asyncData(schema);
   const reduced = useReducedMotion();
 
-  const graph = React.useMemo(() => (data ? buildGraph(data) : EMPTY_GRAPH), [data]);
+  // Keys-only is the default for a wide schema; the toolbar toggle overrides it either way.
+  const [keysOnlyChoice, setKeysOnlyChoice] = React.useState<boolean | null>(null);
+  const keysOnly = keysOnlyChoice ?? (data ? isWide(data) : false);
+  const [expanded, setExpanded] = React.useState<ReadonlySet<string>>(NO_TABLES);
+
+  // Two graphs: the one on screen, and the one the layout is made from, which ignores what has
+  // been opened by hand so opening one card never reflows every other card.
+  const graph = React.useMemo(
+    () => (data ? buildGraph(data, keysOnly, expanded) : EMPTY_GRAPH),
+    [data, expanded, keysOnly],
+  );
+  const baseGraph = React.useMemo(
+    () => (data ? buildGraph(data, keysOnly, NO_TABLES) : EMPTY_GRAPH),
+    [data, keysOnly],
+  );
   const nodeByKey = React.useMemo(
     () => new Map(graph.nodes.map((node) => [node.key, node])),
     [graph],
   );
 
-  // A fresh schema (a refresh, another database) re-lays everything out; a drag is worth keeping
-  // only against the picture it was made on, so the layout carries the graph it was made for.
+  // A fresh schema, another database or the other mode re-lays everything out; a drag is worth
+  // keeping only against the picture it was made on, so the layout carries the graph it was made
+  // for. The storage key changes with the same things, and the cards come back where they were.
+  const storeKey = storageKey(connectionId, database, keysOnly);
   const [layout, setLayout] = React.useState<{ graph: Graph; positions: Map<string, Point> }>(
-    () => ({ graph, positions: autoLayout(graph.nodes, graph.edges) }),
+    () => ({ graph: baseGraph, positions: initialPositions(baseGraph, storeKey) }),
   );
-  if (layout.graph !== graph) {
-    setLayout({ graph, positions: autoLayout(graph.nodes, graph.edges) });
+  if (layout.graph !== baseGraph) {
+    setLayout({ graph: baseGraph, positions: initialPositions(baseGraph, storeKey) });
   }
   const positions = layout.positions;
 
@@ -59,6 +90,20 @@ export function SchemaDiagram({ focus }: { focus?: string }): React.ReactElement
   });
   const [drag, setDrag] = React.useState<Drag | null>(null);
   const viewportRef = React.useRef<HTMLDivElement>(null);
+  const [viewportSize, setViewportSize] = React.useState({ width: 0, height: 0 });
+
+  React.useLayoutEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    const measure = (): void => {
+      const rect = viewport.getBoundingClientRect();
+      setViewportSize({ width: rect.width, height: rect.height });
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(viewport);
+    return () => observer.disconnect();
+  }, []);
 
   const wires = React.useMemo(
     () => routeWires(graph.edges, nodeByKey, positions),
@@ -100,6 +145,17 @@ export function SchemaDiagram({ focus }: { focus?: string }): React.ReactElement
     // Room for wires that loop outside the cards on the right.
     return { x: minX - GAP_X, y: minY - GAP_Y, w: maxX - minX + GAP_X * 2, h: maxY - minY + GAP_Y * 2 };
   }, [graph.nodes, positions]);
+
+  /** What the viewport shows, in canvas coordinates. A pulse on a wire outside it is not drawn. */
+  const visible = React.useMemo<Rect>(
+    () => ({
+      x: -view.pan.x / view.zoom,
+      y: -view.pan.y / view.zoom,
+      w: viewportSize.width / view.zoom,
+      h: viewportSize.height / view.zoom,
+    }),
+    [view, viewportSize],
+  );
 
   const fit = React.useCallback(() => {
     const viewport = viewportRef.current;
@@ -183,6 +239,41 @@ export function SchemaDiagram({ focus }: { focus?: string }): React.ReactElement
     return () => viewport.removeEventListener("wheel", onWheel);
   }, [zoomBy]);
 
+  const setKeysOnly = (next: boolean): void => {
+    setKeysOnlyChoice(next);
+    setExpanded(NO_TABLES);
+  };
+
+  /**
+   * Opens or closes one card. The cards under it in the same column move by the difference, so
+   * opening a wide table pushes its neighbours down rather than over them; nothing else moves.
+   */
+  const toggleCard = (key: string): void => {
+    const node = nodeByKey.get(key);
+    const at = positions.get(key);
+    if (!node || !at) return;
+    const nextExpanded = new Set(expanded);
+    if (!nextExpanded.delete(key)) nextExpanded.add(key);
+    const delta = buildNode(node.table, keysOnly, nextExpanded).h - node.h;
+    setExpanded(nextExpanded);
+    if (delta === 0) return;
+    const next = new Map(positions);
+    for (const [other, otherAt] of positions) {
+      if (other === key || otherAt.y <= at.y || Math.abs(otherAt.x - at.x) >= CARD_W) continue;
+      next.set(other, { x: otherAt.x, y: otherAt.y + delta });
+    }
+    // Not written to storage: a card opened to look at something is not a layout decision.
+    setLayout({ graph: baseGraph, positions: next });
+  };
+
+  const resetLayout = (): void => {
+    clearPositions(storeKey);
+    setExpanded(NO_TABLES);
+    setLayout({ graph: baseGraph, positions: autoLayout(baseGraph.nodes, baseGraph.edges) });
+    // Positions land on the next render; fit reads them then.
+    window.requestAnimationFrame(fit);
+  };
+
   /* Pointer handling. The viewport pans; a card drags; a press without travel is a click. */
   const onViewportPointerDown = (event: React.PointerEvent<HTMLDivElement>): void => {
     if (event.button !== 0) return;
@@ -238,6 +329,8 @@ export function SchemaDiagram({ focus }: { focus?: string }): React.ReactElement
     if (!drag.moved) {
       // A click: on a card selects it (again to clear); on the canvas clears.
       setSelected((previous) => (drag.kind === "card" && previous !== drag.key ? drag.key : null));
+    } else if (drag.kind === "card") {
+      writePositions(storeKey, positions);
     }
     setDrag(null);
   };
@@ -267,6 +360,25 @@ export function SchemaDiagram({ focus }: { focus?: string }): React.ReactElement
         </div>
 
         <div className="flex items-center gap-1">
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  aria-pressed={keysOnly}
+                  onClick={() => setKeysOnly(!keysOnly)}
+                  size="xs"
+                  variant={keysOnly ? "secondary" : "ghost"}
+                >
+                  <KeyRoundIcon />
+                  Keys only
+                </Button>
+              }
+            />
+            <TooltipPopup>
+              {keysOnly ? "Show every column" : "Show only the columns that take part in a relation"}
+            </TooltipPopup>
+          </Tooltip>
+          <div aria-hidden className="mx-1 h-4 w-px bg-border" />
           <ToolButton label="Zoom out" onClick={() => zoomBy(1 / ZOOM_STEP)}>
             <ZoomOutIcon />
           </ToolButton>
@@ -279,14 +391,7 @@ export function SchemaDiagram({ focus }: { focus?: string }): React.ReactElement
           <ToolButton label="Fit to view" onClick={fit}>
             <ScanIcon />
           </ToolButton>
-          <ToolButton
-            label="Reset layout"
-            onClick={() => {
-              setLayout({ graph, positions: autoLayout(graph.nodes, graph.edges) });
-              // Positions land on the next render; fit reads them then.
-              window.requestAnimationFrame(fit);
-            }}
-          >
+          <ToolButton label="Reset layout" onClick={resetLayout}>
             <RotateCcwIcon />
           </ToolButton>
           <div aria-hidden className="mx-1 h-4 w-px bg-border" />
@@ -337,7 +442,7 @@ export function SchemaDiagram({ focus }: { focus?: string }): React.ReactElement
                   active === null ? "idle" : touches ? "lit" : selected ? "hidden" : "muted";
                 return (
                   <WirePath
-                    animate={!reduced && state !== "hidden"}
+                    animate={!reduced && state !== "hidden" && intersects(wireBounds(wire), visible)}
                     index={index}
                     key={wire.edge.id}
                     state={state}
@@ -359,6 +464,7 @@ export function SchemaDiagram({ focus }: { focus?: string }): React.ReactElement
                   node={node}
                   onHover={setHovered}
                   onPointerDown={onCardPointerDown}
+                  onToggle={toggleCard}
                   referenced={referenced.has(node.key)}
                   selected={selected === node.key}
                   showSchema={showSchema}
