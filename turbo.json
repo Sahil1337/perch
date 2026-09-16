@@ -1,0 +1,21 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "ui": "stream",
+  "tasks": {
+    "dev": {
+      "cache": false,
+      "persistent": true,
+      "passThroughEnv": [
+        "PERCH_DEV_PORT",
+        "NEXT_PUBLIC_PERCH_URL"
+      ]
+    },
+    "start": {
+      "cache": false,
+      "persistent": true,
+      "passThroughEnv": [
+        "PERCH_HOME"
+      ]
+    }
+  }
+}
