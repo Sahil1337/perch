@@ -1,0 +1,375 @@
+"use client";
+
+import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
+import { RotateCcwIcon, ScanIcon, XIcon, ZoomInIcon, ZoomOutIcon } from "lucide-react";
+import { useReducedMotion } from "motion/react";
+import * as React from "react";
+import { cn } from "../../lib/utils";
+import { Button } from "../../ui/button";
+import { useWorkspace } from "../context";
+import { asyncData } from "../types";
+import { Legend, Notice, ToolButton } from "./diagram-chrome";
+import { GAP_X, GAP_Y, type Point } from "./geometry";
+import { buildGraph, type Graph } from "./graph";
+import { autoLayout } from "./layout";
+import { TableCard } from "./table-card";
+import { WirePath, type WireState } from "./wire-path";
+import { routeWires } from "./wires";
+
+const ZOOM_MIN = 0.2;
+const ZOOM_MAX = 2.5;
+const ZOOM_STEP = 1.2;
+/** Padding kept around the graph when fitting it to the viewport. */
+const FIT_PAD = 48;
+/** Pointer travel under which a press-and-release is a click, not a drag. */
+const CLICK_SLOP = 3;
+
+const EMPTY_GRAPH: Graph = { nodes: [], edges: [] };
+
+type Drag =
+  | { kind: "pan"; pointerId: number; origin: Point; pan: Point; moved: boolean }
+  | { kind: "card"; pointerId: number; key: string; origin: Point; at: Point; moved: boolean };
+
+export function SchemaDiagram({ focus }: { focus?: string }): React.ReactElement {
+  const { schema, database } = useWorkspace();
+  const data = asyncData(schema);
+  const reduced = useReducedMotion();
+
+  const graph = React.useMemo(() => (data ? buildGraph(data) : EMPTY_GRAPH), [data]);
+  const nodeByKey = React.useMemo(
+    () => new Map(graph.nodes.map((node) => [node.key, node])),
+    [graph],
+  );
+
+  // A fresh schema (a refresh, another database) re-lays everything out; a drag is worth keeping
+  // only against the picture it was made on, so the layout carries the graph it was made for.
+  const [layout, setLayout] = React.useState<{ graph: Graph; positions: Map<string, Point> }>(
+    () => ({ graph, positions: autoLayout(graph.nodes, graph.edges) }),
+  );
+  if (layout.graph !== graph) {
+    setLayout({ graph, positions: autoLayout(graph.nodes, graph.edges) });
+  }
+  const positions = layout.positions;
+
+  const [selected, setSelected] = React.useState<string | null>(focus ?? null);
+  const [hovered, setHovered] = React.useState<string | null>(null);
+  const [view, setView] = React.useState<{ pan: Point; zoom: number }>({
+    pan: { x: 0, y: 0 },
+    zoom: 1,
+  });
+  const [drag, setDrag] = React.useState<Drag | null>(null);
+  const viewportRef = React.useRef<HTMLDivElement>(null);
+
+  const wires = React.useMemo(
+    () => routeWires(graph.edges, nodeByKey, positions),
+    [graph.edges, nodeByKey, positions],
+  );
+
+  /** The table the picture is about right now: what is selected, else what is under the pointer. */
+  const active = selected ?? hovered;
+  const related = React.useMemo(() => {
+    if (!active) return null;
+    const set = new Set<string>([active]);
+    for (const edge of graph.edges) {
+      if (edge.from === active) set.add(edge.to);
+      if (edge.to === active) set.add(edge.from);
+    }
+    return set;
+  }, [active, graph.edges]);
+
+  /** Tables some other table points at: the key icon on their primary key is the lit one. */
+  const referenced = React.useMemo(
+    () => new Set(graph.edges.map((edge) => edge.to)),
+    [graph.edges],
+  );
+
+  const bounds = React.useMemo(() => {
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const node of graph.nodes) {
+      const at = positions.get(node.key);
+      if (!at) continue;
+      minX = Math.min(minX, at.x);
+      minY = Math.min(minY, at.y);
+      maxX = Math.max(maxX, at.x + node.w);
+      maxY = Math.max(maxY, at.y + node.h);
+    }
+    if (!Number.isFinite(minX)) return { x: 0, y: 0, w: 0, h: 0 };
+    // Room for wires that loop outside the cards on the right.
+    return { x: minX - GAP_X, y: minY - GAP_Y, w: maxX - minX + GAP_X * 2, h: maxY - minY + GAP_Y * 2 };
+  }, [graph.nodes, positions]);
+
+  const fit = React.useCallback(() => {
+    const viewport = viewportRef.current;
+    if (!viewport || bounds.w === 0) return;
+    const { width, height } = viewport.getBoundingClientRect();
+    const zoom = Math.max(
+      ZOOM_MIN,
+      Math.min(1, (width - FIT_PAD * 2) / bounds.w, (height - FIT_PAD * 2) / bounds.h),
+    );
+    setView({
+      zoom,
+      pan: {
+        x: (width - bounds.w * zoom) / 2 - bounds.x * zoom,
+        y: (height - bounds.h * zoom) / 2 - bounds.y * zoom,
+      },
+    });
+  }, [bounds]);
+
+  const centreOn = React.useCallback(
+    (key: string) => {
+      const viewport = viewportRef.current;
+      const node = nodeByKey.get(key);
+      const at = positions.get(key);
+      if (!viewport || !node || !at) return;
+      const { width, height } = viewport.getBoundingClientRect();
+      setView({
+        zoom: 1,
+        pan: { x: width / 2 - (at.x + node.w / 2), y: height / 2 - (at.y + node.h / 2) },
+      });
+    },
+    [nodeByKey, positions],
+  );
+
+  // First paint: the whole graph, or the table the view was opened for.
+  const fitOnce = React.useRef(false);
+  React.useLayoutEffect(() => {
+    if (fitOnce.current || graph.nodes.length === 0) return;
+    fitOnce.current = true;
+    if (focus && nodeByKey.has(focus)) centreOn(focus);
+    else fit();
+  }, [centreOn, fit, focus, graph.nodes.length, nodeByKey]);
+
+  const zoomBy = React.useCallback((factor: number, about?: Point) => {
+    setView((previous) => {
+      const zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, previous.zoom * factor));
+      const viewport = viewportRef.current?.getBoundingClientRect();
+      const pivot = about ?? { x: (viewport?.width ?? 0) / 2, y: (viewport?.height ?? 0) / 2 };
+      const scale = zoom / previous.zoom;
+      return {
+        zoom,
+        pan: {
+          x: pivot.x - (pivot.x - previous.pan.x) * scale,
+          y: pivot.y - (pivot.y - previous.pan.y) * scale,
+        },
+      };
+    });
+  }, []);
+
+  // A native listener, because React registers wheel as passive and the page must not scroll
+  // while the pointer is over the canvas. Pinch (ctrl+wheel) zooms about the pointer; a plain
+  // scroll pans, which is what a trackpad expects.
+  React.useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    const onWheel = (event: WheelEvent): void => {
+      event.preventDefault();
+      const rect = viewport.getBoundingClientRect();
+      if (event.ctrlKey || event.metaKey) {
+        zoomBy(Math.exp(-event.deltaY * 0.01), {
+          x: event.clientX - rect.left,
+          y: event.clientY - rect.top,
+        });
+      } else {
+        setView((previous) => ({
+          ...previous,
+          pan: { x: previous.pan.x - event.deltaX, y: previous.pan.y - event.deltaY },
+        }));
+      }
+    };
+    viewport.addEventListener("wheel", onWheel, { passive: false });
+    return () => viewport.removeEventListener("wheel", onWheel);
+  }, [zoomBy]);
+
+  /* Pointer handling. The viewport pans; a card drags; a press without travel is a click. */
+  const onViewportPointerDown = (event: React.PointerEvent<HTMLDivElement>): void => {
+    if (event.button !== 0) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setDrag({
+      kind: "pan",
+      pointerId: event.pointerId,
+      origin: { x: event.clientX, y: event.clientY },
+      pan: view.pan,
+      moved: false,
+    });
+  };
+
+  const onCardPointerDown = (event: React.PointerEvent<HTMLDivElement>, key: string): void => {
+    if (event.button !== 0) return;
+    event.stopPropagation();
+    const at = positions.get(key);
+    if (!at) return;
+    viewportRef.current?.setPointerCapture(event.pointerId);
+    setDrag({
+      kind: "card",
+      pointerId: event.pointerId,
+      key,
+      origin: { x: event.clientX, y: event.clientY },
+      at,
+      moved: false,
+    });
+  };
+
+  const onPointerMove = (event: React.PointerEvent<HTMLDivElement>): void => {
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const dx = event.clientX - drag.origin.x;
+    const dy = event.clientY - drag.origin.y;
+    const moved = drag.moved || Math.hypot(dx, dy) > CLICK_SLOP;
+    if (!moved) return;
+    if (!drag.moved) setDrag({ ...drag, moved: true });
+    if (drag.kind === "pan") {
+      setView((previous) => ({ ...previous, pan: { x: drag.pan.x + dx, y: drag.pan.y + dy } }));
+    } else {
+      const next = { x: drag.at.x + dx / view.zoom, y: drag.at.y + dy / view.zoom };
+      setLayout((previous) => ({
+        ...previous,
+        positions: new Map(previous.positions).set(drag.key, next),
+      }));
+    }
+  };
+
+  const onPointerUp = (event: React.PointerEvent<HTMLDivElement>): void => {
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    if (!drag.moved) {
+      // A click: on a card selects it (again to clear); on the canvas clears.
+      setSelected((previous) => (drag.kind === "card" && previous !== drag.key ? drag.key : null));
+    }
+    setDrag(null);
+  };
+
+  const tableCount = graph.nodes.length;
+  const relationCount = graph.edges.length;
+  const showSchema = (data?.schemas.length ?? 0) > 1;
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border bg-popover text-popover-foreground shadow-lg/5">
+      <header className="flex shrink-0 items-center gap-3 border-b px-4 py-2.5">
+        <div className="min-w-0 flex-1">
+          <DialogPrimitive.Title className="font-medium text-sm leading-none">
+            Relationships
+          </DialogPrimitive.Title>
+          <DialogPrimitive.Description className="mt-1 truncate text-muted-foreground text-xs">
+            {database ?? "No database"}
+            {data && (
+              <>
+                {" · "}
+                {tableCount} {tableCount === 1 ? "table" : "tables"}
+                {" · "}
+                {relationCount} {relationCount === 1 ? "relation" : "relations"}
+              </>
+            )}
+          </DialogPrimitive.Description>
+        </div>
+
+        <div className="flex items-center gap-1">
+          <ToolButton label="Zoom out" onClick={() => zoomBy(1 / ZOOM_STEP)}>
+            <ZoomOutIcon />
+          </ToolButton>
+          <span className="w-10 text-center font-mono text-muted-foreground text-xs tabular-nums">
+            {Math.round(view.zoom * 100)}%
+          </span>
+          <ToolButton label="Zoom in" onClick={() => zoomBy(ZOOM_STEP)}>
+            <ZoomInIcon />
+          </ToolButton>
+          <ToolButton label="Fit to view" onClick={fit}>
+            <ScanIcon />
+          </ToolButton>
+          <ToolButton
+            label="Reset layout"
+            onClick={() => {
+              setLayout({ graph, positions: autoLayout(graph.nodes, graph.edges) });
+              // Positions land on the next render; fit reads them then.
+              window.requestAnimationFrame(fit);
+            }}
+          >
+            <RotateCcwIcon />
+          </ToolButton>
+          <div aria-hidden className="mx-1 h-4 w-px bg-border" />
+          <DialogPrimitive.Close
+            aria-label="Close"
+            render={<Button size="icon-sm" variant="ghost" />}
+          >
+            <XIcon />
+          </DialogPrimitive.Close>
+        </div>
+      </header>
+
+      <div
+        className={cn(
+          "relative min-h-0 flex-1 touch-none select-none overflow-hidden bg-background",
+          drag?.kind === "pan" ? "cursor-grabbing" : "cursor-grab",
+        )}
+        onPointerCancel={onPointerUp}
+        onPointerDown={onViewportPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        ref={viewportRef}
+      >
+        {data === undefined ? (
+          <Notice>{schema.status === "error" ? schema.error : "Loading schema…"}</Notice>
+        ) : tableCount === 0 ? (
+          <Notice>No tables in this database.</Notice>
+        ) : (
+          <div
+            className="absolute top-0 left-0 origin-top-left translate-x-(--pan-x) translate-y-(--pan-y) scale-(--zoom)"
+            style={
+              {
+                "--pan-x": `${view.pan.x}px`,
+                "--pan-y": `${view.pan.y}px`,
+                "--zoom": view.zoom,
+              } as React.CSSProperties
+            }
+          >
+            <svg
+              aria-hidden
+              className="pointer-events-none absolute top-0 left-0 overflow-visible"
+              height={1}
+              width={1}
+            >
+              {wires.map((wire, index) => {
+                const touches = wire.edge.from === active || wire.edge.to === active;
+                const state: WireState =
+                  active === null ? "idle" : touches ? "lit" : selected ? "hidden" : "muted";
+                return (
+                  <WirePath
+                    animate={!reduced && state !== "hidden"}
+                    index={index}
+                    key={wire.edge.id}
+                    state={state}
+                    wire={wire}
+                  />
+                );
+              })}
+            </svg>
+
+            {graph.nodes.map((node) => {
+              const at = positions.get(node.key);
+              if (!at) return null;
+              return (
+                <TableCard
+                  at={at}
+                  dim={selected !== null && related !== null && !related.has(node.key)}
+                  dragging={drag?.kind === "card" && drag.key === node.key}
+                  key={node.key}
+                  node={node}
+                  onHover={setHovered}
+                  onPointerDown={onCardPointerDown}
+                  referenced={referenced.has(node.key)}
+                  selected={selected === node.key}
+                  showSchema={showSchema}
+                />
+              );
+            })}
+          </div>
+        )}
+
+        {data !== undefined && tableCount > 0 && <Legend noRelations={relationCount === 0} />}
+      </div>
+    </div>
+  );
+}

@@ -37,6 +37,11 @@ type Editor =
   | { kind: "add"; initial?: ConnectionInput; seq: number }
   | { kind: "edit"; id: string; initial: ConnectionInput };
 
+type RemoveState =
+  | { kind: "idle" }
+  | { kind: "removing"; id: string }
+  | { kind: "error"; message: string };
+
 function inputOf(connection: ConnectionSummary): ConnectionInput {
   return {
     name: connection.name,
@@ -56,8 +61,7 @@ export function ConnectionsSection(): React.ReactElement {
   const [editor, setEditor] = React.useState<Editor>({ kind: "none" });
   const [tests, setTests] = React.useState<Record<string, TestState>>({});
   const [confirming, setConfirming] = React.useState<string | null>(null);
-  const [removing, setRemoving] = React.useState<string | null>(null);
-  const [removeError, setRemoveError] = React.useState<string | null>(null);
+  const [removeState, setRemoveState] = React.useState<RemoveState>({ kind: "idle" });
 
   const rows: readonly ConnectionSummary[] = asyncData(connections) ?? [];
   const pending = connections.status === "idle" || connections.status === "loading";
@@ -75,17 +79,18 @@ export function ConnectionsSection(): React.ReactElement {
   }
 
   function remove(id: string): void {
-    setRemoving(id);
-    setRemoveError(null);
+    setRemoveState({ kind: "removing", id });
     void removeConnection(id).then(
       () => {
-        setRemoving(null);
+        setRemoveState({ kind: "idle" });
         setConfirming(null);
         if (editor.kind === "edit" && editor.id === id) setEditor({ kind: "none" });
       },
       (cause: unknown) => {
-        setRemoving(null);
-        setRemoveError(cause instanceof Error ? cause.message : String(cause));
+        setRemoveState({
+          kind: "error",
+          message: cause instanceof Error ? cause.message : String(cause),
+        });
       },
     );
   }
@@ -136,16 +141,16 @@ export function ConnectionsSection(): React.ReactElement {
                 }
                 onRequestRemove={() => setConfirming(confirming === connection.id ? null : connection.id)}
                 onTest={() => test(connection.id)}
-                removing={removing === connection.id}
+                removing={removeState.kind === "removing" && removeState.id === connection.id}
                 test={tests[connection.id]}
               />
             ))}
           </ul>
         )}
 
-        {removeError !== null && (
+        {removeState.kind === "error" && (
           <p className="text-destructive-foreground text-xs" role="alert">
-            {removeError}
+            {removeState.message}
           </p>
         )}
       </section>

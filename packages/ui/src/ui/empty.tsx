@@ -28,7 +28,7 @@ export function Empty({
   /**
    * `outlined` is the "nothing here yet" box: a dashed rule around it, and short enough to sit
    * inside a card rather than to own a page. Added for perch, where that outline is already the
-   * established shape for an empty list (see `settings/sections.tsx`). The default is the
+   * established shape for an empty list (see `settings/files-section.tsx`). The default is the
    * full-height version upstream ships, for an empty pane or route.
    */
   variant?: "default" | "outlined";

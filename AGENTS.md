@@ -61,6 +61,30 @@ Run everything from the repo root. There is one lockfile and one `node_modules`.
 - **Nothing depends on `apps/server`.** Frontends talk to it over HTTP through `@perch/client`.
 - `apps/server/ui/` is build output (the frontend bundle the package ships); it is gitignored.
 
+## Frontend structure
+
+Read this before adding to or writing a new component in `apps/web` or `packages/ui`.
+
+- **One component (or one small, tightly-related family) per file.** If a file is accumulating
+  components that don't share state or aren't always rendered together, split it before adding to
+  it rather than after. `packages/ui/src/ui/` is the exception: vendored shadcn/Base UI primitives
+  stay one file per primitive even at 250-300 lines — that's the upstream shape, and splitting it
+  fights future updates from upstream.
+- **Don't store what can be derived.** No `useState` for a value that's a pure function of props or
+  other state — compute it inline or with `useMemo`. No `useEffect` that copies one piece of state
+  into another; that's almost always two names for the same value drifting out of sync. Push state
+  down to the component that owns it; lift only what's actually shared by siblings.
+- **Tailwind first, enforced.** `@shadcn/lint` (`shadcn/no-raw-colors`, `no-arbitrary-values`,
+  `no-inline-styles`, `no-unknown-classes`, `no-restyle`) fails `bun run lint` on hand-rolled CSS,
+  raw color values, or arbitrary Tailwind values — use theme tokens and real utility classes. Plain
+  CSS is only for what Tailwind can't express (keyframes). See the comment at the top of
+  `eslint.config.js` / `apps/web/eslint.config.mjs`.
+- **Match the existing folder idiom per feature; don't force one shape everywhere.** Co-located
+  single files at one level (like `packages/ui/src/ui/`) for a flat set of primitives, or a feature
+  subfolder with an index/barrel when a component genuinely decomposes into a family of parts. When
+  you split a file into a folder, re-export from the original path so other files' imports don't
+  all need to change.
+
 ## Verifying a change
 
 **The repo carries no test suite, and none gets committed.** The gate is

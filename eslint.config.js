@@ -91,8 +91,14 @@ const designSystem = [
       shadcn: {
         ui: "@perch/ui",
         // Apps import primitives as "@perch/ui"; files inside the package reach them by relative
-        // path. Without both patterns no-restyle silently matches nothing here.
-        componentImports: ["^@perch/ui(/|$)", "^\\.\\./ui(/|$)", "^\\./ui(/|$)"],
+        // path, from one or two levels down. Without every pattern no-restyle silently matches
+        // nothing here.
+        componentImports: [
+          "^@perch/ui(/|$)",
+          "^\\.\\./\\.\\./ui(/|$)",
+          "^\\.\\./ui(/|$)",
+          "^\\./ui(/|$)",
+        ],
       },
     },
     rules: {

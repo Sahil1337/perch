@@ -1,29 +1,32 @@
-name: web
-
-on:
-  push:
-    branches: [main]
-    paths:
-      - "apps/web/**"
-      - "packages/**"
-      - "bun.lock"
-      - ".github/workflows/web.yml"
-  pull_request:
-    paths:
-      - "apps/web/**"
-      - "packages/**"
-      - "bun.lock"
-      - ".github/workflows/web.yml"
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-      - run: bun install --frozen-lockfile
-      - run: bun run --filter @perch/web lint
-      - run: bun run --filter @perch/web typecheck
-      - run: bun run --filter @perch/web build
+# Disabled while the repo is private, to avoid burning CI credits.
+# Uncomment everything below once the repo goes public.
+#
+# name: web
+#
+# on:
+#   push:
+#     branches: [main]
+#     paths:
+#       - "apps/web/**"
+#       - "packages/**"
+#       - "bun.lock"
+#       - ".github/workflows/web.yml"
+#   pull_request:
+#     paths:
+#       - "apps/web/**"
+#       - "packages/**"
+#       - "bun.lock"
+#       - ".github/workflows/web.yml"
+#
+# jobs:
+#   build:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v4
+#       - uses: oven-sh/setup-bun@v2
+#         with:
+#           bun-version: latest
+#       - run: bun install --frozen-lockfile
+#       - run: bun run --filter @perch/web lint
+#       - run: bun run --filter @perch/web typecheck
+#       - run: bun run --filter @perch/web build

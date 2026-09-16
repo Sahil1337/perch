@@ -1,30 +1,33 @@
-name: packages
-
-on:
-  push:
-    branches: [main]
-    paths:
-      - "packages/**"
-      - "bun.lock"
-      - ".github/workflows/packages.yml"
-  pull_request:
-    paths:
-      - "packages/**"
-      - "bun.lock"
-      - ".github/workflows/packages.yml"
-
-jobs:
-  check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-      - run: bun install --frozen-lockfile
-      - run: bun run --filter @perch/protocol typecheck
-      - run: bun run --filter @perch/client typecheck
-      - run: bun run --filter @perch/sql typecheck
-      - run: bun run --filter @perch/ui typecheck
-      - run: bun run --filter @perch/protocol check
-      - run: bun run --filter @perch/sql check
+# Disabled while the repo is private, to avoid burning CI credits.
+# Uncomment everything below once the repo goes public.
+#
+# name: packages
+#
+# on:
+#   push:
+#     branches: [main]
+#     paths:
+#       - "packages/**"
+#       - "bun.lock"
+#       - ".github/workflows/packages.yml"
+#   pull_request:
+#     paths:
+#       - "packages/**"
+#       - "bun.lock"
+#       - ".github/workflows/packages.yml"
+#
+# jobs:
+#   check:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v4
+#       - uses: oven-sh/setup-bun@v2
+#         with:
+#           bun-version: latest
+#       - run: bun install --frozen-lockfile
+#       - run: bun run --filter @perch/protocol typecheck
+#       - run: bun run --filter @perch/client typecheck
+#       - run: bun run --filter @perch/sql typecheck
+#       - run: bun run --filter @perch/ui typecheck
+#       - run: bun run --filter @perch/protocol check
+#       - run: bun run --filter @perch/sql check
