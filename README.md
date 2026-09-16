@@ -30,169 +30,258 @@ Everything you use every day. None of the administration suite.
 <br>
 
 <p align="center">
-  <img src="docs/assets/demo.gif" alt="Typing a query in Perch, formatting it, running it, and reading 12 rows back in 7 milliseconds" width="880">
+  <img src="docs/assets/demo.gif" alt="Typing a query in Perch, running it, and reading 12 rows back in 7 milliseconds" width="880">
 </p>
 
 ---
 
-## Why
+## Built for reading databases, not administering them
 
-You wanted to check one thing. So you open pgAdmin, and it opens a tree of roles, tablespaces and
-foreign data wrappers. Four levels down to `orders`, a query tool in another tab, a reconnect after
-switching database — and the thing you wanted to check is gone from your head. Workbench is the same
-trade in a different font.
+Perch opens on your schema and a cursor. That's the whole product — browse, write SQL, read the
+result, leave — without the roles, tablespaces and replication panels you touch once a year.
 
-Those are administration tools. Most days you are not administering a database, you are **reading**
-one. Perch is built for that:
+pgAdmin and MySQL Workbench are administration suites with a query tab attached. Perch is the query
+tab, taken seriously: one binary, no account, no cloud, no bundled database, no Electron, and a UI
+quiet enough to think in.
 
-```text
-Connect → look at the schema → write SQL → read the result → leave
-```
-
-No account, no cloud, no bundled database, no Electron. One binary, and a UI quiet enough to think
-in.
+**Minimal is about what's on screen, not about what it can do.** Everything below is in there.
 
 ---
 
-## Small, not bare
+## Notebooks
 
-Minimal is about what's on screen, not what it can do.
+Sometimes one query isn't the job. **New notebook** turns the editor into a column of cells you run
+independently — each keeping its own result, its own row count and its own execution time, all on
+screen at once.
 
-<table>
-<tr>
-<td width="50%" valign="top">
+It's Jupyter's idea without Jupyter's file format. There is no ceremony to it — every statement is
+a cell. Add `-- %%` markers and those become the boundaries instead,
+which is how you get a cell holding `begin; … ; commit;`, or a prose cell:
 
-**📓 SQL notebooks**
+```sql
+-- Query 1
+SELECT * FROM orders WHERE status = 'paid' LIMIT 20;
 
-Jupyter's idea, no new file format. Cells run on their own and keep their own rows and timing. Save
-it and it's a plain `.sql` file that runs in `psql`.
+-- %%
+-- Query 2: the rewrite
+SELECT * FROM orders WHERE status = 'paid' AND created_at > now() - interval '7 days';
+```
 
-</td>
-<td width="50%" valign="top">
+Save it and you have a plain `.sql` file that runs in `psql` unchanged. Nothing proprietary, nothing
+to export, nothing your teammate can't open. Outputs are never written into the file — cached rows
+go stale the moment the data changes.
 
-**🪟 Split panes**
+> [!NOTE]
+> Notebook view isn't remembered yet: reopen a saved notebook and you get the script editor. The
+> `-- %%` markers survive, the view doesn't.
 
-Drag a tab to an edge, or <kbd>⌘</kbd><kbd>\</kbd>. Rewrite on the left, original on the right, both
-timings side by side. The layout survives a reload.
+---
 
-</td>
-</tr>
-<tr>
-<td width="50%" valign="top">
+## Split panes, for the real question
 
-**🗂 Workspaces**
+The question is rarely "what does this return". It's *what changed* — the rewrite next to the
+original, without alt-tabbing between two windows to remember.
 
-Open a folder like you would in your editor. Files save **in place**, external edits are detected,
-autosave optional. Several folders at once.
+Drag a tab to any edge to build the layout the task needs, or <kbd>⌘</kbd><kbd>\</kbd> to split
+without leaving the keyboard. The rewrite on the left, the original on the right, the result of
+whichever you just ran underneath.
 
-</td>
-<td width="50%" valign="top">
+Panes resize, tabs move between them, and the whole layout is still there after a reload.
 
-**🕓 History**
-
-Every run kept, grouped by day, still there after a restart. Click one to bring it back. Rows are
-never written to disk.
-
-</td>
-</tr>
-<tr>
-<td width="50%" valign="top">
-
-**🧠 Live schema**
-
-Tables, types, keys and row counts in the sidebar; completions from the real database in the editor;
-a squiggle on the exact token the server rejected.
-
-</td>
-<td width="50%" valign="top">
-
-**🔀 Boring database switching**
-
-<kbd>⌘</kbd><kbd>K</kbd>, type the name, <kbd>↵</kbd>. Schema, completions and editor follow. No
-reconnect dance, no stale tree.
-
-</td>
-</tr>
-</table>
+> [!NOTE]
+> Every pane shares one results view, so timings arrive one at a time. To put two results and two
+> timings on screen at once, run them as notebook cells.
 
 <p align="center">
   <img src="docs/assets/hero.png" alt="Perch with a file open on the left, a notebook on the right, and results below" width="900">
 </p>
 
-Plus the things you only notice when they're missing: a virtualized grid that scrolls the same at
-100k rows, `NULL` distinct from empty, CSV export, cancel that cancels at the driver, and formatting
-on <kbd>⇧</kbd><kbd>⌥</kbd><kbd>F</kbd> only — never behind your back on save.
+<p align="center">
+  <sub>A file on the left, a notebook on the right, results below. One window, one place to look.</sub>
+</p>
 
-| | |
+---
+
+## Workspaces — open a folder, like your editor
+
+Point Perch at a directory and it works on the `.sql` files already in it. No import step, no
+library, no second copy hidden in an app container. Open several folders at once.
+
+* Files open and save **in place**, so your editor, your repo and Perch see the same bytes
+* Changed on disk while open? Detected — adopted if you have no edits, offered as a choice if you do
+* Autosave with a delay you set, or off entirely
+* Recent folders one click away
+* Your workspace folders are also the boundary of what the server may read or write
+
+<kbd>⌘</kbd><kbd>S</kbd> on an untitled query asks where to keep it, and from then on it's a normal
+file in a normal folder — grep-able, diff-able, committable.
+
+---
+
+## Nothing you run is lost
+
+Every run is recorded — from the UI and the CLI alike — grouped by day, still there after a restart.
+Days collapse, so a long history is skimmed at the level of days first.
+
+"Sometime yesterday, the one that returned 43 rows" becomes a findable query again. Click it and
+that run comes back into the results pane with its SQL, its outcome and its timing. Rows from the
+current session come back with it; **history itself never puts your data on disk**, only what you
+ran and how it went.
+
+---
+
+## It already knows your schema
+
+The database you're connected to *is* the workspace. The sidebar tree gives you tables, views and
+materialized views, with columns, types, nullability, primary keys and row estimates — searchable
+across the whole schema.
+
+The editor shares that same metadata. Type:
+
+```sql
+SELECT * FROM ord…
+```
+
+and completion offers your actual tables and columns, each labelled with its type. Highlighting is
+dialect-aware. A rejected query gets a squiggle under the exact token the server objected to, with
+the message on hover, at the offset the server reported — not a guess.
+
+Nothing to define by hand, nothing to keep in sync.
+
+---
+
+## Switching database is boring
+
+As it should be. <kbd>⌘</kbd><kbd>K</kbd>, type the name, <kbd>↵</kbd> — or use the picker in the
+topbar. The schema tree, the completions and the editor all follow. No reconnect dance, no stale
+tree, no second window.
+
+That one palette covers everything you'd otherwise hunt for:
+
+| Group | Selecting it |
+| --- | --- |
+| Open files | Focuses the buffer |
+| Saved connections | Connects |
+| Databases on this server | Switches |
+| Tables in the schema | Reveals it in the sidebar |
+| Commands | Run, format, new notebook, toggle panels, save… |
+
+---
+
+## Results you can actually read
+
+* **Virtualized**, so a hundred thousand rows scroll like ten
+* **Types in the headers**, and `NULL` visibly distinct from an empty string
+* **A tab per statement** for multi-statement scripts, each with its own row count and time
+* **Grid or text**, a Messages tab for notices, and CSV export
+* **Keyboard navigable**, <kbd>⌘</kbd><kbd>C</kbd> to copy
+
+Runs stream as they arrive, and **cancel actually cancels** — the server kills it at the driver, not
+just in the browser.
+
+---
+
+## Made to be driven from the keyboard
+
+<kbd>⌘</kbd><kbd>↵</kbd> runs the selection, or the statement under your cursor — not the whole
+script by accident. Formatting is **explicit only**: <kbd>⇧</kbd><kbd>⌥</kbd><kbd>F</kbd>, the
+right-click menu, or the palette. Your SQL is never rewritten just because you hit save.
+
+| Shortcut | Does |
 | --- | --- |
 | <kbd>⌘</kbd><kbd>↵</kbd> | Run the selection, or the statement at the cursor |
 | <kbd>⌘</kbd><kbd>⇧</kbd><kbd>↵</kbd> | Run the whole file |
-| <kbd>⌘</kbd><kbd>K</kbd> | Palette — files, connections, databases, tables |
-| <kbd>⌘</kbd><kbd>B</kbd> / <kbd>⌘</kbd><kbd>J</kbd> | Sidebar / results |
-| <kbd>⌘</kbd><kbd>S</kbd> · <kbd>⌘</kbd><kbd>\</kbd> · <kbd>⌘</kbd><kbd>,</kbd> | Save · split · settings |
+| <kbd>⌘</kbd><kbd>K</kbd> | Command palette |
+| <kbd>⌘</kbd><kbd>B</kbd> | Sidebar |
+| <kbd>⌘</kbd><kbd>J</kbd> | Results pane |
+| <kbd>⌘</kbd><kbd>S</kbd> | Save |
+| <kbd>⌘</kbd><kbd>\</kbd> | Split the pane |
+| <kbd>⌘</kbd><kbd>,</kbd> | Settings |
+| <kbd>⇧</kbd><kbd>⌥</kbd><kbd>F</kbd> | Format the document |
 
 On Windows and Linux, <kbd>Ctrl</kbd> throughout.
 
 > [!NOTE]
-> **Next up:** a relationship view — tables drawn with the keys that join them, so an unfamiliar
-> schema explains itself.
+> **Next up: seeing the shape of your data.** A relationship view — tables drawn with the keys that
+> join them, so a schema you've never met explains itself. Foreign-key introspection is the piece
+> still missing; it's the next thing being built.
 
 ---
 
-## Getting in
+## It finds your database for you
 
-```sh
-chmod +x perch && mv perch /usr/local/bin/perch
-perch
-```
-
-**[Download →](https://github.com/Sahil1337/perch/releases)** · macOS may quarantine it:
-`xattr -d com.apple.quarantine /usr/local/bin/perch`
-
-Perch finds the Postgres or MySQL already running on your machine — default ports, `PATH`, Homebrew,
-systemd, Windows services, Docker — and offers it on first run. It never bundles a database.
+No hunting for the port, no copying a connection string out of a `.env` you half remember.
 
 ```console
 $ perch discover
-postgres | 127.0.0.1:5432 | ✓ | PostgreSQL 18.4 | port,binary,brew
+dialect  | address        | up | version         | sources          | suggested url
+---------+----------------+----+-----------------+------------------+-----------------------------------------
+postgres | 127.0.0.1:5432 | ✓  | PostgreSQL 18.4 | port,binary,brew | postgres://you@127.0.0.1:5432/postgres
+1 found in 730 ms · os user you
 ```
+
+Default ports, binaries on your `PATH`, Homebrew and systemd services, Windows services and Docker
+containers — checked in parallel, in about half a second. On first run Perch offers what it found,
+you press Connect, and you're working. It never bundles or installs a database of its own.
 
 ---
 
-## Also a CLI
+## The same workspace, from your terminal
 
-Same connections, same files, same history — without leaving the shell.
+Not a second product. The same connections, the same `.sql` files, the same history.
 
 ```console
 $ perch conn add local postgres://user:pass@localhost:5432/shop
+
+$ perch conn test local
+ok · PostgreSQL 16.2 on x86_64-pc-linux-gnu · 11 ms
+
 $ perch run local -e "select status, count(*) from orders group by 1"
 status   | count
 ---------+------
 paid     |  1204
+refunded |    37
 2 rows · 8 ms
+
+$ perch                       # same workspace, in a window
 ```
 
-`perch run` talks to the driver directly — nothing to boot, nothing left running, exit 1 on a SQL
-error. Good for scripts and CI. `--format table|json|csv|ndjson`.
+`perch run` talks to the driver directly — nothing to boot, nothing left running afterwards, exit
+code 1 on a SQL error with a caret under the position. Which makes it a fine fit for scripts,
+Makefiles and CI, and for the query you were going to pipe into something anyway.
 
 <details>
-<summary>All commands</summary>
+<summary><strong>See all commands</strong></summary>
 
 <br>
 
 ```sh
 perch                                  # start the server and open the UI
 perch discover                         # what's already on this machine?
-perch conn add|ls|rm|test|dbs <name>   # connections (passwords never printed)
+
+perch conn add <name> <url> --test     # save a connection
+perch conn ls                          # list them (passwords never printed)
+perch conn test <name>                 # round-trip, with latency
+perch conn dbs <name>                  # databases on that server
+
 perch schema <conn> --table public.orders
-perch run <conn> query.sql --format csv
-perch history --limit 20
+
+perch run <conn> query.sql --format csv   # table | json | csv | ndjson
+cat q.sql | perch run <conn> -            # or a pipe
+perch history --limit 20 --conn <conn>
+
 perch files ls ~/sql
-perch settings get|set
-perch serve --port 4600 --dir ~/sql · perch status · perch stop
+perch settings get
+perch settings set theme light
+
+perch serve --port 4600 --dir ~/sql
+perch status
+perch stop
 ```
 
-`--help` on everything, `--json` where there's data. **[Full CLI & API →](apps/server/README.md)**
+Every command supports `--help`. Commands that output data support `--json`.
+
+**[Full CLI & HTTP API →](apps/server/README.md)**
 
 </details>
 
@@ -200,30 +289,124 @@ perch serve --port 4600 --dir ~/sql · perch status · perch stop
 
 ## Local by design
 
-Everything lives in plain files under `~/.perch` — connections, settings, history, your `.sql`
-queries. **No telemetry, no cloud sync, no phoning home.**
+Everything Perch keeps lives in plain files you can read, edit or delete:
+
+```text
+~/.perch/
+├── connections.json    saved connections, incl. passwords (mode 0600)
+├── settings.json       autosave, maxRows, workspaces, theme
+├── history.jsonl       append-only run history (no result rows on disk)
+├── server.json         pid/url of the running server (mode 0600)
+└── queries/            your .sql files, opened as the first workspace
+```
+
+**No telemetry. No cloud sync. No phoning home.** Your SQL stays where it already is, and
+`PERCH_HOME` moves the whole directory if you want it elsewhere.
 
 > [!WARNING]
-> Passwords sit in `~/.perch/connections.json` (mode 0600, not a secrets vault — don't commit it),
-> and the server binds to `127.0.0.1` with **no login**: loopback is the security boundary.
+> Saved credentials live in `~/.perch/connections.json`. The file is permission-restricted, but it
+> is **not a secrets vault** — don't commit or sync it.
+
+> [!WARNING]
+> The server binds to `127.0.0.1` and has **no login**: loopback is the security boundary, so
+> anything that can reach the port can run queries. `perch serve --host <addr>` past localhost hands
+> the API to everyone on that network, and says so when it starts.
+
+---
+
+## One binary. That's it.
+
+```sh
+chmod +x perch
+mv perch /usr/local/bin/perch
+
+perch
+```
+
+**[Download the latest release →](https://github.com/Sahil1337/perch/releases)**
+
+No Electron runtime. No bundled database. No background service you forget you installed.
+
+> [!NOTE]
+> macOS may quarantine downloaded binaries. If Gatekeeper blocks Perch:
+> `xattr -d com.apple.quarantine /usr/local/bin/perch`
 
 ---
 
 ## Status
 
-**Early software.** CLI and HTTP API are stable; the UI is in active development. Postgres is the
-best-travelled path, MySQL is supported and less exercised. Not done yet: notebook view isn't
-remembered across reopen, foreign keys aren't introspected, passwords aren't in the OS keychain.
+> [!WARNING]
+> **Perch is early-stage software.** Used daily, and young.
 
-Use pgAdmin and Workbench for what they're good at — roles, replication, backups, server config.
-Perch is for the loop they make heavy. Different hours of the day.
+| Component | Status |
+| --- | --- |
+| CLI | Stable |
+| HTTP API | Complete |
+| Web UI | Active development |
+| Cross-platform releases | Manual for now |
 
-If something feels wrong, [open an issue](https://github.com/Sahil1337/perch/issues) — "feels wrong"
-is a legitimate bug report here. Another driver, editor polish or CLI work all welcome:
-**[contributing guide →](CONTRIBUTING.md)**
+Postgres is the best-travelled path; MySQL is supported and less exercised. The driver interface is
+deliberately small, so another dialect is contained work rather than a rewrite — SQLite and SQL
+Server aren't there today.
+
+Honestly unfinished: notebook view isn't remembered across reopen, foreign keys aren't introspected
+(which is what the relationship view is waiting on), and passwords are in a 0600 file rather than
+the OS keychain.
+
+If something feels wrong, [open an issue](https://github.com/Sahil1337/perch/issues). "Feels wrong"
+is a legitimate bug report here.
+
+---
+
+## Questions
+
+<details>
+<summary><strong>Why not pgAdmin or MySQL Workbench?</strong></summary>
+
+<br>
+
+Use them for what they're good at: roles, replication, backups, maintenance, server configuration.
+Real administration work deserves a real administration tool.
+
+Perch is for the loop those tools make heavy — look at the schema, write SQL, read the result,
+leave — and it tries to make that loop fast, keyboard-driven and pleasant to sit in. They're not
+competing for the same hour of your day.
+
+</details>
+
+<details>
+<summary><strong>Why a local server and a browser, not a desktop app?</strong></summary>
+
+<br>
+
+One binary on every OS, no Electron runtime, no code-signing dance, no second copy of Chrome on your
+disk. The UI is a plain HTTP client of a loopback server — which is also why the CLI and the window
+share connections, files and history without either being the "real" one.
+
+</details>
+
+<details>
+<summary><strong>Why isn't SQLite supported?</strong></summary>
+
+<br>
+
+Not yet. Postgres and MySQL today. The database layer sits behind a small driver interface, so
+adding a dialect is isolated work rather than a rewrite. See [CONTRIBUTING.md](CONTRIBUTING.md) if
+you'd like to add one.
+
+</details>
+
+---
+
+## Contributing
+
+Perch is still taking shape, which is the best time to arrive. Another driver, a better SQL
+workflow, editor polish, schema exploration, CLI features, UI work — all welcome.
+
+**[Contributing guide →](CONTRIBUTING.md)**
 
 ---
 
 <div align="center">
-<sub><strong>MIT</strong> © <a href="https://github.com/Sahil1337">Sahil1337</a></sub>
+<sub><strong>MIT</strong> © <a href="https://github.com/Sahil1337">Sahil1337</a> · <a href="https://github.com/Sahil1337/perch/issues">Issues</a> · <a href="CONTRIBUTING.md">Contributing</a></sub>
 </div>
