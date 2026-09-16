@@ -1,0 +1,9 @@
+{
+  "extends": "@perch/tsconfig/node.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "declaration": false
+  },
+  "include": ["src"]
+}

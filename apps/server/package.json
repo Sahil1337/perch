@@ -1,0 +1,52 @@
+{
+  "name": "perch",
+  "version": "0.1.0",
+  "description": "The perch server and CLI: connections, schema, queries, files, history. The UI is a pure client.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "perch": "./dist/cli/main.js"
+  },
+  "files": [
+    "dist",
+    "ui",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "tsx src/cli/main.ts serve --no-open --port ${PERCH_DEV_PORT:-4600} --allow-origin http://localhost:3000 --allow-origin http://localhost:3001",
+    "start": "node dist/cli/main.js serve",
+    "build": "tsc -p tsconfig.build.json && node scripts/postbuild.mjs",
+    "compile": "bun build src/cli/main.ts --compile --outfile dist/perch",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint src",
+    "smoke": "bash scripts/smoke.sh"
+  },
+  "license": "MIT",
+  "private": true,
+  "dependencies": {
+    "@hono/node-server": "^2.1.1",
+    "hono": "^4.13.8",
+    "mysql2": "^3.24.4",
+    "pg": "^8.23.0",
+    "pg-cursor": "^2.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.5.1",
+    "@types/pg": "^8.23.1",
+    "@types/pg-cursor": "^2.7.2",
+    "eslint": "^10.10.0",
+    "tsx": "^4.23.13",
+    "typescript": "^6.0.3",
+    "@perch/protocol": "*",
+    "@perch/tsconfig": "*"
+  }
+}
