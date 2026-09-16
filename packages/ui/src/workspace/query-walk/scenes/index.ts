@@ -18,13 +18,28 @@ import { windowScene } from "./station/window";
 import { EMPTY, type Scene } from "./types";
 import { capCols } from "./view";
 
-export type { BucketView, Col, Row, Scene, Summary, TableView } from "./types";
-export { boundScene } from "./bound";
+export type {
+  BucketView,
+  Col,
+  GridCellView,
+  GridGroup,
+  GridRowView,
+  GridView,
+  Row,
+  Scene,
+  Summary,
+  TableView,
+} from "./types";
+export { boundScene, innerCard } from "./bound";
+export { gridScene } from "./grid";
 export { countAt, countValue, errorOf, inputCount, previousIndex, sampleId } from "./results";
 
 export function buildScene(index: number, phase: number, walk: WalkData): Scene {
   const scene = sceneAt(index, phase, walk);
-  return scene.kind === "tables" ? { ...scene, tables: scene.tables.map(capCols) } : scene;
+  // The grid's own column axis is capped where it is built — by dropping driving rows, not by
+  // narrowing the card — so only the ordinary cards beside it go through the width cap.
+  if (scene.kind === "buckets") return scene;
+  return { ...scene, tables: scene.tables.map(capCols) };
 }
 
 function sceneAt(index: number, phase: number, walk: WalkData): Scene {

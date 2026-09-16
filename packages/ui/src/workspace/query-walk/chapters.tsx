@@ -85,10 +85,19 @@ function describe(run: SectionRun, sections: readonly SectionRun[]): string {
       return "declared by WITH, and computed once before anything that reads it.";
     case "derived":
       return "a subquery in FROM, computed before the query around it.";
-    case "predicate":
+    case "predicate": {
+      // Where the third piece of SQL went. A predicate this section swallowed has no chapter of its
+      // own, and a reader who can see it in the query and not on the strip is owed the sentence that
+      // says it did not vanish — it is the cells.
+      const swallowed = run.section.absorbed;
+      const cells =
+        swallowed.length === 0
+          ? ""
+          : ` Its own ${swallowed.join(" and ")} runs once per cell of the grid.`;
       return outer
-        ? `${predicatePhrase(origin.predicate.kind)} subquery, re-run for every row of ${outer}.`
-        : `${predicatePhrase(origin.predicate.kind)} subquery. Nothing in it depends on the outer row, so it is computed once.`;
+        ? `${predicatePhrase(origin.predicate.kind)} subquery, re-run for every row of ${outer}.${cells}`
+        : `${predicatePhrase(origin.predicate.kind)} subquery. Nothing in it depends on the outer row, so it is computed once.${cells}`;
+    }
     case "branch":
       return `branch ${origin.index + 1} of the set operation.`;
     case "main":

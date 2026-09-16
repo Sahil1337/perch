@@ -1,37 +1,72 @@
 "use client";
 
 // The reading side of a per-row section, laid out like the station narrator so the two do not feel
-// like different screens: what this section is, what happened for the row currently bound, and the
-// two pieces of SQL underneath as reference.
+// like different screens: what this section is, what happened for the row currently bound, what
+// happened in the cell that is picked, and the SQL underneath as reference.
 //
 // The SQL tab is the point of the whole feature. "The subquery" is what the user wrote, correlated
 // references and all; "SQL that ran" is the same text with this row's values written over them, and
 // watching `takes.ID = s.ID` become `takes.ID = '12345'` as the scrubber moves is the lesson that no
-// amount of prose delivers.
+// amount of prose delivers. A picked cell puts BOTH of its values in at once, which is the only
+// place in the walk where a statement carries two of the reader's own values.
 
 import { CornerUpRightIcon } from "lucide-react";
 import * as React from "react";
 import { Button } from "../../ui/button";
 import { Tabs, TabsList, TabsPanel, TabsTab } from "../../ui/tabs";
 import { highlightSql } from "../sql-editor/highlight-sql";
-import type { BoundPlan, BoundRow } from "./bound";
-import { boundCountSentence, boundNullSentence, boundRowSentence, boundSentence } from "./narration";
+import { boundRowParts, type BoundPlan, type BoundRow } from "./bound";
+import type { SqlPart } from "./clauses";
+import type { GridBuild } from "./grid";
+import {
+  boundCountSentence,
+  boundNullSentence,
+  boundRowSentence,
+  boundSentence,
+  gridCellSentence,
+  gridRowSentence,
+  gridSentence,
+} from "./narration";
 import { Sentence } from "./narrator";
+import { SqlParts } from "./sql-parts";
+import type { GridColumn } from "./use-grid";
+import type { QueryOutcome } from "./use-walk";
+
+/** The picked cell, once there is one: which column, the statement it ran, and what came back. */
+export type PickedCell = {
+  readonly column: GridColumn;
+  readonly parts: readonly SqlPart[] | null;
+  readonly result: QueryOutcome | undefined;
+  /**
+   * What the cell answered, as the grid probe measured it.
+   *
+   * Never re-derived from the rows the cell's own probe brought back. Those rows are the evidence
+   * and this is the verdict, and the one moment they would disagree is the moment the cell's probe
+   * has not landed yet — where guessing would print "false" over a cell the grid is drawing as true.
+   */
+  readonly returned: boolean | null;
+};
 
 export function BoundPanel({
   plan,
+  grid,
+  gridColumns,
   row,
+  cell,
   caption,
-  innerSql,
   innerError,
   durationMs,
   onOpenOuter,
 }: {
   readonly plan: BoundPlan;
+  /** Set when this section is being shown as a grid, which changes every sentence below. */
+  readonly grid: GridBuild | null;
+  /** Driving rows across the grid, for "3 of the 5 rows of RequiredCourses". */
+  readonly gridColumns: number;
   /** Null until the outer probe has landed and there is a row to stand on. */
   readonly row: BoundRow | null;
+  readonly cell: PickedCell | null;
   readonly caption: string;
-  readonly innerSql: string | null;
   readonly innerError: string | null;
   readonly durationMs: number | null;
   readonly onOpenOuter: () => void;
@@ -39,6 +74,7 @@ export function BoundPanel({
   const [tab, setTab] = React.useState("ran");
   const nulls = boundNullSentence(row?.nulls ?? []);
   const countless = boundCountSentence(plan);
+  const rowParts = React.useMemo(() => (row ? boundRowParts(plan, row) : null), [plan, row]);
 
   return (
     <aside
@@ -63,11 +99,32 @@ export function BoundPanel({
           {caption}
         </p>
         <p className="mt-1.5 text-foreground text-sm leading-relaxed">
-          <Sentence text={boundSentence(plan)} />
+          <Sentence text={grid ? gridSentence(plan, grid) : boundSentence(plan)} />
         </p>
         {row && (
           <p className="mt-2 text-foreground text-sm leading-relaxed">
-            <Sentence text={boundRowSentence(plan, row)} />
+            <Sentence
+              text={
+                grid
+                  ? gridRowSentence(plan, grid, row, gridColumns)
+                  : boundRowSentence(plan, row)
+              }
+            />
+          </p>
+        )}
+        {/* The cell's own sentence, which only exists once one is picked. It sits after the row's
+            because a cell is one term of the sum that sentence just quoted. */}
+        {grid && row && cell && cell.returned !== null && (
+          <p className="mt-2 text-foreground text-sm leading-relaxed">
+            <Sentence
+              text={gridCellSentence({
+                grid,
+                bound: boundPairs(plan, row, cell),
+                label: cell.column.label,
+                returned: cell.returned,
+                rows: cell.result?.ok ? cell.result.result.rowCount : null,
+              })}
+            />
           </p>
         )}
       </div>
@@ -92,14 +149,33 @@ export function BoundPanel({
         </TabsList>
         <TabsPanel className="min-h-0 overflow-auto" value="ran">
           <div className="flex flex-col gap-2">
+            {/* The picked cell first: it is the innermost thing that ran and the only statement
+                here carrying two substituted values. */}
+            {cell?.parts && (
+              <div className="min-w-0">
+                <p className="mb-1 text-muted-foreground text-xs">
+                  The picked cell, with both of its values in place
+                </p>
+                <SqlParts parts={cell.parts} />
+                {cell.result && !cell.result.ok && (
+                  <p className="mt-1 whitespace-pre-wrap font-mono text-destructive-foreground text-xs">
+                    {cell.result.error}
+                  </p>
+                )}
+              </div>
+            )}
             <div className="min-w-0">
               <p className="mb-1 text-muted-foreground text-xs">
                 This row&apos;s values, in place of the correlated columns
                 {durationMs !== null && <span className="opacity-70"> · {durationMs} ms</span>}
               </p>
-              <pre className="whitespace-pre-wrap rounded-md bg-muted p-2 font-mono text-sm leading-5">
-                {highlightSql(innerSql ?? plan.section.text)}
-              </pre>
+              {rowParts ? (
+                <SqlParts parts={rowParts} />
+              ) : (
+                <pre className="whitespace-pre-wrap rounded-md bg-muted p-2 font-mono text-sm leading-5">
+                  {highlightSql(plan.section.text)}
+                </pre>
+              )}
               {innerError && (
                 <p className="mt-1 whitespace-pre-wrap font-mono text-destructive-foreground text-xs">
                   {innerError}
@@ -114,6 +190,18 @@ export function BoundPanel({
                 {highlightSql(plan.counting === null ? plan.verdictSql : plan.outerSql)}
               </pre>
             </div>
+            {/* The grid's own probe. It writes no literal at all — every fragment of it is a range
+                sliced out of the query — which is worth being able to check by eye. */}
+            {grid && (
+              <div className="min-w-0">
+                <p className="mb-1 text-muted-foreground text-xs">
+                  Every cell at once: the outer rows crossed with {grid.driveTitle}
+                </p>
+                <pre className="whitespace-pre-wrap rounded-md bg-muted p-2 font-mono text-sm leading-5">
+                  {highlightSql(grid.sql)}
+                </pre>
+              </div>
+            )}
           </div>
         </TabsPanel>
         <TabsPanel className="min-h-0 overflow-auto" value="query">
@@ -124,4 +212,12 @@ export function BoundPanel({
       </Tabs>
     </aside>
   );
+}
+
+/** The substitutions a cell's SQL made, spelled the way the panel highlights them. */
+function boundPairs(plan: BoundPlan, row: BoundRow, cell: PickedCell): string[] {
+  return [
+    ...plan.columns.map((column) => `${column.ref} = ${row.literals.get(column.ref) ?? "null"}`),
+    ...[...cell.column.literals].map(([ref, literal]) => `${ref} = ${literal}`),
+  ];
 }

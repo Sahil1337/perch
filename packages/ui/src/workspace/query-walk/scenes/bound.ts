@@ -65,16 +65,28 @@ export function boundScene(args: {
     rows: outerRows,
     total: outer.rowCount,
     truncated: outer.truncated,
+    // Every verdict here was decided by one probe that ran before the reader arrived, so the card
+    // comes on screen with its marks already on it. Nothing is being tested as they watch.
+    settled: true,
   };
 
-  // The inner card keeps its key across rows on purpose: the card stays put and its ROWS animate in
-  // and out as the binding moves, which is the thing being taught. A fresh key per row would make
-  // the whole card cross-fade and hide that the rows are what changed.
-  const innerView: TableView = innerError
-    ? { key: "inner", title, cols: [], rows: [], error: innerError }
-    : inner
-      ? plain("inner", title, inner, inner.rowCount)
-      : { key: "inner", title, cols: [], rows: [] };
+  return tables([outerView, innerCard(title, inner, innerError)], inner?.rowCount ?? null, false);
+}
 
-  return tables([outerView, innerView], inner?.rowCount ?? null, false);
+/**
+ * The card for whatever the subquery returned: the bound row's rows, or a picked cell's.
+ *
+ * Its key never changes, on purpose. The card stays put and its ROWS animate in and out as the
+ * binding moves, which is the thing being taught; a fresh key per row would cross-fade the whole
+ * card and hide that the rows are what changed.
+ */
+export function innerCard(
+  title: string,
+  inner: StatementResult | null,
+  error: string | null,
+  key = "inner",
+): TableView {
+  if (error) return { key, title, cols: [], rows: [], error };
+  if (!inner) return { key, title, cols: [], rows: [] };
+  return plain(key, title, inner, inner.rowCount);
 }

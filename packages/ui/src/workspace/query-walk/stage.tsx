@@ -13,10 +13,12 @@ import { Spinner } from "../../ui/spinner";
 import { formatCell } from "../results-grid";
 import { BucketsScene } from "./buckets";
 import type { SourceRef } from "./clauses";
+import { GridCard } from "./grid-card";
 import { STAGGER_MS } from "./narration";
 import type { Col, Row as RowView, Scene, TableView } from "./scenes";
 import { TickNumber } from "./tick-number";
 import type { StationState } from "./use-walk";
+import { VerdictMark } from "./verdict-mark";
 import { collapseAfter, useSpeed, useT } from "./walk-motion";
 
 /**
@@ -76,10 +78,10 @@ export function Stage({
               {/* A station that failed or is not in the query has no scene: whatever the builder
                   could still make of it is a half-built card, and the message below would print
                   straight on top of it. */}
-              {state === "failed" || state === "absent" ? null : scene.kind === "tables" ? (
-                <TablesScene scene={scene} sourceLink={sourceLink} />
-              ) : (
+              {state === "failed" || state === "absent" ? null : scene.kind === "buckets" ? (
                 <BucketsScene scene={scene} />
+              ) : (
+                <TablesScene scene={scene} sourceLink={sourceLink} />
               )}
             </LayoutGroup>
           </div>
@@ -168,21 +170,26 @@ function useEdges(ref: React.RefObject<HTMLDivElement | null>): { left: boolean;
   return edges;
 }
 
+/** The cards of a scene in a row, with the grid — when there is one — first and widest. */
 function TablesScene({
   scene,
   sourceLink,
 }: {
-  scene: Extract<Scene, { kind: "tables" }>;
+  scene: Extract<Scene, { kind: "tables" | "grid" }>;
   sourceLink: (source: SourceRef) => SourceLink | null;
 }): React.ReactElement {
   const t = useT();
   return (
     <motion.div
-      className={cn("relative flex items-start", scene.tight ? "gap-3" : "gap-12")}
+      className={cn(
+        "relative flex items-start",
+        scene.kind === "grid" ? "gap-6" : scene.tight ? "gap-3" : "gap-12",
+      )}
       layout
       transition={t.spring}
     >
       <AnimatePresence initial={false} mode="popLayout">
+        {scene.kind === "grid" && <GridCard grid={scene.grid} key={scene.grid.key} />}
         {scene.tables.map((view) => (
           <Table key={view.key} sourceLink={sourceLink} view={view} />
         ))}
@@ -301,6 +308,7 @@ function Table({
                     index={item.index}
                     key={item.row.key}
                     row={item.row}
+                    settled={view.settled === true}
                   />
                 ),
               )}
@@ -373,18 +381,21 @@ function Row({
   cols,
   index,
   folded,
+  settled,
 }: {
   row: RowView;
   cols: readonly Col[];
   index: number;
   /** The card folded some columns away: this row needs the same placeholder its header has. */
   folded: boolean;
+  /** The card arrived with its verdicts already decided: nothing here is a test happening now. */
+  settled: boolean;
 }): React.ReactElement {
   const t = useT();
   const speed = useSpeed();
   const verdict = row.verdict;
   const testDelay = ((row.testIndex ?? 0) * STAGGER_MS) / speed;
-  const delayMs = t.reduced ? 0 : verdict ? testDelay : (index * 70) / speed;
+  const delayMs = t.reduced || settled ? 0 : verdict ? testDelay : (index * 70) / speed;
   return (
     <motion.div
       animate={{ opacity: 1 }}
@@ -403,7 +414,7 @@ function Row({
       style={{ "--d": `${delayMs}ms` } as React.CSSProperties}
       transition={{ layout: t.spring, default: t.fade }}
     >
-      {verdict === "pass" && (
+      {verdict === "pass" && !settled && (
         <motion.span
           animate={{ opacity: [0, 1, 0] }}
           aria-hidden
@@ -412,7 +423,7 @@ function Row({
         />
       )}
       <div className="flex w-5.5 shrink-0 items-center justify-center">
-        <Mark delayMs={delayMs} verdict={verdict} />
+        <VerdictMark delayMs={delayMs} settled={settled} verdict={verdict} />
       </div>
       <AnimatePresence initial={false}>
         {cols.map((col) => (
@@ -435,39 +446,6 @@ function Row({
         </span>
       )}
     </motion.div>
-  );
-}
-
-function Mark({ verdict, delayMs }: { verdict?: "pass" | "fail"; delayMs: number }): React.ReactElement {
-  return (
-    <span
-      aria-hidden
-      className={cn(
-        "flex size-3.5 items-center justify-center rounded-full text-white transition-opacity delay-(--d) duration-200",
-        verdict ? "opacity-100" : "opacity-0",
-        verdict === "fail" ? "bg-destructive" : "bg-success",
-      )}
-      style={{ "--d": `${delayMs}ms` } as React.CSSProperties}
-    >
-      {verdict === "fail" ? (
-        <svg height="8" stroke="currentColor" strokeLinecap="round" strokeWidth="1.6" viewBox="0 0 8 8" width="8">
-          <path d="M1.5 1.5l5 5M6.5 1.5l-5 5" />
-        </svg>
-      ) : (
-        <svg
-          fill="none"
-          height="8"
-          stroke="currentColor"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth="1.6"
-          viewBox="0 0 8 8"
-          width="8"
-        >
-          <path d="M1.5 4.2l1.8 1.8 3.2-3.8" />
-        </svg>
-      )}
-    </span>
   );
 }
 

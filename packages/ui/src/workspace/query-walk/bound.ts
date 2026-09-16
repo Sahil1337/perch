@@ -20,21 +20,20 @@ import {
   countingWrap,
   isSetOp,
   refRanges,
+  spliceParts,
   spliceRanges,
-  WALK_PREFIX,
   type ParsedSelect,
   type Range,
+  type SqlPart,
   type SubqueryPredicate,
   type SubqueryPredicateKind,
 } from "./clauses";
+import { gridBuild, type GridBuild } from "./grid";
 import { sectionById, type Program, type Section } from "./program";
 import { truthy } from "./scenes/columns";
-import { PASS_COLUMN } from "./steps";
+import { bindColumn, MATCH_COLUMN, PASS_COLUMN } from "./steps";
 
-/** The match count the outer probe carries back for each row. */
-export const MATCH_COLUMN = `${WALK_PREFIX}n`;
-/** One correlated reference's value on the outer row, under a name the walk owns. */
-export const bindColumn = (index: number): string => `${WALK_PREFIX}v${index}`;
+export { bindColumn, MATCH_COLUMN };
 
 /** A correlated reference, and where the outer probe puts the value it resolves to. */
 export type BoundColumn = {
@@ -91,9 +90,15 @@ export function boundPlan(program: Program, section: Section): BoundPlan | Bound
     return { kind: "blocked", reason: "The section it runs for is not part of this walk." };
   }
   if (outer.binding.kind === "bound") {
+    // Three levels deep, under a section whose own inner predicate became a grid: the rows this one
+    // would need are a CELL of that grid, and a cell has nothing to bind until the reader picks it.
+    // Naming the grid is the difference between "we gave up" and "look one chapter up".
     return {
       kind: "blocked",
-      reason: `${outer.label} is itself run once per row, so its rows only exist once a row of the section above IT has been bound. This subquery needs its parent's row first.`,
+      reason:
+        outer.absorbed.length > 0
+          ? `${outer.label} runs once per cell of the grid above, and a cell has no rows to bind until one is picked. Pick a cell there to see this subquery run.`
+          : `${outer.label} is itself run once per row, so its rows only exist once a row of the section above IT has been bound. This subquery needs its parent's row first.`,
     };
   }
   if (origin.kind !== "predicate") {
@@ -207,19 +212,91 @@ function canWiden(parsed: ParsedSelect, kind: SubqueryPredicateKind): boolean {
  * value. This is the departure the file header names, and the SQL the reader is meant to look at.
  */
 export function boundRowSql(plan: BoundPlan, row: BoundRow): string {
+  return boundRowParts(plan, row)
+    .map((part) => part.text)
+    .join("");
+}
+
+/**
+ * The same statement, with the substituted literals kept apart from the text around them.
+ *
+ * The lesson is that ONE thing changed. Re-rendering the whole block as the scrubber moves makes the
+ * eye lose its place and hides which character the database swapped, so the panel renders these
+ * parts and cross-fades only the runs that carry an `over`.
+ */
+export function boundRowParts(plan: BoundPlan, row: BoundRow): readonly SqlPart[] {
   // `boundPlan` refuses both of these, so a plan can never carry one; the guard is what keeps that
   // promise readable here rather than asserted with a `!`.
   const parsed = plan.section.parsed;
-  if (parsed === null || isSetOp(parsed)) return plan.section.text;
+  if (parsed === null || isSetOp(parsed)) return [{ text: plan.section.text, over: null }];
   // The literals come off the row rather than being spelled again here, so what the SQL says and
   // what the narrator quotes can never drift apart by a quote mark.
   const edits = plan.refs.map((found) => ({
     range: found.range,
     with: row.literals.get(found.ref) ?? "null",
+    over: found.ref,
   }));
-  if (plan.star) edits.push({ range: parsed.selectList, with: "*" });
-  return spliceRanges(parsed.text, parsed.statement, edits);
+  if (plan.star) edits.push({ range: parsed.selectList, with: "*", over: "" });
+  return spliceParts(parsed.text, parsed.statement, edits).map((part) =>
+    // The widened select list is a substitution too, but it never changes from row to row, so
+    // marking it would set a run cross-fading that has nothing to cross-fade to.
+    part.over === "" ? { text: part.text, over: null } : part,
+  );
 }
+
+/**
+ * The grid this per-row section can be shown as, or null when the ledger is the right picture.
+ *
+ * Deliberately the same call `program.ts` made when it decided whether the inner predicate gets a
+ * chapter, from the same two parses: if these two ever disagreed, a predicate would lose its chapter
+ * to a grid that then refused to build, and the query would be one subquery short on screen.
+ */
+export function boundGrid(plan: BoundPlan): GridBuild | null {
+  const outer = plan.outer.parsed;
+  const middle = plan.section.parsed;
+  if (outer === null || middle === null || isSetOp(outer) || isSetOp(middle)) return null;
+  if (plan.section.binding.kind !== "bound") return null;
+  return gridBuild({
+    outer,
+    middle,
+    predicate: plan.predicate,
+    correlated: plan.section.binding.columns,
+    dialect: plan.dialect,
+    prefix: plan.section.prefix,
+  });
+}
+
+/**
+ * The absorbed inner subquery as it runs for ONE CELL: both literals spliced in.
+ *
+ * `takes.ID = s.ID and takes.course_id = rc.course_id` becomes `takes.ID = '12345' and
+ * takes.course_id = 'CS-319'`, which is the statement the database really evaluated for that cell
+ * and the one piece of SQL in the whole walk that has the reader's own values in it twice.
+ */
+export function cellParts(
+  grid: GridBuild,
+  literals: ReadonlyMap<string, string>,
+): readonly SqlPart[] {
+  const { text, range } = grid.innerStatement;
+  const refs = refRanges(text, grid.dialect, [...literals.keys()]).filter(
+    (found) => found.range.from >= range.from && found.range.to <= range.to,
+  );
+  const edits = refs.map((found) => ({
+    range: found.range,
+    with: literals.get(found.ref) ?? "null",
+    over: found.ref,
+  }));
+  // Widened for the same reason the per-row card widens: EXISTS discards the select list, so a
+  // column of `1`s is the one thing the rows could say that teaches nothing.
+  const widened = grid.innerList === null ? edits : [...edits, { range: grid.innerList, with: "*", over: "" }];
+  const parts = spliceParts(text, range, widened).map((part) =>
+    part.over === "" ? { text: part.text, over: null } : part,
+  );
+  return grid.prefix === "" ? parts : [{ text: grid.prefix, over: null }, ...parts];
+}
+
+export const partsSql = (parts: readonly SqlPart[]): string =>
+  parts.map((part) => part.text).join("");
 
 /**
  * One database value, spelled so the database reads it back as the same value.

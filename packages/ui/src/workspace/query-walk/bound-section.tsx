@@ -8,23 +8,42 @@
 // the 5 required courses, Shankar 1, Brandt all 5, and nobody is missing none. That is why the
 // answer is empty, and it is visible nowhere else in the walk.
 //
-// So: the outer rows on the left with their verdicts, the subquery's own rows for the bound one on
-// the right, and playback walking down the outer rows on its own. Taking hold of the scrubber pauses
-// it, because a reader who has found the row they care about should not be dragged off it.
+// There are two pictures of that, and which one is right depends on the subquery. A plain
+// correlated predicate has one answer per outer row, so it is a LEDGER: outer rows on the left,
+// the bound row's own rows on the right. A DOUBLY correlated one — this subquery walks its own rows
+// and asks a third table about each of them — has one answer per PAIR of rows, so it is a GRID, and
+// the loop stops being the picture. The grid is a specialisation of the ledger and never a
+// replacement that can fail: when it cannot be built, or its probe is refused, the ledger is what
+// shows, whole and without a word about it.
+//
+// Either way the scrubber is the row cursor and taking hold of it pauses playback, because a reader
+// who has found the row they care about should not be dragged off it.
 
 import { motion } from "motion/react";
 import * as React from "react";
 import { highlightSql } from "../sql-editor/highlight-sql";
-import { boundPlan, type BoundPlan } from "./bound";
+import { boundGrid, boundPlan, type BoundPlan, type BoundRow } from "./bound";
 import { BoundPanel } from "./bound-panel";
 import { BoundScrubber } from "./bound-scrubber";
+import { GridPickContext } from "./grid-card";
 import { bindingText, boundPhases, ROW_HOLD_MS } from "./narration";
 import type { Program, Section, SectionId } from "./program";
-import { boundScene, type Scene } from "./scenes";
+import { boundScene, gridScene, innerCard, type Scene, type TableView } from "./scenes";
 import { Stage } from "./stage";
 import { useBoundRun } from "./use-bound";
+import { bindKey, useGridRun } from "./use-grid";
 import type { Probe, StationState } from "./use-walk";
 import { useSpeed, useT } from "./walk-motion";
+
+/** What the grid measured for one cell, or null when its probe never reached that pair. */
+function answerFor(
+  cells: ReadonlyMap<string, ReadonlyMap<string, boolean>>,
+  row: BoundRow | undefined,
+  column: string,
+): boolean | null {
+  if (!row) return null;
+  return cells.get(bindKey([...row.literals.values()]))?.get(column) ?? null;
+}
 
 /** A bound section has no FROM cards, so nothing on its stage can offer to walk into a source. */
 const NO_LINK = (): null => null;
@@ -83,10 +102,16 @@ function BoundWalk({
   readonly onOpenSection: (id: SectionId) => void;
 }): React.ReactElement {
   const run = useBoundRun(plan, probe);
+  const build = React.useMemo(() => boundGrid(plan), [plan]);
   const speed = useSpeed();
+  const t = useT();
   const { current, rows, inner, bind } = run;
+  const grid = useGridRun(build, rows, probe);
   const row = rows[current] ?? null;
   const waiting = inner === undefined;
+  // The grid shows only once its own probe has landed: a card of empty cells while the statement is
+  // in the air says the subquery answered nothing, which is the opposite of what is happening.
+  const showGrid = build !== null && !grid.failed && !grid.loading && grid.columns.length > 0;
 
   // One beat per outer row, on the same clock as every other schedule in the walk. It holds while
   // the row's probe is still out: advancing on a timer the database has not caught up with would
@@ -101,22 +126,95 @@ function BoundWalk({
     return () => clearTimeout(id);
   }, [bind, current, onDone, playing, rows.length, speed, waiting]);
 
+  // Whether the rows are ARRIVING or already here, decided once, when the chapter opens. Playback
+  // walking in is a first pass and every row it reaches is a test the reader watches happen; a
+  // reader clicking the chapter is not a test, and the grid they land on has to be settled — marks
+  // present, nothing staggering, nothing flashing. Under reduced motion it is always the latter.
+  const [filling] = React.useState(() => playing && !t.reduced);
+  const [reached, setReached] = React.useState(1);
+  React.useEffect(() => {
+    setReached((seen) => Math.max(seen, current + 1));
+  }, [current]);
+  const reveal = filling ? reached : null;
+
   const phases = React.useMemo(() => boundPhases(rows), [rows]);
   const title = row ? bindingText(plan, row) : plan.section.label;
+
+  // Picking a cell binds its row as well: the cell belongs to that outer row, and leaving the
+  // cursor somewhere else would put one row's SQL beside another row's ring.
+  const pick = React.useCallback(
+    (at: number, column: string) => {
+      onPause();
+      bind(at);
+      grid.pick(grid.picked?.row === at && grid.picked.column === column ? null : { row: at, column });
+    },
+    [bind, grid, onPause],
+  );
+
+  const column = grid.columns.find((entry) => entry.key === grid.picked?.column) ?? null;
+  const cell = grid.cell;
+  // The subquery's own rows for the bound outer row, and — once a cell is picked — the rows behind
+  // that one cell. Both are cards beside the grid, and the second only exists when it was asked for.
+  const tables = React.useMemo((): TableView[] => {
+    const own = innerCard(title, inner?.ok ? inner.result : null, inner && !inner.ok ? inner.error : null);
+    if (!column || !build) return [own];
+    return [
+      own,
+      innerCard(
+        `${build.innerSource} · ${column.label}`,
+        cell?.ok ? cell.result : null,
+        cell && !cell.ok ? cell.error : null,
+        "cell",
+      ),
+    ];
+  }, [build, cell, column, inner, title]);
+
   const scene = React.useMemo(
     () =>
-      run.outer
-        ? boundScene({
-            plan,
-            outer: run.outer,
-            rows,
-            current,
-            title,
-            inner: inner?.ok ? inner.result : null,
-            innerError: inner && !inner.ok ? inner.error : null,
-          })
-        : null,
-    [current, inner, plan, rows, run.outer, title],
+      !run.outer
+        ? null
+        : showGrid && build
+          ? gridScene({
+              plan,
+              grid: build,
+              outer: run.outer,
+              rows,
+              columns: grid.columns,
+              cells: grid.cells,
+              current,
+              picked: grid.picked,
+              reveal,
+              truncated: grid.truncated,
+              covered: grid.covered,
+              tables,
+              count: inner?.ok ? inner.result.rowCount : null,
+            })
+          : boundScene({
+              plan,
+              outer: run.outer,
+              rows,
+              current,
+              title,
+              inner: inner?.ok ? inner.result : null,
+              innerError: inner && !inner.ok ? inner.error : null,
+            }),
+    [
+      build,
+      current,
+      grid.cells,
+      grid.columns,
+      grid.covered,
+      grid.picked,
+      grid.truncated,
+      inner,
+      plan,
+      reveal,
+      rows,
+      run.outer,
+      showGrid,
+      tables,
+      title,
+    ],
   );
 
   const state: StationState = run.outerError
@@ -133,55 +231,69 @@ function BoundWalk({
         : (phases[current]?.label ?? "");
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
-      <div className="grid min-h-0 flex-1 gap-4 md:grid-cols-3">
-        <div className="flex min-h-0 min-w-0 flex-col md:col-span-2">
-          {/* Keyed by the section rather than by the bound row: stepping from one outer row to
-              the next is exactly where the inner card should animate, because those rows are
-              successive answers from the same subquery. */}
-          <Stage
-            scene={scene ?? NOTHING_YET}
-            sceneKey={plan.section.id}
-            sourceLink={NO_LINK}
-            state={state}
+    <GridPickContext.Provider value={pick}>
+      <div className="flex min-h-0 flex-1 flex-col gap-3">
+        <div className="grid min-h-0 flex-1 gap-4 md:grid-cols-3">
+          <div className="flex min-h-0 min-w-0 flex-col md:col-span-2">
+            {/* Keyed by the section rather than by the bound row: stepping from one outer row to
+                the next is exactly where the inner card should animate, because those rows are
+                successive answers from the same subquery. */}
+            <Stage
+              scene={scene ?? NOTHING_YET}
+              sceneKey={plan.section.id}
+              sourceLink={NO_LINK}
+              state={state}
+            />
+          </div>
+          <BoundPanel
+            caption={caption}
+            cell={
+              column && grid.picked
+                ? {
+                    column,
+                    parts: grid.cellParts,
+                    result: cell,
+                    returned: answerFor(grid.cells, rows[grid.picked.row], column.key),
+                  }
+                : null
+            }
+            durationMs={inner?.ok ? inner.result.durationMs : null}
+            grid={showGrid ? build : null}
+            gridColumns={grid.columns.length}
+            innerError={inner && !inner.ok ? inner.error : null}
+            onOpenOuter={() => onOpenSection(plan.outer.id)}
+            plan={plan}
+            row={row}
           />
         </div>
-        <BoundPanel
-          caption={caption}
-          durationMs={inner?.ok ? inner.result.durationMs : null}
-          innerError={inner && !inner.ok ? inner.error : null}
-          innerSql={run.innerSql}
-          onOpenOuter={() => onOpenSection(plan.outer.id)}
-          plan={plan}
-          row={row}
-        />
+        {rows.length > 0 && (
+          <BoundScrubber
+            current={current}
+            label={title}
+            onBind={bind}
+            onGrab={onPause}
+            rows={rows}
+          />
+        )}
+        {run.outerError && (
+          <p className="shrink-0 whitespace-pre-wrap rounded-md border border-destructive/30 bg-destructive/8 p-3 font-mono text-destructive-foreground text-xs leading-5">
+            {run.outerError}
+          </p>
+        )}
       </div>
-      {rows.length > 0 && (
-        <BoundScrubber
-          current={current}
-          label={title}
-          onBind={bind}
-          onGrab={onPause}
-          rows={rows}
-        />
-      )}
-      {run.outerError && (
-        <p className="shrink-0 whitespace-pre-wrap rounded-md border border-destructive/30 bg-destructive/8 p-3 font-mono text-destructive-foreground text-xs leading-5">
-          {run.outerError}
-        </p>
-      )}
-    </div>
+    </GridPickContext.Provider>
   );
 }
 
 /**
  * A bound section the walk will not pretend to run, and the reason in full.
  *
- * The one that matters is nesting. In the relational-division query the inner `not exists takes` is
- * bound to a section that is itself bound, so there is no settled table of outer rows to scrub: its
- * outer rows only exist once a row of ITS outer section has been picked. Saying so plainly is worth
- * more than a two-level scrubber that nobody could follow — and far more than binding one level and
- * leaving the reader to assume the other was handled.
+ * The one that matters is nesting. A subquery bound to a section that is ITSELF bound has no settled
+ * table of outer rows to scrub: its outer rows only exist once a row of its parent has been picked.
+ * Since the grid, that parent is usually a grid and the note points at it — a cell there is what
+ * would bind this — and where there is no grid it says the plain thing instead. Either way saying so
+ * is worth more than a two-level scrubber nobody could follow, and far more than binding one level
+ * and leaving the reader to assume the other was handled.
  */
 function BoundHold({
   section,

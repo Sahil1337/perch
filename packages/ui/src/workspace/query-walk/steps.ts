@@ -30,6 +30,20 @@ export const SAMPLE_ROWS = 25;
 /** Output columns the walk adds for its own bookkeeping; never shown. */
 export const PASS_COLUMN = `${WALK_PREFIX}pass`;
 export const keyColumn = (index: number): string => `${WALK_PREFIX}k${index}`;
+/** The match count a per-row probe carries back for each outer row. */
+export const MATCH_COLUMN = `${WALK_PREFIX}n`;
+/** One correlated reference's value on the outer row, under a name the walk owns. */
+export const bindColumn = (index: number): string => `${WALK_PREFIX}v${index}`;
+/**
+ * The two names the grid probe adds on top of those.
+ *
+ * They live here beside the others rather than next to the grid builder so that `bound.ts` and
+ * `grid.ts` can both read a probe's columns back without either importing the other — the cycle
+ * that would otherwise run program → grid → bound → program.
+ */
+export const CELL_COLUMN = `${WALK_PREFIX}cell`;
+/** One driving row's key on the grid's column axis: `rc.course_id`. */
+export const driveColumn = (index: number): string => `${WALK_PREFIX}g${index}`;
 /** The window function's own value, computed a second time under a name the walk owns. Without it
  *  the scene would have to guess which of the user's output columns the function produced, and a
  *  query with no alias, a `*`, or two functions in a row makes that guess wrong. */

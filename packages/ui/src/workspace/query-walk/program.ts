@@ -38,6 +38,7 @@ import {
   type SubqueryPredicate,
   type Unsupported,
 } from "./clauses";
+import { gridBuild } from "./grid";
 
 export type SectionId = string;
 
@@ -133,6 +134,16 @@ export type Section = {
   readonly reads: readonly SectionId[];
   /** The `WITH …\n` prefix already spliced into `parsed.text`. Empty when none. */
   readonly prefix: string;
+  /**
+   * Predicates this section SWALLOWED, by label, rather than giving each a chapter of its own.
+   *
+   * A doubly-correlated predicate has no table of outer rows to scrub — its outer rows do not exist
+   * until a row of ITS outer section is picked — so a chapter for it could only ever hold a note.
+   * When a grid can be built it becomes the cells of this section's grid instead, which is a better
+   * picture and a real one. Empty for every other section; non-empty is what the chapter strip reads
+   * to say where that piece of SQL went.
+   */
+  readonly absorbed: readonly string[];
 };
 
 /**
@@ -209,6 +220,7 @@ export function buildProgram(text: string, dialect: Dialect): Program | Unsuppor
     origin: { kind: "main" },
     binding: { kind: "standalone", certain: true },
     scope: EMPTY_SCOPE,
+    host: null,
   });
   // The main query was refused outright. Its own reason is the useful one — "This SELECT has no
   // columns" tells the reader where to look, where a generic line sends them nowhere.
@@ -300,7 +312,18 @@ type AddArgs = {
   readonly origin: SectionOrigin;
   readonly binding: Binding;
   readonly scope: Scope;
+  /**
+   * The query this section is a subquery predicate OF, when it is one.
+   *
+   * Only a per-row section needs it, and only to ask whether its own inner predicate can become a
+   * grid — a question that cannot be answered from the subquery alone, because the probe that fills
+   * the grid is built by splicing the OUTER query's FROM and WHERE. Null everywhere else.
+   */
+  readonly host: GridHost | null;
 };
+
+/** The outer query a predicate section hangs off, and the predicate as it sits in it. */
+type GridHost = { readonly parsed: ParsedSelect; readonly predicate: SubqueryPredicate };
 
 /**
  * Emits one section and, before it, every section it depends on.
@@ -315,6 +338,7 @@ function addQuery(build: Build, args: AddArgs): SectionId | null {
   if (isUnsupported(parsed)) return addResultOnly(build, args, parsed);
 
   const reads: SectionId[] = [];
+  const absorbed: string[] = [];
   if (isSetOp(parsed)) {
     // The CTEs belong to the WHOLE set operation, not to a branch. Wave 1 seeds every branch parse
     // with them so `from monthly` resolves inside it, which meant each branch reached its own CTE
@@ -324,7 +348,18 @@ function addQuery(build: Build, args: AddArgs): SectionId | null {
     const seeded = addCtes(build, { ctes: parsed.ctes, withRange: parsed.with, sql, path, binding, scope });
     reads.push(...seeded.reads, ...addBranches(build, parsed, sql, path, binding, seeded.scope));
   } else {
-    reads.push(...addChildren(build, parsed, sql, path, binding, scope));
+    const own = addChildren(build, {
+      parsed,
+      sql,
+      path,
+      binding,
+      scope,
+      host: args.host,
+      prefix,
+      boundTo: null,
+    });
+    reads.push(...own.reads);
+    absorbed.push(...own.absorbed);
   }
 
   const id = path;
@@ -339,6 +374,7 @@ function addQuery(build: Build, args: AddArgs): SectionId | null {
     binding,
     reads: dedupe(reads),
     prefix,
+    absorbed,
   });
   return id;
 }
@@ -391,6 +427,7 @@ function addResultOnly(build: Build, args: AddArgs, refusal: Unsupported): Secti
     binding,
     reads: dedupe(seeded.reads),
     prefix,
+    absorbed: [],
   });
   return path;
 }
@@ -436,6 +473,7 @@ function addCtes(build: Build, args: CteArgs): { scope: Scope; reads: SectionId[
           // it always computes exactly once.
           binding: binding.kind === "bound" ? binding : { kind: "standalone", certain: true },
           scope: inner,
+          host: null,
         });
     inner = {
       ctes: [...inner.ctes, cteText],
@@ -476,24 +514,58 @@ function addBranches(
       // A branch of a per-row section is itself per-row; nothing about the split changes that.
       binding,
       scope,
+      host: null,
     });
     if (id !== null) out.push(id);
   });
   return out;
 }
 
+type ChildArgs = {
+  readonly parsed: ParsedSelect;
+  readonly sql: string;
+  readonly path: string;
+  readonly binding: Binding;
+  readonly scope: Scope;
+  readonly host: GridHost | null;
+  readonly prefix: string;
+  /**
+   * The section a correlated child must bind to, when this query is not itself a section.
+   *
+   * It is set for exactly one caller: the children of a predicate the grid absorbed. That predicate
+   * has no id of its own, so a child that says "I run per row of my parent" has to name the section
+   * whose grid its parent became — otherwise it would point at a path nothing emitted, and the view
+   * would report the section as missing from the walk rather than as three levels deep.
+   */
+  readonly boundTo: SectionId | null;
+};
+
 /** The CTEs, derived tables and subquery predicates one SELECT owns, in dependency order. */
 function addChildren(
   build: Build,
-  parsed: ParsedSelect,
-  sql: string,
-  path: string,
-  binding: Binding,
-  scope: Scope,
-): SectionId[] {
+  args: ChildArgs,
+): { reads: SectionId[]; absorbed: string[] } {
+  const { parsed, sql, path, binding, scope, host } = args;
   const seeded = addCtes(build, { ctes: parsed.ctes, withRange: parsed.with, sql, path, binding, scope });
   const inner = seeded.scope;
   const reads: SectionId[] = [...seeded.reads];
+  const absorbed: string[] = [];
+
+  // The grid this section's own predicate would become, when it is a per-row section and the SQL
+  // allows one. Computed once here, from the same text and the same function the view will use, so
+  // "no chapter" and "there is a grid" can never disagree — the one way this could go wrong is a
+  // predicate losing its chapter to a grid that then refuses to build.
+  const grid =
+    host !== null && binding.kind === "bound"
+      ? gridBuild({
+          outer: host.parsed,
+          middle: parsed,
+          predicate: host.predicate,
+          correlated: binding.columns,
+          dialect: build.dialect,
+          prefix: args.prefix,
+        })
+      : null;
 
   /* FROM: a CTE reference is an edge to the section that computes it; a derived table is one more. */
   const sources = [parsed.first, ...parsed.joins.map((join) => join.source)];
@@ -517,6 +589,7 @@ function addChildren(
       origin: { kind: "derived", source },
       binding: binding.kind === "bound" ? binding : own,
       scope: inner,
+      host: null,
     });
     if (id !== null) reads.push(id);
   });
@@ -527,7 +600,31 @@ function addChildren(
     if (clause === null) continue;
     const slot = clause === parsed.where ? "where" : "having";
     subqueryPredicates(sql, clause.body, build.dialect).forEach((predicate, index) => {
-      const own = predicateBinding(build, predicate, sql, path);
+      // The grid swallowed this one: it becomes a cell of the section above rather than a chapter
+      // that could only hold a note. Its own children still get chapters — a CTE inside it is a real
+      // table computed once — and anything correlated among them binds to THIS section, whose grid
+      // is where its rows would come from.
+      if (grid !== null && sameRange(grid.inner.range, predicate.range)) {
+        absorbed.push(predicateLabel(predicate));
+        const body = compose(sql.slice(predicate.body.from, predicate.body.to), inner, build.dialect);
+        const parsedBody = parseStatement(body, build.dialect);
+        if (!isUnsupported(parsedBody) && !isSetOp(parsedBody)) {
+          const own = addChildren(build, {
+            parsed: parsedBody,
+            sql: body,
+            path: `${path}.cell:${index}`,
+            binding,
+            scope: inner,
+            host: null,
+            prefix: renderPrefix(inner),
+            boundTo: path,
+          });
+          reads.push(...own.reads);
+          absorbed.push(...own.absorbed);
+        }
+        return;
+      }
+      const own = predicateBinding(build, predicate, sql, args.boundTo ?? path);
       if (own === null) return;
       const id = addQuery(build, {
         sql: compose(sql.slice(predicate.body.from, predicate.body.to), inner, build.dialect),
@@ -539,13 +636,20 @@ function addChildren(
         // own text is correlated: it cannot run until the row above it exists.
         binding: own.kind === "bound" || binding.kind !== "bound" ? own : binding,
         scope: inner,
+        // A grid is offered only to a section that can actually be bound, which means the query
+        // around it must run exactly once. A predicate inside a per-row section is `held` — it
+        // shows a note and never renders — so absorbing ITS inner predicate would trade a chapter
+        // for a grid nobody will see.
+        host: binding.kind === "standalone" ? { parsed, predicate } : null,
       });
       if (id !== null) reads.push(id);
     });
   }
 
-  return reads;
+  return { reads, absorbed };
 }
+
+const sameRange = (a: Range, b: Range): boolean => a.from === b.from && a.to === b.to;
 
 /**
  * A recursive CTE, kept as ONE ordinary section.
@@ -578,6 +682,7 @@ function addRecursiveCte(
     binding: { kind: "standalone", certain: true },
     reads: [...scope.known.values()].filter((id): id is SectionId => id !== null),
     prefix,
+    absorbed: [],
   });
   return id;
 }
