@@ -1,10 +1,12 @@
 <div align="center">
 
-# 🐦 Perch
+<img src="apps/web/app/icon.svg" alt="Perch" width="76" height="76">
+
+# Perch
 
 **A fast, local SQL client for Postgres and MySQL.**
 
-*Land on your database, look around, leave.*
+_Land on your database, look around, leave._
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Postgres](https://img.shields.io/badge/postgres-supported-336791?logo=postgresql&logoColor=white)](#what-it-does)
@@ -12,6 +14,8 @@
 [![Status: early](https://img.shields.io/badge/status-early-orange.svg)](#status)
 
 </div>
+
+![The Perch workspace](docs/assets/hero.png)
 
 ---
 
@@ -49,20 +53,66 @@ Press Connect and you are in. Perch never bundles or installs a database of its 
 
 ## What it does
 
-|  |  |
-|---|---|
-| **Postgres and MySQL** | One connection format, one set of commands, two dialects. |
-| **Streaming results** | Rows render as they arrive. A slow query shows you something *now*, not a spinner and a promise. |
-| **Cancel a runaway** | Stop an in-flight query from the UI while it is still running — the server cancels it at the driver, not just in the browser. |
-| **Multi-statement scripts** | Run the whole file. Every statement reported on its own. |
-| **Schema browsing** | Down to a single table's columns, with types and keys. Cached, and refreshable the moment you have migrated. |
-| **Autocomplete that knows your schema** | Table and column completion from the database you are actually connected to. |
-| **Split panes and tabs** | Drag a tab to split the editor, the way your IDE does it. |
-| **Notebooks, without a new format** | Any `.sql` file opens as a column of runnable cells. It still runs in `psql`. |
-| **Your `.sql` files, in place** | Point Perch at a directory; it browses, opens and saves the files already in your project. Edits made outside are picked up, and two tabs cannot clobber each other. |
-| **Exports** | CSV, JSON, NDJSON, or a formatted table. |
-| **History that survives restarts** | From the UI and the CLI alike — without keeping result rows on disk. |
-| **Errors that point** | A squiggle under the exact offending character, and a non-zero exit code. |
+A screenshot per idea, then the rest in a table.
+
+### Split the editor
+
+![Split panes](docs/assets/split-panes.png)
+
+Drag a tab to any edge of a pane and it splits — left, right, top, bottom, as deep as you like.
+**⌘\** splits the focused pane without leaving the keyboard. Panes resize, the layout survives a
+reload, and every editor stays mounted, so switching tabs never costs you a cursor position or a
+scroll offset.
+
+Two queries open side by side, one schema, one connection. The results pane is shared: running in
+either pane replaces what is shown, and you compare by re-running or by reaching for a notebook.
+
+### Notebooks, without a new format
+
+![SQL notebook](docs/assets/notebook.png)
+
+**New notebook** in the Files panel gives you a column of runnable cells instead of one long
+buffer. Each cell runs on its own with **⌘↵** and keeps **its own result and its own
+`N rows · N ms`**, stacked down the page — which is how you put two versions of a query next to
+each other and read the difference. Run-all walks them in order, with a Cancel.
+
+Cells are just statements, so there is no new file format: save the notebook and you get a plain
+`.sql` file that runs in `psql` unchanged. Add a `-- %%` comment if you want to draw the boundaries
+yourself — to keep a `begin; … commit;` in one cell, say. Outputs are never written to disk.
+
+> [!NOTE]
+> Notebook view is not yet remembered. Reopen a saved notebook and it comes back in the script
+> editor; the `-- %%` markers survive, the view does not.
+
+### It knows your schema
+
+![Schema and autocomplete](docs/assets/schema.png)
+
+The tree goes schema → table → column, with driver types, nullability, primary keys, row estimates
+and a search box. It refreshes on demand, and on its own after a statement that changes the shape
+of things.
+
+The same schema drives completion in the editor: real table and column names from the database you
+are connected to right now, each column showing its type, primary keys marked. CodeMirror 6
+underneath, in the dialect of the connection — a failed query gets a squiggle under the exact token
+the server objected to, with the message on hover.
+
+### The rest
+
+|                                   |                                                                                                                                    |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| **Postgres and MySQL**            | One connection format, one set of commands, two dialects.                                                                          |
+| **Run what you mean**             | **⌘↵** runs the selection, or the statement under the cursor if there is none. **⌘⇧↵** runs the whole file.                         |
+| **Cancel a runaway**              | Run turns into Cancel while a query is in flight, and the server cancels it at the driver.                                          |
+| **Multi-statement scripts**       | Run the file; every statement gets its own tab, its own row count and its own timing.                                              |
+| **A results grid, not a table**   | Virtualized to any row count, fully keyboard-navigable, types in the headers, `null` visibly distinct from empty, ⌘C to copy.       |
+| **Honest truncation**             | Hit the row cap and it says so, in the grid and in the messages.                                                                    |
+| **Exports**                       | CSV from the results pane; the CLI also writes JSON, NDJSON and formatted tables.                                                  |
+| **Your `.sql` files, in place**   | Point Perch at a directory and it browses, opens and saves the files already there.                                                |
+| **Edited elsewhere? Noticed.**    | A file changed on disk while you had it open is detected — adopted silently if you have no edits, offered as a choice if you do.    |
+| **History that survives restarts**| Grouped by day; click any run to bring its rows and timing back.                                                                    |
+| **Keyboard-first**                | ⌘K palette over files, connections, databases and tables; ⌘B, ⌘J, ⌘S, ⌘, for the rest.                                             |
+| **No flash of the wrong theme**   | Dark or light, stored on the server so every browser agrees, painted before first frame.                                            |
 
 ## Two doors, one house
 
@@ -123,7 +173,11 @@ perch schema local --table public.orders                   # look at a table
 perch run local query.sql --format csv                     # run a file
 cat q.sql | perch run local -                              # or a pipe
 perch history --limit 20 --conn local                      # what did I run yesterday?
+perch conn dbs local                                       # databases on that server
+perch files ls ~/sql                                       # .sql files in a directory
+perch settings get / perch settings set theme light        # read or change local settings
 perch serve --port 4600 --dir ~/sql                        # UI + API on a chosen port
+perch status                                               # is a server running?
 perch stop                                                 # done
 ```
 
@@ -148,7 +202,7 @@ under `~/.perch` — nowhere else — and you can open and read every one of the
 `PERCH_HOME` moves the whole directory somewhere else. `perch serve --dir <path>` adds more
 workspace folders; `~/.perch/queries` is simply the one that is always there.
 
-The server binds to `127.0.0.1`. There is no login and no shared secret: loopback *is* the
+The server binds to `127.0.0.1`. There is no login and no shared secret: loopback _is_ the
 boundary, so anything that can reach the port can run queries. `perch serve --host <addr>` past
 localhost hands the API to everyone on that network, and says so when it starts.
 
@@ -165,7 +219,7 @@ localhost hands the API to everyone on that network, and says so when it starts.
 
 Probably not. If you are managing roles, tuning autovacuum, inspecting replication slots or
 restoring a backup, reach for pgAdmin — it is built for that and Perch is not. Perch is for the
-daily loop: *look at the schema, run a query, read the rows, move on.* Keep both; you will just
+daily loop: _look at the schema, run a query, read the rows, move on._ Keep both; you will just
 open Perch far more often.
 
 </details>
@@ -197,9 +251,14 @@ contained piece of work rather than a rewrite. If you want to add one,
 
 <br>
 
-There is no Electron. The CLI connects and exits; `perch serve` is a small local HTTP server.
-Results stream as they arrive rather than buffering, so time-to-first-row does not depend on how
-big the result set turns out to be.
+There is no Electron. The CLI connects and exits; `perch serve` is a small local HTTP server,
+and the UI it serves is a static bundle compiled into the binary.
+
+Two things keep big results cheap rather than fast-for-a-GUI: the server caps rows per statement
+at `maxRows` before they ever reach the browser, and the grid virtualizes what it does receive, so
+a million-row table costs the same to scroll as a hundred-row one. Results are fetched per run
+rather than streamed row by row — the streaming route exists in the API, but the UI does not use
+it today.
 
 </details>
 
@@ -221,7 +280,8 @@ Early, and honest about it.
 - **CLI** — complete and stable.
 - **HTTP API** — complete. [Documented here](docs/api/http.md).
 - **Web UI** — built and wired to the API, compiled into the binary and served at the address
-  `perch serve` prints. Rough edges remain, and screenshots land once they are sanded off.
+  `perch serve` prints. Rough edges remain. The screenshots above are placeholders until the
+  surfaces they show stop moving.
 - **Releases** — binaries are built by hand today; the workflow that attaches them per platform is
   not written yet.
 
