@@ -27,6 +27,11 @@ export type RunOptions = {
   maxRows: number;
   batchSize: number;
   timeoutMs: number;
+  /**
+   * Run every statement in a read-only session. Each statement gets its own pooled client, so a
+   * dialect sets it per statement (and resets it before releasing), never per run.
+   */
+  readOnly: boolean;
 };
 
 export function normalizeRunOptions(opts: QueryOptions): RunOptions {
@@ -36,6 +41,7 @@ export function normalizeRunOptions(opts: QueryOptions): RunOptions {
     maxRows: Math.max(0, opts.maxRows ?? 1000),
     batchSize: Math.max(1, opts.batchSize ?? 200),
     timeoutMs: Math.max(0, Math.floor(opts.timeoutMs ?? 0)),
+    readOnly: opts.readOnly === true,
   };
 }
 

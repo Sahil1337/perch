@@ -109,10 +109,13 @@ export class MysqlDriver extends BaseDriver<mysql.Pool, ThreadId> {
         // MySQL 5.7.8+ / MariaDB: server-side cap for SELECTs.
         await conn.query(`set session max_execution_time = ${options.timeoutMs}`).catch(() => {});
       }
+      // Per statement, like the timeout: the next statement gets another pooled connection.
+      if (options.readOnly) await conn.query("set session transaction_read_only = 1");
       await streamInto(conn, sql, sink, options.batchSize);
       sink.command(commandOf(sql));
     } finally {
       if (options.timeoutMs > 0) await conn.query("set session max_execution_time = 0").catch(() => {});
+      if (options.readOnly) await conn.query("set session transaction_read_only = 0").catch(() => {});
       conn.release();
     }
   }

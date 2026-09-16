@@ -76,6 +76,15 @@ expect "read back what was written" "$(curl -s "$B/files/content?path=$PWD/smoke
 expect "stale save → 409" "$(curl -s -o /dev/null -w '%{http_code}' -X PUT -H "$J" -d "{\"path\":\"$PWD/smoke-tmp.sql\",\"content\":\"x\",\"ifModifiedAt\":\"2000-01-01T00:00:00.000Z\"}" "$B/files/content")" "409"
 expect "fresh save → 200" "$(curl -s -o /dev/null -w '%{http_code}' -X PUT -H "$J" -d "{\"path\":\"$PWD/smoke-tmp.sql\",\"content\":\"select 2;\",\"ifModifiedAt\":\"$MTIME\"}" "$B/files/content")" "200"
 expect "delete file → ok" "$(curl -s -X DELETE "$B/files?path=$PWD/smoke-tmp.sql" | json 'j.ok')" "true"
+curl -s -X POST -H "$J" -d "{\"connectionId\":\"$CID\",\"sql\":\"select id from orders limit 1\",\"runId\":\"r-probe\",\"record\":false}" "$B/query/sync" >/dev/null
+expect "record:false run stays out of history" "$(curl -s "$B/history?limit=1000" | json 'String(j.some(r=>r.id==="r-probe"))')" "false"
+expect "record:false run is still in the run log" "$(curl -s "$B/runs/r-probe" | json 'j.id')" "r-probe"
+RO_STREAM=$(curl -s -N -X POST -H "$J" -d "{\"connectionId\":\"$CID\",\"sql\":\"insert into orders (status, total_cents) values ('smoke', 1)\",\"readOnly\":true}" "$B/query")
+expect "readOnly:true insert yields one error event" "$(echo "$RO_STREAM" | grep -c '"type":"error"')" "1"
+expect "readOnly:true insert is refused as read-only" "$(echo "$RO_STREAM" | grep '"type":"error"' | json 'j.error.code')" "25006"
+RO_SYNC=$(curl -s -X POST -H "$J" -d "{\"connectionId\":\"$CID\",\"sql\":\"select id, status, id + 1 as n from orders limit 1\",\"readOnly\":true}" "$B/query/sync")
+expect "readOnly:true select returns a row" "$(echo "$RO_SYNC" | json 'j.status + ":" + j.results[0].rowCount')" "done:1"
+expect "plain column names its source, expression has none" "$(echo "$RO_SYNC" | json 'j.results[0].columns[1].source.table + "." + j.results[0].columns[1].source.column + ":" + typeof j.results[0].columns[2].source')" "orders.status:undefined"
 expect "settings update persists" "$(curl -s -X PUT -H "$J" -d '{"maxRows":500}' "$B/settings" | json 'j.maxRows')" "500"
 expect "history has the runs" "$(curl -s "$B/history?limit=2" | json 'j.length')" "2"
 expect_has "status sees the server" "running" "$($CLI status)"

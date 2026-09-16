@@ -3,12 +3,18 @@
 
 import pg from "pg";
 import Cursor from "pg-cursor";
-import { type ConnectionConfig, type DatabaseSchema, type QueryError } from "@perch/protocol";
+import {
+  type ConnectionConfig,
+  type DatabaseSchema,
+  type QueryError,
+  type ResultColumn,
+} from "@perch/protocol";
 import { BaseDriver, type StatementContext } from "../base-driver.js";
 import { baseDriverOptions } from "../driver.js";
 import { type StatementSink } from "../statement-sink.js";
+import { ColumnSourceCache, type Querier } from "./column-source.js";
 import { readSchema } from "./introspect.js";
-import { looksRowReturning, toQueryError, toResultColumn, toRow } from "./types.js";
+import { looksRowReturning, toQueryError, toRow } from "./types.js";
 
 /** The handle a cancel needs: the backend pid of the client currently executing. */
 type Pid = number;
@@ -58,6 +64,9 @@ export class PostgresDriver extends BaseDriver<pg.Pool, Pid> {
    * it lets a session that hops between two databases stop paying the handshake every statement.
    */
   readonly #databasePools = new Map<string, pg.Pool>();
+
+  /** oid+attnum → table and column names, per database, kept for the connection's lifetime. */
+  readonly #columnSources = new ColumnSourceCache();
 
   private async poolFor(database?: string): Promise<pg.Pool> {
     if (!database || database === this.config.database) return this.requirePool();
@@ -128,12 +137,31 @@ export class PostgresDriver extends BaseDriver<pg.Pool, Pid> {
       ctx.setHandle(pidRes.rows[0]?.pid ?? null);
       ctx.throwIfCancelled();
       if (options.timeoutMs > 0) await client.query(`set statement_timeout = ${options.timeoutMs}`);
+      // Per statement, like the timeout: the next statement gets another pooled client.
+      if (options.readOnly) await client.query("set default_transaction_read_only = on");
 
-      if (looksRowReturning(sql)) await readThroughCursor(client, sql, sink, options.batchSize);
-      else await readDirect(client, sql, sink, options.batchSize);
+      const database = options.database ?? this.config.database;
+      const describe = (fields: pg.FieldDef[], query: Querier) =>
+        this.#columnSources.resolve(database, fields, query);
+      if (looksRowReturning(sql)) {
+        // The open cursor is this client's active query, so a lookup queued behind it would wait
+        // for the cursor while the read loop waits for the lookup. Borrow another client from the
+        // pool instead — and only when one can be had, or two concurrent runs could pin each other.
+        const viaPool: Querier = (text, values) =>
+          pool.idleCount > 0 || pool.totalCount < (pool.options.max ?? 1)
+            ? pool.query(text, values)
+            : Promise.reject(new Error("pool busy"));
+        await readThroughCursor(client, sql, sink, options.batchSize, (f) => describe(f, viaPool));
+      } else {
+        const viaClient: Querier = (text, values) => client.query(text, values);
+        await readDirect(client, sql, sink, options.batchSize, (f) => describe(f, viaClient));
+      }
     } finally {
       client.removeListener("notice", onNotice);
       if (options.timeoutMs > 0) await client.query("set statement_timeout = default").catch(() => {});
+      if (options.readOnly) {
+        await client.query("set default_transaction_read_only = default").catch(() => {});
+      }
       client.release();
     }
   }
@@ -156,12 +184,16 @@ export class PostgresDriver extends BaseDriver<pg.Pool, Pid> {
   }
 }
 
+/** Turns pg's field descriptions into result columns, resolving each one's base table. */
+type Describe = (fields: pg.FieldDef[]) => Promise<ResultColumn[]>;
+
 /** Row-returning statements stream through a cursor, so a huge table never lands in memory. */
 async function readThroughCursor(
   client: pg.PoolClient,
   sql: string,
   sink: StatementSink,
   batchSize: number,
+  describe: Describe,
 ): Promise<void> {
   const cursor = client.query(new Cursor<unknown[]>(sql, undefined, { rowMode: "array" }));
   let sawFields = false;
@@ -171,7 +203,7 @@ async function readThroughCursor(
     const read = await readCursor(cursor, want);
     if (!sawFields) {
       sawFields = true;
-      sink.columns((read.result.fields ?? []).map(toResultColumn));
+      sink.columns(await describe(read.result.fields ?? []));
     }
     sink.command(read.result.command ?? null);
     sink.rows(read.rows.map(toRow));
@@ -192,11 +224,12 @@ async function readDirect(
   sql: string,
   sink: StatementSink,
   batchSize: number,
+  describe: Describe,
 ): Promise<void> {
   const res = await client.query<unknown[]>({ text: sql, rowMode: "array" });
   sink.command(res.command ?? null);
   if (res.fields && res.fields.length > 0) {
-    sink.columns(res.fields.map(toResultColumn));
+    sink.columns(await describe(res.fields));
     const all = res.rows.map(toRow);
     for (let i = 0; i < all.length && !sink.truncated; i += batchSize) {
       sink.rows(all.slice(i, i + batchSize));

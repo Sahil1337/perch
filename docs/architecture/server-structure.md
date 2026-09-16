@@ -66,6 +66,9 @@ apps/server/
     │   │   ├── driver.ts     dialect only: pg pool (max 4) + pg-cursor feeding the sink, the
     │   │   │                 backend pid, pg_cancel_backend
     │   │   ├── types.ts      OID → type name, pg value → wire Cell, pg error → QueryError
+    │   │   ├── column-source.ts
+    │   │   │                 field tableID/columnID → ResultColumn.source, one lookup per
+    │   │   │                 statement, cached per database for the connection's lifetime
     │   │   └── introspect.ts the schema tree straight out of pg_class / pg_attribute
     │   └── mysql/
     │       ├── driver.ts     dialect only: mysql2 streams feeding the sink (streaming reaches

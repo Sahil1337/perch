@@ -81,7 +81,7 @@ not drop it. Detection is push-based (OS file watching); the ping is pure keep-a
 
 | Method | Path | Body | Response | Purpose |
 |---|---|---|---|---|
-| POST | `/api/query` | `{ connectionId, sql, database?, runId?, maxRows?, timeoutMs?, batchSize?, source? }` | `application/x-ndjson`, one `RunEvent` per line | Run SQL and stream results as they arrive: one JSON object per line, flushed in order. |
+| POST | `/api/query` | `{ connectionId, sql, database?, runId?, maxRows?, timeoutMs?, batchSize?, record?, readOnly?, source? }` | `application/x-ndjson`, one `RunEvent` per line | Run SQL and stream results as they arrive: one JSON object per line, flushed in order. |
 | POST | `/api/query/sync` | same as `/api/query` | `RunRecord` | The same run, buffered into a single reply. Convenient for small queries. |
 | POST | `/api/runs/:id/cancel` | — | `{ cancelled: boolean }` | Cancel an in-flight run. |
 | GET | `/api/runs` | — | `RunRecord[]` | Recent runs from memory, newest first, **without result rows** — fetch one run to get its rows. |
@@ -94,6 +94,18 @@ client never has to parse a stream to discover the connection was wrong. If the 
 disconnects mid-stream the server chases the cancel until it lands or the run finishes on its
 own. Errors inside a started run arrive as an `error` `RunEvent` followed by `done`, not as an
 HTTP status.
+
+`record: false` keeps the run out of `history.jsonl` and off the SSE stream (no `run` event),
+while the in-memory run log still holds it, so cancel and export keep working; the query walk's
+probe runs pass it so they never show up in History. `readOnly: true` runs every statement in a
+read-only session (Postgres `set default_transaction_read_only = on`, MySQL
+`set session transaction_read_only = 1`), set and reset per statement on its pooled client, so a
+write is refused by the server and arrives as an ordinary `error` event.
+
+Each `ResultColumn` in a `columns` event or a `StatementResult` carries `source` — the base
+`{ table, column }` a value comes from — when the driver can tell: Postgres resolves the field's
+relation oid and attnum against `pg_class`/`pg_attribute` (one lookup per statement, cached for
+the connection's lifetime), MySQL reports them directly. Expressions and aggregates have none.
 
 ## Settings
 

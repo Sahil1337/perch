@@ -4,6 +4,12 @@ export type ResultColumn = {
   type: string;
   /** Hint for the UI: numbers/dates align right. */
   align: "left" | "right";
+  /**
+   * The base table and column a value comes from, when the driver can tell (Postgres resolves
+   * the field's tableID/columnID; MySQL reports orgTable/orgName). Absent for expressions and
+   * aggregates. `table` is the unqualified table name.
+   */
+  source?: { table: string; column: string };
 };
 
 export type Cell = string | number | boolean | null;
@@ -73,4 +79,15 @@ export type QueryOptions = {
   batchSize?: number;
   /** Server-side statement timeout in ms; 0 = none. */
   timeoutMs?: number;
+  /**
+   * Whether the run is appended to history and announced on the event bus. Default true. Probe
+   * runs (the query walk's step queries) pass false so they never show up in History.
+   */
+  record?: boolean;
+  /**
+   * Run every statement in a read-only session, so a probe can never write. Postgres:
+   * `set default_transaction_read_only = on` for the statement; MySQL:
+   * `set session transaction_read_only = 1`. Default false.
+   */
+  readOnly?: boolean;
 };

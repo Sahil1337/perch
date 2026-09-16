@@ -34,7 +34,13 @@ export function mysqlTypeName(code: number | undefined): string {
 
 export function toResultColumn(field: FieldPacket): ResultColumn {
   const type = mysqlTypeName(field.columnType ?? field.type);
-  return { name: field.name, type, align: RIGHT_ALIGNED.has(type) ? "right" : "left" };
+  const column: ResultColumn = { name: field.name, type, align: RIGHT_ALIGNED.has(type) ? "right" : "left" };
+  // mysql2 reports the base table and column behind an alias; both are "" for an expression.
+  const { orgTable, orgName } = field;
+  if (typeof orgTable === "string" && orgTable !== "" && typeof orgName === "string" && orgName !== "") {
+    column.source = { table: orgTable, column: orgName };
+  }
+  return column;
 }
 
 export function toCell(value: unknown): Cell {

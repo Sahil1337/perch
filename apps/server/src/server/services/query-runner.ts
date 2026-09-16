@@ -18,6 +18,14 @@ export type StartRunInput = {
   maxRows?: number;
   batchSize?: number;
   timeoutMs?: number;
+  /**
+   * `false` keeps the run out of history.jsonl and off the event bus (no `run` event on the
+   * SSE stream), so a probe — the query walk's step queries — never shows up in History. The run
+   * log still remembers it, so cancel and export keep working. Default true.
+   */
+  record?: boolean;
+  /** Run every statement in a read-only session, so a probe can never write. Default false. */
+  readOnly?: boolean;
   source: "ui" | "cli";
 };
 
@@ -78,6 +86,8 @@ export class QueryRunner {
       maxRows: input.maxRows ?? settings.maxRows,
       batchSize: input.batchSize ?? 200,
       timeoutMs: input.timeoutMs ?? settings.statementTimeoutMs,
+      record: input.record,
+      readOnly: input.readOnly,
     };
 
     const capture = captureInto(record, emit);
@@ -99,6 +109,8 @@ export class QueryRunner {
     // Guarantees the NDJSON stream always ends with exactly one `done` line.
     if (!capture.sawDone()) emit({ type: "done", runId, status, durationMs: record.durationMs });
 
+    // A probe run (record: false) is neither written to history nor announced on the event bus.
+    if (input.record === false) return record;
     try {
       await appendHistory(record);
     } catch {

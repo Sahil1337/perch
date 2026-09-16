@@ -4,7 +4,7 @@
 import { randomUUID } from "node:crypto";
 import type { Context, Hono } from "hono";
 import type { RunEvent } from "@perch/protocol";
-import { num, readJsonBody, str } from "../http/body.js";
+import { bool, num, readJsonBody, str } from "../http/body.js";
 import { streamNdjson } from "../http/ndjson.js";
 import { badRequest, errorMessage } from "../http/errors.js";
 import type { StartRunInput } from "../services/query-runner.js";
@@ -33,6 +33,8 @@ export function registerQueryRoutes(app: Hono, deps: RouteDeps): void {
       maxRows: num(body.maxRows),
       timeoutMs: num(body.timeoutMs),
       batchSize: num(body.batchSize),
+      record: bool(body.record),
+      readOnly: bool(body.readOnly),
       source: (str(body.source) === "cli" ? "cli" : "ui") as "ui" | "cli",
     };
   }
