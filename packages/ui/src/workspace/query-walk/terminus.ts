@@ -423,7 +423,9 @@ function generic(
 
 /* ── Shared ───────────────────────────────────────────────────────────────────────────────── */
 
-const GAP = "gap";
+/** Column id of the finding. It is not a database value, so it rides on `TerminusRow.gap`
+ *  rather than in `cells`, and the card reads it from there. */
+export const GAP = "gap";
 
 function gapCol(label: string, values: readonly string[]): Col {
   return { id: GAP, label, width: widthFor(label, values), num: false, hl: true };

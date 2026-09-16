@@ -16,6 +16,7 @@ import type { Cell } from "@perch/protocol";
 import { motion } from "motion/react";
 import type * as React from "react";
 import { cn } from "../../lib/utils";
+import { GAP } from "./terminus";
 import { formatCell } from "../results-grid";
 import type { Col, TerminusView } from "./scenes";
 import { VerdictMark } from "./verdict-mark";
@@ -50,7 +51,12 @@ export function TerminusCard({ view }: { readonly view: TerminusView }): React.R
               <VerdictMark delayMs={0} settled verdict="fail" />
             </div>
             {view.cols.map((col) => (
-              <BodyCell col={col} key={col.id} value={row.cells[col.id] ?? null} />
+              <BodyCell
+                col={col}
+                key={col.id}
+                // The finding is not one of the row's database values, so it is not in `cells`.
+                value={col.id === GAP ? row.gap : (row.cells[col.id] ?? null)}
+              />
             ))}
           </div>
         ))}
