@@ -36,6 +36,8 @@ export type TableView = {
   /** The real row count behind the sample, when the count came back. */
   readonly total?: number | null;
   readonly truncated?: boolean;
+  /** Names of the columns the cap dropped, when a card was too wide to show them all. */
+  readonly hidden?: readonly string[];
   /** Set on a FROM card, so a CTE or subquery can offer "Walk this". */
   readonly source?: SourceRef;
   readonly error?: string;
@@ -280,7 +282,33 @@ const plain = (
   };
 };
 
+/** Columns one card shows before the rest fold into a single `+n` marker. */
+const MAX_COLS = 8;
+
+/**
+ * A card wider than this is unreadable and shoves the next one off the stage, so it keeps the
+ * columns the station is actually about — a join key, a sort key, the ones a WHERE names, all of
+ * which arrive already lit — and then the leftmost of the rest, in the query's own order.
+ */
+function capCols(view: TableView): TableView {
+  // One folded column is not worth the marker that replaces it.
+  if (view.cols.length <= MAX_COLS + 1) return view;
+  const lit = view.cols.flatMap((col, i) => (col.hl || col.sort ? [i] : []));
+  const rest = view.cols.flatMap((col, i) => (col.hl || col.sort ? [] : [i]));
+  const keep = new Set([...lit, ...rest].slice(0, MAX_COLS));
+  return {
+    ...view,
+    cols: view.cols.filter((_, i) => keep.has(i)),
+    hidden: view.cols.flatMap((col, i) => (keep.has(i) ? [] : [col.label])),
+  };
+}
+
 export function buildScene(index: number, phase: number, walk: WalkData): Scene {
+  const scene = sceneAt(index, phase, walk);
+  return scene.kind === "tables" ? { ...scene, tables: scene.tables.map(capCols) } : scene;
+}
+
+function sceneAt(index: number, phase: number, walk: WalkData): Scene {
   const station = walk.stations[index];
   if (!station) return EMPTY;
   const { parsed } = walk;
@@ -588,7 +616,10 @@ export function buildScene(index: number, phase: number, walk: WalkData): Scene 
             // An expression names no column: light the output column in the same position.
             return found !== null ? found === index : parsed.selectItems[index] === expr;
           });
-          return item ? { ...col, hl: true, sort: item.desc ? "desc" : "asc" } : col;
+          // `+14`: the sort arrow shares the header cell, and without the room it eats the name.
+          return item
+            ? { ...col, width: col.width + 14, hl: true, sort: item.desc ? "desc" : "asc" }
+            : col;
         });
       const source = phase === 0 ? (prevSample ?? ordered) : ordered;
       const indices = visibleIndices(source);

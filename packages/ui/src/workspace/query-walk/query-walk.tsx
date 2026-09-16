@@ -17,67 +17,67 @@ import { useWalk, type Probe } from "./use-walk";
 type Crumb = { readonly label: string; readonly sql: string };
 
 export function QueryWalk({ sql }: { sql: string }): React.ReactElement {
-  const { connection, database, probe } = useWorkspace();
+  const { connection, probe } = useWorkspace();
   const dialect = connection?.dialect ?? "postgres";
   const [crumbs, setCrumbs] = React.useState<readonly Crumb[]>([{ label: "Query", sql }]);
   const current = crumbs[crumbs.length - 1]!;
 
   const parsed = React.useMemo(() => parseSelect(current.sql, dialect), [current.sql, dialect]);
 
-  const walkInto = React.useCallback(
-    (parent: ParsedSelect, source: SourceRef): void => {
-      if (!source.body) return;
-      const body = parent.text.slice(source.body.from, source.body.to).trim();
-      // A CTE may lean on the ones declared before it; a subquery on all of them.
-      const earlier =
-        source.kind === "cte"
-          ? parent.ctes.slice(
-              0,
-              parent.ctes.findIndex((cte) => cte.name === source.name),
-            )
-          : parent.ctes;
-      const prefix =
-        earlier.length > 0
-          ? `with ${earlier.map((cte) => parent.text.slice(cte.range.from, cte.range.to)).join(",\n")}\n`
-          : "";
-      setCrumbs((previous) => [...previous, { label: sourceTitle(source), sql: `${prefix}${body}` }]);
-    },
-    [],
-  );
+  const walkInto = React.useCallback((parent: ParsedSelect, source: SourceRef): void => {
+    if (!source.body) return;
+    const body = parent.text.slice(source.body.from, source.body.to).trim();
+    // A CTE may lean on the ones declared before it; a subquery on all of them.
+    const earlier =
+      source.kind === "cte"
+        ? parent.ctes.slice(
+            0,
+            parent.ctes.findIndex((cte) => cte.name === source.name),
+          )
+        : parent.ctes;
+    const prefix =
+      earlier.length > 0
+        ? `with ${earlier.map((cte) => parent.text.slice(cte.range.from, cte.range.to)).join(",\n")}\n`
+        : "";
+    setCrumbs((previous) => [...previous, { label: sourceTitle(source), sql: `${prefix}${body}` }]);
+  }, []);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border bg-popover text-popover-foreground shadow-lg/5">
-      <header className="flex shrink-0 items-center gap-3 border-b px-4 py-2.5">
-        <div className="min-w-0 flex-1">
-          <DialogPrimitive.Title className="font-medium text-sm leading-none">
-            Query walk
-          </DialogPrimitive.Title>
-          <DialogPrimitive.Description className="mt-1 truncate text-muted-foreground text-xs">
-            {connection ? `${connection.name} · ${database ?? connection.database ?? ""}` : "No connection"}
-            {" · "}How this SELECT runs, one clause at a time.
-          </DialogPrimitive.Description>
-        </div>
+      {/* One line, and only what cannot be seen elsewhere: the stage needs every pixel of height,
+          and the connection is already named in the status bar behind this dialog. */}
+      <header className="flex shrink-0 items-center gap-2 border-b px-3 py-2">
+        <DialogPrimitive.Title className="shrink-0 font-medium text-sm leading-none">
+          Query walk
+        </DialogPrimitive.Title>
         {crumbs.length > 1 && (
-          <nav aria-label="Walk path" className="flex min-w-0 items-center gap-0.5 text-xs">
-            {crumbs.map((crumb, i) => (
-              <React.Fragment key={i}>
-                {i > 0 && <ChevronRightIcon className="size-3 shrink-0 text-muted-foreground" />}
-                {i === crumbs.length - 1 ? (
-                  <span className="truncate px-1 font-medium">{crumb.label}</span>
-                ) : (
-                  <Button
-                    onClick={() => setCrumbs(crumbs.slice(0, i + 1))}
-                    size="xs"
-                    variant="ghost"
-                  >
-                    {crumb.label}
-                  </Button>
-                )}
-              </React.Fragment>
-            ))}
-          </nav>
+          <>
+            <div aria-hidden className="h-4 w-px shrink-0 bg-border" />
+            <nav aria-label="Walk path" className="flex min-w-0 items-center gap-0.5 text-xs">
+              {crumbs.map((crumb, i) => (
+                <React.Fragment key={i}>
+                  {i > 0 && <ChevronRightIcon className="size-3 shrink-0 text-muted-foreground" />}
+                  {i === crumbs.length - 1 ? (
+                    <span className="truncate px-1 font-medium">{crumb.label}</span>
+                  ) : (
+                    <Button
+                      onClick={() => setCrumbs(crumbs.slice(0, i + 1))}
+                      size="xs"
+                      variant="ghost"
+                    >
+                      {crumb.label}
+                    </Button>
+                  )}
+                </React.Fragment>
+              ))}
+            </nav>
+          </>
         )}
-        <DialogPrimitive.Close aria-label="Close" render={<Button size="icon-sm" variant="ghost" />}>
+        <DialogPrimitive.Close
+          aria-label="Close"
+          className="ms-auto"
+          render={<Button size="icon-sm" variant="ghost" />}
+        >
           <XIcon />
         </DialogPrimitive.Close>
       </header>

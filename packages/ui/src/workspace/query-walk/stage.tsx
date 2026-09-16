@@ -5,7 +5,7 @@
 
 import { AnimatePresence, LayoutGroup, motion } from "motion/react";
 import { ArrowDownIcon, ArrowUpIcon, FootprintsIcon } from "lucide-react";
-import type * as React from "react";
+import * as React from "react";
 import type { Cell as CellValue } from "@perch/protocol";
 import { cn } from "../../lib/utils";
 import { Button } from "../../ui/button";
@@ -32,20 +32,40 @@ export function Stage({
   onWalk: (source: SourceRef) => void;
 }): React.ReactElement {
   const t = useT();
+  const box = React.useRef<HTMLDivElement>(null);
+  const edges = useEdges(box);
   return (
     <section
       aria-label="Stage"
-      className="relative min-h-96 min-w-0 flex-1 overflow-auto rounded-xl border bg-muted/40"
+      className="relative min-h-96 min-w-0 flex-1 overflow-hidden rounded-xl border bg-muted/40"
     >
-      <div className="p-4 md:p-6">
-        <div className="mx-auto w-max">
-          <LayoutGroup>
-            {scene.kind === "tables" ? (
-              <TablesScene onWalk={onWalk} scene={scene} />
-            ) : (
-              <BucketsScene scene={scene} />
-            )}
-          </LayoutGroup>
+      {/* A wide join runs past the stage, so the edge with more to show fades out: the only honest
+          way to say "there is more this way" without stealing a row of height for a legend. */}
+      <div
+        className={cn(
+          "size-full overflow-auto",
+          edges.left && edges.right
+            ? "mask-x-from-92%"
+            : edges.right
+              ? "mask-r-from-92%"
+              : edges.left
+                ? "mask-l-from-92%"
+                : null,
+        )}
+        ref={box}
+      >
+        {/* `items-center-safe`, so a scene taller than the stage scrolls from its top edge rather
+            than having it centred out of reach. `max-w-full` lets a wrapping scene use the width. */}
+        <div className="flex min-h-full items-center-safe p-4 md:p-6">
+          <div className="mx-auto w-max max-w-full">
+            <LayoutGroup>
+              {scene.kind === "tables" ? (
+                <TablesScene onWalk={onWalk} scene={scene} />
+              ) : (
+                <BucketsScene scene={scene} />
+              )}
+            </LayoutGroup>
+          </div>
         </div>
       </div>
       <AnimatePresence>
@@ -91,6 +111,46 @@ export function Stage({
   );
 }
 
+/**
+ * Which sides of a scroll box still have content behind them. The scene's own width is not
+ * observable — the cards overflow a wrapper that never changes size — so the measurement is taken
+ * after every render (a new station or phase) and again once that scene's motion has settled.
+ */
+function useEdges(ref: React.RefObject<HTMLDivElement | null>): { left: boolean; right: boolean } {
+  const [edges, setEdges] = React.useState({ left: false, right: false });
+  const measure = React.useCallback((): void => {
+    const box = ref.current;
+    if (!box) return;
+    const left = box.scrollLeft > 2;
+    const right = box.scrollWidth - box.clientWidth - box.scrollLeft > 2;
+    setEdges((previous) =>
+      previous.left === left && previous.right === right ? previous : { left, right },
+    );
+  }, [ref]);
+
+  // No dependency array on purpose: every render is a scene that may be a different width. The
+  // state setter returns the same object when nothing moved, so this settles after one pass.
+  React.useEffect(() => {
+    measure();
+    const settle = [setTimeout(measure, 400), setTimeout(measure, 1000)];
+    return () => settle.forEach(clearTimeout);
+  });
+
+  React.useEffect(() => {
+    const box = ref.current;
+    if (!box) return;
+    box.addEventListener("scroll", measure, { passive: true });
+    const observer = new ResizeObserver(measure);
+    observer.observe(box);
+    return () => {
+      box.removeEventListener("scroll", measure);
+      observer.disconnect();
+    };
+  }, [ref, measure]);
+
+  return edges;
+}
+
 function TablesScene({
   scene,
   onWalk,
@@ -131,6 +191,7 @@ function Table({
   });
   const shown = view.rows.length;
   const total = view.total ?? null;
+  const hidden = view.hidden ?? [];
   const walkable = view.source && view.source.body !== null;
   return (
     <motion.div
@@ -189,14 +250,31 @@ function Table({
                 <HeaderCell col={col} key={col.id} />
               ))}
             </AnimatePresence>
+            {hidden.length > 0 && (
+              <div
+                className="flex h-7 w-12 shrink-0 items-center justify-center font-mono text-muted-foreground text-xs"
+                title={`${hidden.length} more columns: ${hidden.join(", ")}`}
+              >
+                +{hidden.length}
+              </div>
+            )}
           </div>
-          <div>
+          {/* The rows scroll under the header rather than growing the card past the stage: a
+              25-row sample is three screens tall, and the card's title has to stay in sight. The
+              cap is 16 rows: `h-7` plus each row's own bottom border, so no row is cut in half. */}
+          <div className="max-h-116 overflow-y-auto">
             <AnimatePresence initial={false}>
               {items.map((item) =>
                 item.kind === "cut" ? (
                   <CutLine key="cut" label={item.label} />
                 ) : (
-                  <Row cols={view.cols} index={item.index} key={item.row.key} row={item.row} />
+                  <Row
+                    cols={view.cols}
+                    folded={hidden.length > 0}
+                    index={item.index}
+                    key={item.row.key}
+                    row={item.row}
+                  />
                 ),
               )}
             </AnimatePresence>
@@ -267,10 +345,13 @@ function Row({
   row,
   cols,
   index,
+  folded,
 }: {
   row: RowView;
   cols: readonly Col[];
   index: number;
+  /** The card folded some columns away: this row needs the same placeholder its header has. */
+  folded: boolean;
 }): React.ReactElement {
   const t = useT();
   const speed = useSpeed();
@@ -314,6 +395,14 @@ function Row({
           />
         ))}
       </AnimatePresence>
+      {folded && (
+        <span
+          aria-hidden
+          className="flex h-7 w-12 shrink-0 items-center justify-center font-mono text-muted-foreground/50 text-xs"
+        >
+          ⋯
+        </span>
+      )}
     </motion.div>
   );
 }

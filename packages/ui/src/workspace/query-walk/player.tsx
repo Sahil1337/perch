@@ -73,6 +73,13 @@ export function WalkPlayer({
     touched.current = true;
     setPos({ station: index, phase: 0 });
   }, []);
+  const gotoPhase = React.useCallback(
+    (index: number) => {
+      touched.current = true;
+      setPos({ station: pos.station, phase: index });
+    },
+    [pos.station],
+  );
   const stepForward = React.useCallback(() => {
     touched.current = true;
     if (phase < lastPhase) {
@@ -192,6 +199,7 @@ export function WalkPlayer({
           <Narrator
             count={count}
             input={input}
+            onPhase={gotoPhase}
             phase={phase}
             phases={stationPhases}
             result={results[pos.station]}

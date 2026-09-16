@@ -26,7 +26,9 @@ export function Rail({
   const t = useT();
   const n = stations.length;
   return (
-    <nav aria-label="Stations" className="min-w-0 overflow-x-auto pb-1">
+    // The padding is load-bearing: `overflow-x-auto` also clips vertically, so without it the
+    // scroll box cuts the top off every dot — the ring sits outside the 24px circle.
+    <nav aria-label="Stations" className="min-w-0 overflow-x-auto px-1 py-1.5">
       <ol className="relative flex min-w-max">
         <div aria-hidden className="absolute top-3 right-12 left-12 h-px bg-border" />
         <motion.div
@@ -55,7 +57,7 @@ export function Rail({
                 aria-current={isActive ? "step" : undefined}
                 aria-label={`${station.label}${note ? `, ${note}` : ""}`}
                 className={cn(
-                  "relative flex size-6 cursor-pointer items-center justify-center rounded-full font-mono text-xs tabular-nums outline-none transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-ring",
+                  "relative flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-full font-mono text-xs tabular-nums outline-none transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-ring",
                   !present
                     ? "border border-dashed bg-card text-muted-foreground/60"
                     : state === "failed"
@@ -137,9 +139,6 @@ export function Rail({
               >
                 {station.label}
               </span>
-              {note && (
-                <span className="-mt-1.5 whitespace-nowrap text-muted-foreground/60 text-xs">{note}</span>
-              )}
             </li>
           );
         })}

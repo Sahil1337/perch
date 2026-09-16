@@ -20,7 +20,7 @@ export function BucketsScene({
   return (
     <motion.div
       animate={{ opacity: 1 }}
-      className="flex items-start gap-3"
+      className="flex flex-wrap items-start gap-3"
       initial={{ opacity: 0 }}
       transition={t.fade}
     >
