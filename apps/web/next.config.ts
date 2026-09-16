@@ -8,6 +8,8 @@ const nextConfig: NextConfig = {
   // The server mounts the bundle as static files with an SPA fallback, so emitting
   // `/x/index.html` rather than `/x.html` keeps directory-style URLs working.
   trailingSlash: true,
+  // Dev only: lets the app be reached via 127.0.0.1 as well as localhost.
+  allowedDevOrigins: ["127.0.0.1"],
 };
 
 export default nextConfig;
