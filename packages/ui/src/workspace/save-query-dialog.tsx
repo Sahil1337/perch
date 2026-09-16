@@ -116,7 +116,7 @@ export function SaveQueryDialog(): React.ReactElement {
           <div className="flex min-w-0 flex-col gap-0.5">
             <DialogTitle size="sm">Save query</DialogTitle>
             <DialogDescription size="sm">
-              {folders.length > 1 ? "Name it and pick a folder." : "Name it — perch files the rest."}
+              {folders.length > 1 ? "Name it and pick a folder." : "Name it — Perch files the rest."}
             </DialogDescription>
           </div>
         </div>
@@ -158,7 +158,7 @@ export function SaveQueryDialog(): React.ReactElement {
               </span>
               {only === ownFolder && (
                 <Badge size="sm" variant="secondary">
-                  perch
+                  Perch
                 </Badge>
               )}
             </div>
@@ -179,7 +179,7 @@ export function SaveQueryDialog(): React.ReactElement {
                   <SelectItem key={option} value={option}>
                     <span className="truncate font-mono text-xs">{tilde(option)}</span>
                     {option === ownFolder && (
-                      <span className="shrink-0 text-muted-foreground text-xs">perch&rsquo;s</span>
+                      <span className="shrink-0 text-muted-foreground text-xs">Perch&rsquo;s</span>
                     )}
                   </SelectItem>
                 ))}

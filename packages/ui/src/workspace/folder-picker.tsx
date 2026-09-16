@@ -83,7 +83,7 @@ export function FolderPicker({ open, onOpenChange, onPick }: FolderPickerProps):
         <DialogHeader>
           <DialogTitle>Open a folder</DialogTitle>
           <DialogDescription>
-            perch reads and writes .sql files inside the folders you open. Pick one, or open its
+            Perch reads and writes .sql files inside the folders you open. Pick one, or open its
             parent to see everything at once.
           </DialogDescription>
         </DialogHeader>

@@ -304,7 +304,7 @@ export function FilesSection({
               button and the placeholder underneath — saying them again is the reader's time spent
               on what they can see. */}
           <span className="text-muted-foreground text-xs">
-            The only folders perch may read or write.
+            The only folders Perch may read or write.
           </span>
         </div>
 
