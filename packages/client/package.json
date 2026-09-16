@@ -1,0 +1,27 @@
+{
+  "name": "@perch/client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Typed HTTP client for the perch API: the only module in a frontend that knows the server exists.",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@perch/protocol": "*"
+  },
+  "devDependencies": {
+    "@perch/tsconfig": "*",
+    "typescript": "^6.0.3"
+  }
+}
