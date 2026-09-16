@@ -8,9 +8,23 @@
 import { AnimatePresence, motion } from "motion/react";
 import type * as React from "react";
 import { cn } from "../../lib/utils";
+import type { SubqueryPredicateKind } from "./clauses";
 import { Spinner } from "../../ui/spinner";
 import type { SectionRun, SectionStatus } from "./use-walk";
 import { useT } from "./walk-motion";
+
+/**
+ * `not exists` → `a NOT EXISTS`, `in` → `an IN`, `scalar` → `a scalar`.
+ *
+ * The article is chosen from the phrase as it will be read, not from the kind: `exists` takes "an"
+ * but the `not exists` that contains it takes "a", so a fixed article is wrong for four of the five
+ * kinds. The SQL keywords are upper-cased because that is what they are; `scalar` is our word for
+ * the shape rather than anything the user typed, so it stays prose.
+ */
+function predicatePhrase(kind: SubqueryPredicateKind): string {
+  const name = kind === "scalar" ? "scalar" : kind.toUpperCase();
+  return `${/^[aeiou]/i.test(name) ? "an" : "a"} ${name}`;
+}
 
 /** What a status means to someone reading the strip, for the accessible name and the tooltip. */
 function note(run: SectionRun): string {
@@ -73,8 +87,8 @@ function describe(run: SectionRun, sections: readonly SectionRun[]): string {
       return "a subquery in FROM, computed before the query around it.";
     case "predicate":
       return outer
-        ? `an ${origin.predicate.kind} subquery, re-run for every row of ${outer}.`
-        : `an ${origin.predicate.kind} subquery. Nothing in it depends on the outer row, so it is computed once.`;
+        ? `${predicatePhrase(origin.predicate.kind)} subquery, re-run for every row of ${outer}.`
+        : `${predicatePhrase(origin.predicate.kind)} subquery. Nothing in it depends on the outer row, so it is computed once.`;
     case "branch":
       return `branch ${origin.index + 1} of the set operation.`;
     case "main":

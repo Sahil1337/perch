@@ -36,6 +36,12 @@ export type TableView = {
   readonly truncated?: boolean;
   /** Names of the columns the cap dropped, when a card was too wide to show them all. */
   readonly hidden?: readonly string[];
+  /**
+   * What to say when the card has no rows. An empty card is the honest answer to plenty of
+   * queries, but headers over blank space reads as something failing to load rather than as a
+   * result, so the station that emptied it says so in its own words.
+   */
+  readonly empty?: string;
   /** Set on a FROM card, so a CTE or subquery can offer "Walk this". */
   readonly source?: SourceRef;
   readonly error?: string;

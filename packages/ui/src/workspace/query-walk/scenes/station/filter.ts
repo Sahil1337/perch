@@ -43,5 +43,13 @@ export function filterScene(ctx: SceneContext): Scene {
     });
     return tables([{ key: "main", title, cols, rows }], input);
   }
-  return tables([plain("main", title, sample, own)], own);
+  // An empty result is the honest answer to plenty of queries, and it is exactly the answer a
+  // reader is most likely to mistake for a broken step, so the card says what emptied it and how
+  // many rows that took.
+  const noun = station.id === "having" ? "group" : "row";
+  const empty =
+    input === null
+      ? `No ${noun} passed this test.`
+      : `All ${input} ${input === 1 ? noun : `${noun}s`} failed this test, so nothing goes on to the next step.`;
+  return tables([{ ...plain("main", title, sample, own), empty }], own);
 }

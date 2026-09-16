@@ -29,10 +29,21 @@ export function Stage({
   scene,
   state,
   sourceLink,
+  sceneKey,
 }: {
   scene: Scene;
   state: StationState;
   sourceLink: (source: SourceRef) => SourceLink | null;
+  /**
+   * Identifies the chapter on stage. Changing it remounts the scene instead of animating into it.
+   *
+   * Rows are keyed by their contents so a row can be carried from one station to the next, which is
+   * the whole point within a chapter. Across chapters it is a lie: two chapters are different
+   * queries, and a row leaving one has not been rejected by the other — it was never a candidate.
+   * Letting the exit animation run there strikes rows out in front of a reader who only clicked a
+   * different chapter.
+   */
+  sceneKey: string;
 }): React.ReactElement {
   const t = useT();
   const box = React.useRef<HTMLDivElement>(null);
@@ -61,7 +72,7 @@ export function Stage({
             than having it centred out of reach. `max-w-full` lets a wrapping scene use the width. */}
         <div className="flex min-h-full items-center-safe p-4 md:p-6">
           <div className="mx-auto w-max max-w-full">
-            <LayoutGroup>
+            <LayoutGroup key={sceneKey}>
               {/* A station that failed or is not in the query has no scene: whatever the builder
                   could still make of it is a half-built card, and the message below would print
                   straight on top of it. */}
@@ -274,6 +285,11 @@ function Table({
               25-row sample is three screens tall, and the card's title has to stay in sight. The
               cap is 16 rows: `h-7` plus each row's own bottom border, so no row is cut in half. */}
           <div className="max-h-116 overflow-y-auto">
+            {items.length === 0 && (
+              <p className="px-3 py-6 text-center text-muted-foreground text-xs">
+                {view.empty ?? "No rows."}
+              </p>
+            )}
             <AnimatePresence initial={false}>
               {items.map((item) =>
                 item.kind === "cut" ? (

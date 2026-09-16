@@ -136,8 +136,12 @@ function BoundWalk({
     <div className="flex min-h-0 flex-1 flex-col gap-3">
       <div className="grid min-h-0 flex-1 gap-4 md:grid-cols-3">
         <div className="flex min-h-0 min-w-0 flex-col md:col-span-2">
+          {/* Keyed by the section rather than by the bound row: stepping from one outer row to
+              the next is exactly where the inner card should animate, because those rows are
+              successive answers from the same subquery. */}
           <Stage
             scene={scene ?? NOTHING_YET}
+            sceneKey={plan.section.id}
             sourceLink={NO_LINK}
             state={state}
           />

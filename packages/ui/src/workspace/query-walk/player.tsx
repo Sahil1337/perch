@@ -388,7 +388,12 @@ export function WalkPlayer({ data, probe }: { data: ProgramData; probe: Probe })
         {walk && station && scene ? (
           <div className="grid min-h-0 flex-1 gap-4 md:grid-cols-3">
             <div className="flex min-h-0 min-w-0 flex-col md:col-span-2">
-              <Stage scene={scene} sourceLink={sourceLink} state={state} />
+              <Stage
+                scene={scene}
+                sceneKey={run?.section.id ?? ""}
+                sourceLink={sourceLink}
+                state={state}
+              />
             </div>
             <Narrator
               count={count}
