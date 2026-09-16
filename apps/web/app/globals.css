@@ -1,0 +1,9 @@
+@import "tailwindcss";
+@import "shadcn/tailwind.css";
+
+/* The design system — tokens, variants and keyframes — lives with the components it styles. */
+@import "@perch/ui/styles.css";
+
+/* @perch/ui is a workspace symlink, so Tailwind's automatic source detection does not reach it.
+   Without this, every class used only inside a packages/ui component is tree-shaken away. */
+@source "../../../packages/ui/src";

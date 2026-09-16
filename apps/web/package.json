@@ -1,0 +1,35 @@
+{
+  "name": "@perch/web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The SQL client UI. Static-exported into apps/server/ui/ and served by the perch server at /.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build && node scripts/postbuild.mjs",
+    "start": "next start",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@perch/client": "*",
+    "@perch/protocol": "*",
+    "@perch/ui": "*",
+    "lucide-react": "^1.33.0",
+    "next": "16.3.2",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "shadcn": "^4.19.0"
+  },
+  "devDependencies": {
+    "@shadcn/lint": "^0.1.0",
+    "@perch/tsconfig": "*",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^26.5.1",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "16.3.2",
+    "tailwindcss": "^4",
+    "typescript": "^6.0.3"
+  }
+}
