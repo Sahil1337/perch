@@ -153,6 +153,7 @@ export function useLiveWorkspace(options: LiveWorkspaceOptions = {}): WorkspaceA
     exportUrl: runs.exportUrl,
     cancelRun: runs.cancelRun,
     selectRun: runs.selectRun,
+    probe: runs.probe,
 
     settings,
     updateSettings,

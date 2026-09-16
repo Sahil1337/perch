@@ -46,6 +46,7 @@ export * from "./workspace/run-button";
 export * from "./workspace/save-indicator";
 export * from "./workspace/save-query-dialog";
 export * from "./workspace/folder-picker";
+export * from "./workspace/query-walk";
 export * from "./workspace/schema-diagram";
 export * from "./workspace/schema-tree";
 export * from "./workspace/sql-editor";

@@ -36,6 +36,7 @@ export type RunsApi = {
   ) => string | null;
   cancelRun: (runId: string) => Promise<void>;
   selectRun: (runId: string) => void;
+  probe: (sql: string, options?: { maxRows?: number }) => Promise<RunRecord>;
 };
 
 export function useRuns(
@@ -130,6 +131,34 @@ export function useRuns(
     ],
   );
 
+  /**
+   * A run that leaves no trace: not in `runs`, not in History, and read-only on the server. The
+   * query walk's step queries go through here. Rejects only when there is nothing to run against.
+   */
+  const probe = React.useCallback(
+    (sql: string, probeOptions?: { maxRows?: number }): Promise<RunRecord> => {
+      const text = sql.trim();
+      if (!text) return Promise.reject(new Error("Nothing to run."));
+      if (!connectionId) return Promise.reject(new Error("No connection selected."));
+      return getClient().query.runSync({
+        connectionId,
+        sql: text,
+        runId: crypto.randomUUID(),
+        source: "ui",
+        record: false,
+        readOnly: true,
+        ...(database ? { database } : {}),
+        ...(probeOptions?.maxRows !== undefined
+          ? { maxRows: probeOptions.maxRows }
+          : settings
+            ? { maxRows: settings.maxRows }
+            : {}),
+        ...(settings ? { timeoutMs: settings.statementTimeoutMs } : {}),
+      });
+    },
+    [connectionId, database, getClient, settings],
+  );
+
   const exportUrl = React.useCallback(
     (runId: string, exportOptions?: { statement?: number; format?: "csv" | "json" }): string | null => {
       // Runs age out of server memory, so a link is only offered while the rows are still held.
@@ -165,5 +194,6 @@ export function useRuns(
     exportUrl,
     cancelRun,
     selectRun: setSelectedRunId,
+    probe,
   };
 }

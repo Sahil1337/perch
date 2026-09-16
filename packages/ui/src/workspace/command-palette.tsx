@@ -23,6 +23,7 @@ import {
   RefreshCwIcon,
   SaveIcon,
   Table2Icon,
+  FootprintsIcon,
   WandSparklesIcon,
   WaypointsIcon,
 } from "lucide-react";
@@ -43,10 +44,15 @@ import {
   CommandShortcut,
 } from "../ui/command";
 import { useWorkspace } from "./context";
+import { requestQueryWalk } from "./query-walk";
 import { requestSchemaDiagram } from "./schema-diagram";
-import { FORMAT_DOCUMENT_EVENT, type FormatDocumentEventDetail } from "./sql-editor";
+import {
+  FORMAT_DOCUMENT_EVENT,
+  statementAtCursor,
+  type FormatDocumentEventDetail,
+} from "./sql-editor";
 import { hotkeyLabel, useHotkey } from "./use-hotkey";
-import { asyncData } from "./types";
+import { asyncData, type CursorPosition } from "./types";
 
 /** An entry the app wants in the palette. Same shape the built-in actions use. */
 export type PaletteAction = {
@@ -77,9 +83,11 @@ export function CommandPalette({
   onSelectTable?: (table: Table) => void;
 } = {}): React.ReactElement {
   const {
+    activeBuffer,
     activeBufferId,
     connect,
     connections,
+    cursor,
     database,
     databases,
     buffers,
@@ -233,6 +241,18 @@ export function CommandPalette({
         },
       },
       {
+        label: "Visualise query",
+        hint: "Walk the statement at the cursor, step by step",
+        icon: FootprintsIcon,
+        onSelect: () => {
+          if (activeBuffer) {
+            const sql = statementAtCursor(activeBuffer.content, cursorOffset(activeBuffer.content, cursor))?.sql;
+            if (sql) requestQueryWalk(sql);
+          }
+          close();
+        },
+      },
+      {
         label: panels.outputOpen ? "Hide results" : "Show results",
         shortcut: hotkeyLabel(TOGGLE_RESULTS),
         icon: PanelBottomIcon,
@@ -269,9 +289,11 @@ export function CommandPalette({
       { value: "Tables", items: tables },
     ].filter((group) => group.items.length > 0);
   }, [
+    activeBuffer,
     activeBufferId,
     close,
     connect,
+    cursor,
     database,
     extraActions,
     buffers,
@@ -339,4 +361,15 @@ export function CommandPalette({
 
 function plural(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? "" : "s"}`;
+}
+
+/** A 1-based line/column into a character offset, clamped to the text. */
+function cursorOffset(text: string, cursor: CursorPosition): number {
+  let offset = 0;
+  for (let line = 1; line < cursor.line; line++) {
+    const next = text.indexOf("\n", offset);
+    if (next === -1) return text.length;
+    offset = next + 1;
+  }
+  return Math.min(text.length, offset + Math.max(0, cursor.col - 1));
 }

@@ -230,6 +230,7 @@ export function SqlEditor({
           Run all
           <ContextMenuShortcut>{hotkeyLabel(RUN_ALL_HOTKEY)}</ContextMenuShortcut>
         </ContextMenuItem>
+        <ContextMenuItem onClick={commands.visualiseFromMenu}>Visualise query</ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem onClick={commands.formatFromMenu}>
           Format document

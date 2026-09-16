@@ -29,6 +29,7 @@ import {
   ConnectingProvider,
   useOnboardingFlow,
   requestSaveQuery,
+  QueryWalkDialog,
   SaveQueryDialog,
   SchemaDiagramDialog,
   useWorkspace,
@@ -87,6 +88,8 @@ function Workspace(): React.ReactElement {
       <SaveQueryDialog />
       {/* Likewise: the sidebar button and the palette both open it by event. */}
       <SchemaDiagramDialog />
+      {/* And the editor's context menu and the palette open this one. */}
+      <QueryWalkDialog />
       <AppTopbar
         end={
           <>

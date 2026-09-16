@@ -234,6 +234,13 @@ export type WorkspaceApi = {
    * Rendered as a link so the browser handles the download.
    */
   exportUrl(runId: string, options?: { statement?: number; format?: "csv" | "json" }): string | null;
+  /**
+   * Runs `sql` against the current connection and database with `record: false` and
+   * `readOnly: true`, outside the runs list and outside History. The query walk's step queries go
+   * through this. Rejects only for a bad request; SQL failures come back in the record's `error`
+   * and statement results.
+   */
+  probe(sql: string, options?: { maxRows?: number }): Promise<RunRecord>;
 
   /* settings */
   readonly settings: Async<Settings>;

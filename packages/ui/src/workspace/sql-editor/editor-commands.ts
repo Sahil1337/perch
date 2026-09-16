@@ -8,6 +8,7 @@ import { selectAll, toggleComment } from "@codemirror/commands";
 import type { EditorView } from "@codemirror/view";
 import type { Dialect, Settings } from "@perch/protocol";
 import * as React from "react";
+import { requestQueryWalk } from "../query-walk/query-walk-event";
 import type { CursorPosition } from "../types";
 import { formatDocument } from "./format-document";
 import { statementAtCursor } from "./statements";
@@ -33,6 +34,8 @@ export type EditorCommands = {
   runWholeDocument: () => void;
   selectAllFromMenu: () => void;
   toggleCommentFromMenu: () => void;
+  /** Opens the query walk on the selection, or on the statement at the cursor. */
+  visualiseFromMenu: () => void;
 };
 
 export function useEditorCommands(
@@ -80,6 +83,15 @@ export function useEditorCommands(
     if (!view) return;
     void formatDocument(view, bridge.current.dialect, bridge.current.keywordCase);
   }, [bridge, viewRef]);
+
+  const visualiseFromMenu = React.useCallback(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    const { from, to, head } = view.state.selection.main;
+    const selected = from !== to ? view.state.doc.sliceString(from, to).trim() : "";
+    const sqlText = selected || statementAtCursor(view.state.doc.toString(), head)?.sql;
+    if (sqlText) requestQueryWalk(sqlText);
+  }, [viewRef]);
 
   const toggleCommentFromMenu = React.useCallback(() => {
     const view = viewRef.current;
@@ -157,5 +169,6 @@ export function useEditorCommands(
     runWholeDocument,
     selectAllFromMenu,
     toggleCommentFromMenu,
+    visualiseFromMenu,
   };
 }
