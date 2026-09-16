@@ -1,0 +1,29 @@
+{
+  "name": "@perch/sql",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Dialect-agnostic SQL text utilities shared by the frontend. Mirrors apps/server/src/core/sql/*, which stays the authority.",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "check": "node scripts/assert-in-sync.mjs"
+  },
+  "dependencies": {
+    "@perch/protocol": "*",
+    "sql-formatter": "^15.8.2"
+  },
+  "devDependencies": {
+    "@perch/tsconfig": "*",
+    "typescript": "^6.0.3"
+  }
+}
