@@ -24,6 +24,7 @@ import {
   SaveIcon,
   Table2Icon,
   WandSparklesIcon,
+  WaypointsIcon,
 } from "lucide-react";
 import * as React from "react";
 import {
@@ -42,6 +43,7 @@ import {
   CommandShortcut,
 } from "../ui/command";
 import { useWorkspace } from "./context";
+import { requestSchemaDiagram } from "./schema-diagram";
 import { FORMAT_DOCUMENT_EVENT, type FormatDocumentEventDetail } from "./sql-editor";
 import { hotkeyLabel, useHotkey } from "./use-hotkey";
 import { asyncData } from "./types";
@@ -218,6 +220,15 @@ export function CommandPalette({
         icon: RefreshCwIcon,
         onSelect: () => {
           void refreshSchema();
+          close();
+        },
+      },
+      {
+        label: "Visualise relationships",
+        hint: "Tables and the keys that join them",
+        icon: WaypointsIcon,
+        onSelect: () => {
+          requestSchemaDiagram();
           close();
         },
       },

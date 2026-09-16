@@ -164,11 +164,10 @@ alone would pull in 9.1MB of recharts the day someone imports it.
 
 ## Parked
 
-- **ER / relational schema view.** Mermaid `erDiagram`, driven by PK and FK constraints. Blocked
-  on backend work first: **foreign keys are not introspected** — neither `postgres/introspect.ts`
-  nor `mysql/introspect.ts` reads `pg_constraint` or `key_column_usage`, and `Table` carries no
-  constraints. Needs a new query per dialect plus a `@perch/protocol` addition (most likely
-  `Table.foreignKeys`) before any UI. PKs are already available.
+- **ER / relational schema view** — built, not parked any more, and not with Mermaid: foreign keys
+  are introspected on both dialects (`Table.foreignKeys`) and `packages/ui/src/workspace/
+  schema-diagram.tsx` draws the cards and wires itself, because a text-to-SVG renderer cannot
+  anchor a wire to a column row or animate a pulse along it.
 - **Connections CRUD screen.** Eight routes exist; the UI has a picker over the configured list
   and no way to add, edit or test one. Topbar picker stubs it in v1.
 - **Settings screen.** `GET/PUT /api/settings` exist; the gear is a no-op. Stubbed in v1.

@@ -16,6 +16,7 @@ import {
   RefreshCwIcon,
   Table2Icon,
   TriangleAlertIcon,
+  WaypointsIcon,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCollapse, useFade } from "../lib/motion";
@@ -27,6 +28,7 @@ import { Input } from "../ui/input";
 import { Skeleton } from "../ui/skeleton";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { useWorkspace } from "./context";
+import { requestSchemaDiagram } from "./schema-diagram";
 import { asyncData } from "./types";
 
 /** Pixels. Indentation is the one row value that depends on data, so it is the one inline value. */
@@ -116,6 +118,24 @@ export function SchemaTree({
             }
           />
           <TooltipPopup>{refreshing ? "Refreshing…" : "Refresh schema"}</TooltipPopup>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                aria-label="Visualise relationships"
+                disabled={data === undefined}
+                // Opens on the selected table when there is one, so the picture starts where
+                // the tree was looking.
+                onClick={() => requestSchemaDiagram(selected ?? undefined)}
+                size="icon-xs"
+                variant="ghost"
+              >
+                <WaypointsIcon />
+              </Button>
+            }
+          />
+          <TooltipPopup>Visualise relationships</TooltipPopup>
         </Tooltip>
       </div>
 

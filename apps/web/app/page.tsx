@@ -30,6 +30,7 @@ import {
   useOnboardingFlow,
   requestSaveQuery,
   SaveQueryDialog,
+  SchemaDiagramDialog,
   useWorkspace,
   type SidebarTab,
 } from "@perch/ui";
@@ -84,6 +85,8 @@ function Workspace(): React.ReactElement {
     <div className="flex h-svh flex-col overflow-hidden">
       {/* Mounted once, for ⌘S and the save menu alike — see save-query-dialog. */}
       <SaveQueryDialog />
+      {/* Likewise: the sidebar button and the palette both open it by event. */}
+      <SchemaDiagramDialog />
       <AppTopbar
         end={
           <>

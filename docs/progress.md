@@ -64,6 +64,9 @@ leaf; ESLint enforces the direction (`docs/architecture/server-structure.md`).
 
 - Topbar with connection/database picker, save indicator with autosave toggle, Run/Cancel, settings.
 - Sidebar: schema tree (search, refresh), files, run history; resizable, collapsible.
+- Relationship view (sidebar Visualise button, palette): table cards with PK/FK markers and
+  typed columns, foreign keys as wires from the referencing column to the referenced key with an
+  animated pulse, layered auto-layout, drag/pan/zoom, click a table to isolate its relations.
 - Editor: CodeMirror 6 with dialect-aware highlighting, schema-fed completion, error squiggles at
   the server-reported offset, run statement under cursor / selection / all, format document,
   right-click menu.
@@ -101,4 +104,3 @@ leaf; ESLint enforces the direction (`docs/architecture/server-structure.md`).
 - A dev-mode hydration warning from the pane grid was reported by its author; not seen in the
   shipped static build.
 - Per-file write queue for concurrent saves from several tabs is designed, not built.
-- Foreign keys are not introspected yet (blocks an ER view).
