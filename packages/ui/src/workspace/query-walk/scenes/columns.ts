@@ -12,7 +12,7 @@ const CHAR_PX = 6.8;
 const MIN_WIDTH = 48;
 const MAX_WIDTH = 220;
 
-function widthFor(label: string, values: readonly Cell[]): number {
+export function widthFor(label: string, values: readonly Cell[]): number {
   let chars = label.length;
   for (const value of values) chars = Math.max(chars, formatCell(value).length);
   return Math.round(Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, 16 + chars * CHAR_PX)));

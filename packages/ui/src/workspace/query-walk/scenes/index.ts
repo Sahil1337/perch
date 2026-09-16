@@ -13,6 +13,7 @@ import { joinScene } from "./station/join";
 import { limitScene } from "./station/limit";
 import { orderScene } from "./station/order";
 import { selectScene } from "./station/select";
+import { windowScene } from "./station/window";
 import { EMPTY, type Scene } from "./types";
 import { capCols } from "./view";
 
@@ -39,6 +40,8 @@ function sceneAt(index: number, phase: number, walk: WalkData): Scene {
       return filterScene(ctx);
     case "group":
       return groupScene(ctx);
+    case "window":
+      return windowScene(ctx);
     case "select":
       return selectScene(ctx);
     case "distinct":

@@ -3,7 +3,7 @@
 
 import type { JoinClause } from "./clauses";
 import { previousIndex, sampleId } from "./scenes";
-import { sourceTitle, WALK_PREFIX } from "./steps";
+import { caseExpressions, sourceTitle, WALK_PREFIX, type WindowFn, windowFunctions } from "./steps";
 import type { StationState, WalkData } from "./use-walk";
 
 export type Phase = { readonly ms: number; readonly label: string };
@@ -14,6 +14,11 @@ export const STAGGER_MS = 110;
 export const HOLD_MS = 1000;
 
 const code = (text: string): string => `\`${text.replace(/\s+/g, " ").trim()}\``;
+
+/** `dept_name` and `dept_name and year`: the partition, named the way the user wrote it. */
+function paneKeys(fn: WindowFn): string {
+  return fn.partition.map(code).join(" and ");
+}
 
 function joinCondition(join: JoinClause): string {
   if (join.using) return `${code(`using (${join.keys.map((pair) => pair.left).join(", ")})`)} matches`;
@@ -67,11 +72,38 @@ export function sentenceFor(index: number, walk: WalkData): string {
       return parsed.having
         ? `Like WHERE, but for groups. Groups that fail ${code(text(parsed.having.body.from, parsed.having.body.to))} are thrown away.`
         : "Not in this query. It would filter groups the way WHERE filters rows.";
+    case "window": {
+      const functions = windowFunctions(parsed);
+      const fn = functions[0];
+      if (!fn) {
+        return "Not in this query. A window function would give every row a value read off the rows around it, without losing a single one of them.";
+      }
+      const partitioned = fn.partition.length > 0;
+      const panes = partitioned
+        ? `${code(fn.call)} cuts the rows into one pane per ${paneKeys(fn)}`
+        : `With nothing to partition by, ${code(fn.call)} takes the whole result as a single pane`;
+      const walked =
+        fn.order.length > 0
+          ? `, walks ${partitioned ? "each pane" : "it"} in ${fn.order.map(code).join(", ")} order,`
+          : "";
+      const others = functions.length - 1;
+      const rest =
+        others > 0
+          ? ` The other ${others === 1 ? "window function runs" : `${others} window functions run`} here too, each with its own panes.`
+          : "";
+      return `${panes}${walked} and hands every row its own value. Unlike GROUP BY it collapses nothing: the rows are all still here, which is why ORDER BY can sort by what it computed and WHERE, long finished, never saw it.${rest}`;
+    }
     case "select": {
       const alias = firstAlias(index, walk);
-      return alias
+      const base = alias
         ? `Only now are the output columns chosen and computed. Aliases like ${code(alias)} are born here, which is why WHERE could not use them and ORDER BY can.`
         : "Only now are the output columns chosen and computed. Nothing earlier could refer to a column that does not exist yet, which is why WHERE runs before SELECT.";
+      const branches = caseExpressions(parsed)[0];
+      if (!branches) return base;
+      const fallback = branches.fallback
+        ? `falls through to ${code(branches.fallback)}`
+        : `comes out null, because this ${code("case")} has no ${code("else")}`;
+      return `${base} The ${code("case")} is one of those columns: each row takes the first ${code("when")} that is true of it, and a row no branch claims ${fallback}.`;
     }
     case "distinct":
       return station.present
@@ -170,11 +202,24 @@ export function phasesFor(index: number, walk: WalkData, state: StationState): P
         { ms: 900, label: "failing groups removed" },
       ];
     }
-    case "select":
+    case "window": {
+      const fn = windowFunctions(walk.parsed)[0];
+      const keys = fn?.partition.join(", ") ?? "";
       return [
+        { ms: 1300, label: keys ? `panes by ${keys}` : "one pane, every row" },
+        { ms: 1600, label: "a value for every row" },
+      ];
+    }
+    case "select": {
+      const phases: Phase[] = [
         { ms: 900, label: "dropping unused columns" },
         { ms: 900, label: "naming the output" },
       ];
+      // The branch phase is only worth playing when the probe that knows which branch won came
+      // back; without it the stage would hold on the phase before it and say nothing new.
+      if (result?.queries.case?.ok) phases.push({ ms: 1500, label: "which branch won" });
+      return phases;
+    }
     case "distinct":
       return [
         { ms: 900, label: "finding duplicates" },
