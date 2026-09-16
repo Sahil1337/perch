@@ -35,6 +35,13 @@ browse the schema → write SQL → read the result
 
 Unlike full administration suites, Perch keeps the interface focused on the work you actually do: exploring tables, writing queries, comparing results, and jumping between databases.
 
+Two of the features are there to make a database legible rather than to run queries faster:
+[Relationship view](#relationship-view) draws the schema and the keys that join it, and
+[Query walk](#query-walk) plays a `SELECT` through its clauses in the order the database evaluates
+them, using your own rows. They are worth a look if you are learning SQL, teaching it, or reading
+someone else's query for the first time — the parts a `psql` prompt leaves you to picture in your
+head.
+
 It ships as a single binary and runs entirely on your machine. No account, no cloud service, no bundled database, and no Electron runtime.
 
 ## Installation
@@ -95,13 +102,63 @@ cancels it at the driver rather than only in the browser.
 
 ### Relationship view
 
-**Visualise** in the schema sidebar (also in the palette) draws the database: every table as a card
-of typed columns with its primary and foreign keys marked, and every foreign key as a wire from the
-column that holds it to the key it points at, with a pulse travelling the direction the reference
-goes. Referenced tables are laid out left of the tables that reference them; tables with no keys
-in either direction sit in a grid underneath. Click a table to see only what joins to it, drag
-cards to rearrange, scroll to pan and <kbd>⌘</kbd>-scroll to zoom. Opened from a selected table,
-the view starts centred on it.
+**Visualise relationships** in the schema sidebar (also in the palette) draws the database: every
+table as a card of typed columns with its primary and foreign keys marked, and every foreign key as
+a wire from the column that holds it to the key it points at, with a pulse travelling the direction
+the reference goes. Referenced tables are laid out left of the tables that reference them; tables
+with no keys in either direction sit in a grid underneath. Click a table to see only what joins to
+it, drag cards to rearrange, scroll to pan and <kbd>⌘</kbd>-scroll to zoom. Opened from a selected
+table, the view starts centred on it.
+
+<!-- TODO(asset): docs/assets/relationship-view.png — the diagram with a table selected, its wires
+     highlighted and the rest dimmed. Alt: "Tables as cards of typed columns, joined by foreign-key
+     wires, with one table selected." -->
+
+A real schema has tables wide enough to make every card a screen tall, so when any table runs past
+a dozen columns the view opens in **keys-only** mode: each card shows the columns that take part in
+a relation and a row saying how many it is hiding, and expands on request. Where you drag the cards
+is remembered per connection and database, so the picture you arranged is the one you come back to.
+
+### Query walk
+
+**Visualise query** in the editor's right-click menu (also in the palette) takes the selection, or
+the statement under the cursor, and plays it through the order the database actually evaluates it
+in — FROM, JOIN, WHERE, GROUP BY, HAVING, window functions, SELECT, DISTINCT, ORDER BY, LIMIT —
+with the rows and counts your connected database returns at each station, and a sentence saying
+what that station did to them. A window function gets its own station, where the panes it partitions into are
+drawn and every row keeps its place; a `CASE` is read branch by branch, each row taking the first
+`WHEN` that is true of it.
+
+<!-- TODO(asset): docs/assets/query-walk.gif — a grouped query playing from FROM through GROUP BY to
+     LIMIT, rows moving between stations. Alt: "A SELECT walked station by station, with the rows
+     the database returned at each one." -->
+
+Nothing on screen is illustrative. Every station's query is your own SQL spliced back together and
+run against the current database, and the statements that ran are in a tab beside the query, so the
+result you are shown is one you could have run yourself. Those runs are read-only, sample 25 rows,
+and never enter run history. A clause the query does not use still gets a station, marked absent and
+narrated as what it would have done — which is how the walk answers "why can't WHERE see my alias".
+
+A statement is read as a **program of sections**: each CTE, derived table, subquery predicate and
+branch of a set operation is a chapter with its own walk, laid out in dependency order on a strip
+above the station rail, and playback runs straight through them. A correlated subquery is not
+flattened into a single result — it runs once per outer row, with a scrubber underneath carrying
+each row's verdict, and every correlated reference replaced by that row's value, so
+`takes.ID = s.ID` becomes `takes.ID = '12345'` on screen. Parts of a query that could not be sliced
+into a section are listed rather than quietly dropped.
+
+<!-- TODO(asset): docs/assets/query-walk-sections.png — the chapter strip over a correlated
+     subquery's per-row scrubber. Alt: "Chapter strip with a CTE, a subquery and the main query,
+     above a scrubber with one tick per outer row." -->
+
+<kbd>Space</kbd> plays and pauses, <kbd>←</kbd> and <kbd>→</kbd> step a phase at a time across
+station and chapter boundaries, and playback can be halved to 0.5×. Click any station on the rail
+or any chapter on the strip to jump to it. Under `prefers-reduced-motion` the scenes cut instead of
+animating.
+
+Walks are built for `SELECT`. A step with no clauses to walk — a `VALUES` list, a `SELECT`
+with no `FROM` — still gets a chapter showing what it produces, and a `WITH` step that writes to
+the database is shown but never run. A statement Perch cannot slice says so instead of guessing.
 
 ### SQL notebooks
 
