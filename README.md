@@ -91,7 +91,7 @@ with their types, highlighting is dialect-aware, and a rejected statement is und
 offset the server reported, with the message on hover.
 
 <p align="center">
-  <img src="docs/assets/schema-editor.png" alt="Schema tree with a table expanded to its columns, types and keys, beside an editor holding a formatted query" width="680">
+  <img src="docs/assets/schema-editor.png" alt="Schema tree with a table expanded to its columns, types and keys, beside an editor holding a formatted query" width="748">
   <br><sub>Types, nullability, primary keys and row estimates — the same metadata the editor completes from.</sub>
 </p>
 
@@ -194,7 +194,7 @@ SELECT * FROM orders WHERE status = 'paid' AND created_at > now() - interval '7 
 ```
 
 <p align="center">
-  <img src="docs/assets/notebook.png" alt="A notebook with two cells, each showing its own result grid, row count and execution time" width="660">
+  <img src="docs/assets/notebook.png" alt="A notebook with two cells, each showing its own result grid, row count and execution time" width="730">
   <br><sub>Each cell keeps its own rows, row count and timing.</sub>
 </p>
 
@@ -210,7 +210,7 @@ Editors and results live in a resizable pane grid. Drag a tab to any edge, or pr
 directly. Panes resize, tabs move between them, and the layout is restored on reload.
 
 <p align="center">
-  <img src="docs/assets/hero.png" alt="A file open on the left with its results below, and a notebook in a second pane on the right" width="700">
+  <img src="docs/assets/hero.png" alt="A file open on the left with its results below, and a notebook in a second pane on the right" width="780">
   <br><sub>A file and its results on the left, a notebook on the right — one window.</sub>
 </p>
 
@@ -230,10 +230,10 @@ boundary of what the server is allowed to read and write.
 <table align="center">
 <tr>
 <td align="center" width="40%">
-  <img src="docs/assets/workspace-files.png" alt="Files panel listing the .sql files in an open workspace folder" width="210">
+  <img src="docs/assets/workspace-files.png" alt="Files panel listing the .sql files in an open workspace folder" width="255">
 </td>
 <td align="center" width="60%">
-  <img src="docs/assets/open-folder.png" alt="The folder picker, browsing the filesystem to choose a workspace directory" width="400">
+  <img src="docs/assets/open-folder.png" alt="The folder picker, browsing the filesystem to choose a workspace directory" width="460">
 </td>
 </tr>
 <tr>
@@ -250,7 +250,7 @@ statement with its own row count and duration, alongside a Messages tab for serv
 can be viewed as a grid or as text, copied with <kbd>⌘</kbd><kbd>C</kbd>, or exported to CSV.
 
 <p align="center">
-  <img src="docs/assets/results.png" alt="Result grid with typed column headers, a row count and duration, and grid, text and export controls" width="700">
+  <img src="docs/assets/results.png" alt="Result grid with typed column headers, a row count and duration, and grid, text and export controls" width="750">
   <br><sub>Types in the headers, row count and duration above them.</sub>
 </p>
 
@@ -261,7 +261,7 @@ Selecting a past run restores it in the results pane with its SQL, outcome and t
 records what was run and how it went; result rows are never written to disk.
 
 <p align="center">
-  <img src="docs/assets/history.png" alt="History sidebar with runs grouped under Today and Yesterday, each with a row-count badge" width="300">
+  <img src="docs/assets/history.png" alt="History sidebar with runs grouped under Today and Yesterday, each with a row-count badge" width="355">
   <br><sub>Grouped by day, collapsible, still there after a restart.</sub>
 </p>
 
@@ -273,7 +273,7 @@ database switches to it, and the schema tree, completions and editor follow with
 step.
 
 <p align="center">
-  <img src="docs/assets/command-palette.png" alt="Command palette open, showing grouped actions with their shortcuts and a saved connection" width="560">
+  <img src="docs/assets/command-palette.png" alt="Command palette open, showing grouped actions with their shortcuts and a saved connection" width="635">
   <br><sub>Actions, connections, databases, files and tables in one search.</sub>
 </p>
 
