@@ -111,8 +111,7 @@ land is a committed `*.test.ts`.
   Never add an `npm i -g` line to docs — there is no package to install, and the npm names
   `perch`, `sqe` and `sql-engine` all belong to unrelated projects.
 - **The frontend is `apps/web`.** The four layout directions in `apps/mockups` did their job
-  and were deleted; what they taught is recorded in `docs/design/prototype-spec.md`, and the
-  components they shared now live in `packages/ui`. `apps/web` static-exports into
+  and were deleted; the components they shared now live in `packages/ui`. `apps/web` static-exports into
   `apps/server/ui/`, which is how the one binary carries both halves.
 - **MIT licensed.** New workspaces inherit it; `apps/server` keeps its own `LICENSE` copy so the
   shipped half of the repo carries its licence next to it.

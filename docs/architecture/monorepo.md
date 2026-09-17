@@ -187,9 +187,8 @@ is static. Treat it as load-bearing rather than as a nicety.
 `apps/mockups` held four full layout directions — classic, notebook, split, focus — built on one
 set of shared components so the layout decision could be made by clicking rather than by arguing.
 It was `private`, never published, and nothing in `packages/` or `apps/server` was allowed to
-depend on it. The decision went to a merge of all four rather than to any one of them
-([../design/prototype-spec.md](../design/prototype-spec.md) records which region came from where),
-and the workspace was deleted in a single pass:
+depend on it. The decision went to a merge of all four rather than to any one of them, and the workspace was
+deleted in a single pass:
 
 1. **`apps/web` was scaffolded** — a Next 16 app on `@perch/tsconfig/react.json` with the same
    Tailwind and shadcn setup, and `web.yml` was pointed at it.

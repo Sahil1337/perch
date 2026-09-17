@@ -5,6 +5,15 @@
   "description": "Monorepo for perch: the `perch` server/CLI, the web UI, and the packages they share.",
   "type": "module",
   "license": "MIT",
+  "author": "Sahil1337 (https://github.com/Sahil1337)",
+  "homepage": "https://github.com/Sahil1337/perch#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sahil1337/perch.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Sahil1337/perch/issues"
+  },
   "packageManager": "bun@1.3.14",
   "engines": {
     "node": ">=22",
