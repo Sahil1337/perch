@@ -109,9 +109,10 @@ with no keys in either direction sit in a grid underneath. Click a table to see 
 it, drag cards to rearrange, scroll to pan and <kbd>⌘</kbd>-scroll to zoom. Opened from a selected
 table, the view starts centred on it.
 
-<!-- TODO(asset): docs/assets/relationship-view.png — the diagram with a table selected, its wires
-     highlighted and the rest dimmed. Alt: "Tables as cards of typed columns, joined by foreign-key
-     wires, with one table selected." -->
+<p align="center">
+  <img src="docs/assets/relationship-view.png" alt="The schema drawn as cards of typed columns, joined by foreign-key wires, with primary and foreign keys marked on each column" width="780">
+  <br><sub>Eleven tables, thirteen relations — each wire runs from the column holding the key to the key it points at.</sub>
+</p>
 
 A real schema has tables wide enough to make every card a screen tall, so when any table runs past
 a dozen columns the view opens in **keys-only** mode: each card shows the columns that take part in
