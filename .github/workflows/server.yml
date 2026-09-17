@@ -1,79 +1,76 @@
-# Disabled while the repo is private, to avoid burning CI credits.
-# Uncomment everything below once the repo goes public.
-#
-# name: server
-#
-# on:
-#   push:
-#     branches: [main]
-#     paths:
-#       - "apps/server/**"
-#       - "packages/**"
-#       - "bun.lock"
-#       - ".github/workflows/server.yml"
-#   pull_request:
-#     paths:
-#       - "apps/server/**"
-#       - "packages/**"
-#       - "bun.lock"
-#       - ".github/workflows/server.yml"
-#
-# jobs:
-#   check:
-#     runs-on: ubuntu-latest
-#     steps:
-#       - uses: actions/checkout@v4
-#       - uses: oven-sh/setup-bun@v2
-#         with:
-#           bun-version: latest
-#       - run: bun install --frozen-lockfile
-#       - run: bun run --filter perch typecheck
-#       - run: bun run --filter perch lint
-#
-#   cli:
-#     strategy:
-#       fail-fast: false
-#       matrix:
-#         os: [ubuntu-latest, windows-latest]
-#         node: [22, 24]
-#     runs-on: ${{ matrix.os }}
-#     steps:
-#       - uses: actions/checkout@v4
-#       - uses: actions/setup-node@v4
-#         with:
-#           node-version: ${{ matrix.node }}
-#       - uses: oven-sh/setup-bun@v2
-#         with:
-#           bun-version: latest
-#       - run: bun install --frozen-lockfile
-#       - run: bun run --filter perch build
-#       - run: node apps/server/dist/cli/main.js --version && node apps/server/dist/cli/main.js status
-#         env:
-#           PERCH_HOME: ${{ runner.temp }}/perch-home
-#
-#   postgres:
-#     runs-on: ubuntu-latest
-#     services:
-#       postgres:
-#         image: postgres:16
-#         env:
-#           POSTGRES_USER: perch
-#           POSTGRES_PASSWORD: perch
-#           POSTGRES_DB: perch
-#         ports: ["5432:5432"]
-#         options: >-
-#           --health-cmd "pg_isready -U perch" --health-interval 5s --health-timeout 5s --health-retries 10
-#     env:
-#       PERCH_SMOKE_PG: postgres://perch:perch@localhost:5432/perch
-#     steps:
-#       - uses: actions/checkout@v4
-#       - uses: actions/setup-node@v4
-#         with:
-#           node-version: 22
-#       - uses: oven-sh/setup-bun@v2
-#         with:
-#           bun-version: latest
-#       - run: bun install --frozen-lockfile
-#       - run: bun run --filter perch build
-#       - run: psql "$PERCH_SMOKE_PG" -f apps/server/scripts/smoke-fixtures.sql
-#       - run: bun run --filter perch smoke
+name: server
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/server/**"
+      - "packages/**"
+      - "bun.lock"
+      - ".github/workflows/server.yml"
+  pull_request:
+    paths:
+      - "apps/server/**"
+      - "packages/**"
+      - "bun.lock"
+      - ".github/workflows/server.yml"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run --filter perch typecheck
+      - run: bun run --filter perch lint
+
+  cli:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: [22, 24]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run --filter perch build
+      - run: node apps/server/dist/cli/main.js --version && node apps/server/dist/cli/main.js status
+        env:
+          PERCH_HOME: ${{ runner.temp }}/perch-home
+
+  postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: perch
+          POSTGRES_PASSWORD: perch
+          POSTGRES_DB: perch
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U perch" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PERCH_SMOKE_PG: postgres://perch:perch@localhost:5432/perch
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run --filter perch build
+      - run: psql "$PERCH_SMOKE_PG" -f apps/server/scripts/smoke-fixtures.sql
+      - run: bun run --filter perch smoke
