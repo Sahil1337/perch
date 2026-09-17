@@ -15,6 +15,7 @@ import type { Settings } from "@perch/protocol";
 import { CheckIcon } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import * as React from "react";
+import { messageOf } from "../lib/errors";
 import { useFade } from "../lib/motion";
 import { cn } from "../lib/utils";
 import { Spinner } from "../ui/spinner";
@@ -57,7 +58,7 @@ export function useSettingsWriter(): SettingsWriter {
         },
         (cause: unknown) => {
           if (seq.current !== mine) return;
-          setError(cause instanceof Error ? cause.message : String(cause));
+          setError(messageOf(cause));
           setState("error");
         },
       );

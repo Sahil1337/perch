@@ -1,12 +1,13 @@
 import type { StatementResult } from "@perch/protocol";
+import { clockOf, plural } from "../../lib/format";
 import type { Run } from "../types";
+
+// Re-exported so the pane's importers keep one import, even though these two are app-wide: a row
+// count reads the same here, in the palette and in History.
+export { clockOf, plural };
 
 export function isRowResult(result: StatementResult): boolean {
   return result.columns.length > 0;
-}
-
-export function plural(count: number, noun: string): string {
-  return `${count.toLocaleString()} ${noun}${count === 1 ? "" : "s"}`;
 }
 
 /** psql's wording: the verb, then what it touched. */
@@ -20,13 +21,6 @@ export function statementSummary(result: StatementResult): string {
   return isRowResult(result)
     ? `${plural(result.rowCount, "row")} · ${result.durationMs}ms`
     : commandLabel(result);
-}
-
-export function clockOf(timestamp: string): string {
-  const date = new Date(timestamp);
-  return Number.isNaN(date.getTime())
-    ? timestamp
-    : date.toLocaleTimeString("en-GB", { hour12: false });
 }
 
 /** The one line the pane tab cannot carry: what came back. */

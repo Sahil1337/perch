@@ -16,13 +16,14 @@
 
 import type { Cell, StatementResult } from "@perch/protocol";
 import * as React from "react";
-import { cellParts, partsSql, sqlLiteral, type BoundRow } from "./bound";
+import { bindKey, bindKeyOf, cellParts, partsSql, sqlLiteral, type BoundRow } from "./bound";
 import type { SqlPart } from "./clauses";
 import type { GridBuild } from "./grid";
+import { messageOf, only, type QueryOutcome } from "./probe-outcome";
 import { MAX_GRID_CELLS } from "./grid";
 import { truthy } from "./scenes/columns";
 import { bindColumn, CELL_COLUMN, driveColumn, SAMPLE_ROWS } from "./steps";
-import type { Probe, QueryOutcome } from "./use-walk";
+import type { Probe } from "./use-walk";
 
 /** One column of the grid: one driving row, and the value that names it. */
 export type GridColumn = {
@@ -33,7 +34,7 @@ export type GridColumn = {
   readonly literals: ReadonlyMap<string, string>;
 };
 
-export type GridRun = {
+type GridRun = {
   /** Null while the probe is out, and for good once it has failed. */
   readonly columns: readonly GridColumn[];
   /** Outer row (by its bound literals) → column key → the inner predicate's answer. */
@@ -57,20 +58,6 @@ export type GridPick = { readonly row: number; readonly column: string };
 
 const NO_COLUMNS: readonly GridColumn[] = [];
 const NO_CELLS: ReadonlyMap<string, ReadonlyMap<string, boolean>> = new Map();
-
-function messageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
-function only(record: Awaited<ReturnType<Probe>>): QueryOutcome {
-  const result = record.results?.[0];
-  if (result) return { ok: true, result };
-  return { ok: false, error: record.error?.message ?? "The database returned nothing.", skipped: false };
-}
-
-/** The outer row's bound values as one string, which is how a grid row finds its ledger row. Both
- *  sides spell the values with `sqlLiteral`, so the match is on what the SQL would say. */
-export const bindKey = (literals: readonly string[]): string => JSON.stringify(literals);
 
 export function useGridRun(
   grid: GridBuild | null,
@@ -128,7 +115,7 @@ export function useGridRun(
     if (!grid || !row || !column) return null;
     const literals = new Map([...row.literals, ...column.literals]);
     const parts = cellParts(grid, literals);
-    return { key: `${bindKey([...row.literals.values()])}::${column.key}`, sql: partsSql(parts), parts };
+    return { key: `${bindKeyOf(row)}::${column.key}`, sql: partsSql(parts), parts };
   }, [column, grid, row]);
 
   const cached = cellParams ? cells.get(cellParams.key) : undefined;
@@ -205,7 +192,9 @@ function readGrid(
       columns.push({
         key: columnKey,
         label: driveAt.map((index) => textAt(raw, index)).join(" · "),
-        literals: new Map(grid.drives.map((drive, i) => [drive.ref, literalAt(raw, driveAt[i] ?? -1)])),
+        literals: new Map(
+          grid.drives.map((drive, i) => [drive.ref, literalAt(raw, driveAt[i] ?? -1)]),
+        ),
       });
     }
     let byColumn = cells.get(key);
@@ -224,7 +213,8 @@ function readGrid(
   // student's five courses as if that were the whole row would put a wrong row-sum on screen, so a
   // short last row is dropped — and one that happens to be whole is kept, because it is whole.
   const last = order[order.length - 1];
-  const short = sample.truncated && last !== undefined && (cells.get(last)?.size ?? 0) < columns.length;
+  const short =
+    sample.truncated && last !== undefined && (cells.get(last)?.size ?? 0) < columns.length;
   if (short && last !== undefined) cells.delete(last);
   return { columns, cells, covered: cells.size };
 }

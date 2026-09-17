@@ -4,7 +4,15 @@
 
 import type { StatementResult } from "@perch/protocol";
 import { branchColumn, caseExpressions } from "../../steps";
-import { colsOf, hashCells, positional, rowsOf, truthy, visibleIndices, widthFor } from "../columns";
+import {
+  colsOf,
+  hashCells,
+  positional,
+  rowsOf,
+  truthy,
+  visibleIndices,
+  widthFor,
+} from "../columns";
 import type { SceneContext } from "../context";
 import { okResult } from "../results";
 import { EMPTY, type Col, type Row, type Scene } from "../types";
@@ -14,8 +22,7 @@ import { plain, tables } from "../view";
 const BRANCH = "branch";
 
 export function selectScene(ctx: SceneContext): Scene {
-  const { phase, result, own, prevSample, mainTitle } = ctx;
-  const output = okResult(result, "sample");
+  const { phase, sample: output, own, prevSample, mainTitle } = ctx;
   if (!output) return EMPTY;
   const outVisible = visibleIndices(output);
   if (!prevSample) return tables([plain("main", "result", output, own)], own);
@@ -72,7 +79,12 @@ export function selectScene(ctx: SceneContext): Scene {
       own,
     );
   }
-  const prevRows = rowsOf(prevSample, colsOf(prevSample, prevVisible, positional), prevVisible, "m:");
+  const prevRows = rowsOf(
+    prevSample,
+    colsOf(prevSample, prevVisible, positional),
+    prevVisible,
+    "m:",
+  );
   const cols = colsOf(output, outVisible, (j) => {
     const from = origin.get(j);
     return from === undefined ? `n${j}` : positional(from);
@@ -136,7 +148,13 @@ function withBranches(
 
   const labels = output.rows.map((raw) => queued.get(hashCells(raw, outVisible))?.shift() ?? null);
   return {
-    col: { id: BRANCH, label: "branch taken", width: widthFor("branch taken", labels), num: false, hl: true },
+    col: {
+      id: BRANCH,
+      label: "branch taken",
+      width: widthFor("branch taken", labels),
+      num: false,
+      hl: true,
+    },
     rows: rows.map((row, i) => ({ ...row, cells: { ...row.cells, [BRANCH]: labels[i] ?? null } })),
   };
 }

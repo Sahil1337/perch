@@ -7,7 +7,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/.."
 
 export PERCH_HOME="$(mktemp -d)"
-PG_URL="${PERCH_SMOKE_PG:-postgres://sahil@localhost:5432/sqe_demo}"
+PG_URL="${PERCH_SMOKE_PG:-postgres://postgres@localhost:5432/perch_demo}"
 PG_DB="${PG_URL##*/}"; PG_DB="${PG_DB%%\?*}"
 PORT="${PERCH_SMOKE_PORT:-4699}"
 CLI="node dist/cli/main.js"

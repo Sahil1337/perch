@@ -15,6 +15,7 @@
 
 import type { Cell, Dialect, ResultColumn, StatementResult } from "@perch/protocol";
 import {
+  canWidenSelectList,
   collapsesToOneRow,
   countingRewrite,
   countingWrap,
@@ -26,9 +27,9 @@ import {
   type Range,
   type SqlPart,
   type SubqueryPredicate,
-  type SubqueryPredicateKind,
 } from "./clauses";
 import { gridBuild, type GridBuild, type GridOutcome } from "./grid";
+import { oneLine } from "./narration/prose";
 import { sectionById, type Program, type Section } from "./program";
 import { truthy } from "./scenes/columns";
 import { bindColumn, LEFT_COLUMN, MATCH_COLUMN, PASS_COLUMN } from "./steps";
@@ -36,7 +37,7 @@ import { bindColumn, LEFT_COLUMN, MATCH_COLUMN, PASS_COLUMN } from "./steps";
 export { bindColumn, MATCH_COLUMN };
 
 /** A correlated reference, and where the outer probe puts the value it resolves to. */
-export type BoundColumn = {
+type BoundColumn = {
   /** As the user wrote it: `s.ID`. */
   readonly ref: string;
   readonly column: string;
@@ -79,7 +80,7 @@ export type BoundPlan = {
 };
 
 /** A bound section the walk cannot probe on its own, and the sentence that says why. */
-export type BoundBlocked = { readonly kind: "blocked"; readonly reason: string };
+type BoundBlocked = { readonly kind: "blocked"; readonly reason: string };
 
 /**
  * How to probe `section` per row, or why it cannot be.
@@ -125,7 +126,8 @@ export function boundPlan(program: Program, section: Section): BoundPlan | Bound
   if (host === null || body === null) {
     return {
       kind: "blocked",
-      reason: "This section has no clauses to splice a per-row count into, so it can only be shown as it was written.",
+      reason:
+        "This section has no clauses to splice a per-row count into, so it can only be shown as it was written.",
     };
   }
   if (isSetOp(host) || isSetOp(body)) {
@@ -145,14 +147,15 @@ export function boundPlan(program: Program, section: Section): BoundPlan | Bound
   const wrap = rewrite === null && !collapsesToOneRow(predicate) ? countingWrap(predicate) : null;
   const counting = rewrite ?? wrap;
 
-  const left = predicate.left === null ? null : host.text.slice(predicate.left.from, predicate.left.to);
+  const left =
+    predicate.left === null ? null : host.text.slice(predicate.left.from, predicate.left.to);
   const verdictSql = outerProbeSql(host, predicate, columns, null);
   return {
     kind: "plan",
     section,
     outer,
     predicate,
-    predicateText: host.text.slice(predicate.range.from, predicate.range.to).replace(/\s+/g, " ").trim(),
+    predicateText: oneLine(host.text.slice(predicate.range.from, predicate.range.to)),
     columns,
     outerSql: counting === null ? verdictSql : outerProbeSql(host, predicate, columns, counting),
     verdictSql,
@@ -160,7 +163,7 @@ export function boundPlan(program: Program, section: Section): BoundPlan | Bound
     wrapped: rewrite === null && wrap !== null,
     dialect,
     refs: refRanges(body.text, dialect, binding.columns),
-    star: canWiden(body, predicate.kind),
+    star: canWidenSelectList(body, predicate.kind),
     left,
   };
 }
@@ -204,25 +207,6 @@ function outerProbeSql(
     { range: outer.selectList, with: list.join(", ") },
     { range: predicate.range, with: "true" },
   ]);
-}
-
-/**
- * Whether the subquery's select list can be widened to `*` for the per-row probe.
- *
- * EXISTS throws the select list away — `select 1` and `select *` are the same question to it — so
- * showing the columns instead of a column of `1`s costs nothing and is the difference between "one
- * row came back" and "CS-319 came back". For IN and for a scalar comparison the list is the VALUE
- * being compared, so it stays exactly as written. GROUP BY, HAVING, DISTINCT and a WINDOW clause
- * all make `*` either illegal or a different query, so they rule it out too.
- */
-function canWiden(parsed: ParsedSelect, kind: SubqueryPredicateKind): boolean {
-  if (kind !== "exists" && kind !== "not exists") return false;
-  return (
-    parsed.groupBy === null &&
-    parsed.having === null &&
-    parsed.distinct === null &&
-    parsed.window === null
-  );
 }
 
 /**
@@ -277,7 +261,11 @@ export function boundGrid(plan: BoundPlan): GridOutcome {
   const outer = plan.outer.parsed;
   const middle = plan.section.parsed;
   if (outer === null || middle === null) {
-    return { kind: "none", reason: "This section has no clauses to build a grid from.", candidate: false };
+    return {
+      kind: "none",
+      reason: "This section has no clauses to build a grid from.",
+      candidate: false,
+    };
   }
   if (isSetOp(outer) || isSetOp(middle)) {
     return {
@@ -325,7 +313,8 @@ export function cellParts(
   }));
   // Widened for the same reason the per-row card widens: EXISTS discards the select list, so a
   // column of `1`s is the one thing the rows could say that teaches nothing.
-  const widened = grid.innerList === null ? edits : [...edits, { range: grid.innerList, with: "*", over: "" }];
+  const widened =
+    grid.innerList === null ? edits : [...edits, { range: grid.innerList, with: "*", over: "" }];
   const parts = spliceParts(text, range, widened).map((part) =>
     part.over === "" ? { text: part.text, over: null } : part,
   );
@@ -358,20 +347,35 @@ export function sqlLiteral(value: Cell, dialect: Dialect, column?: ResultColumn)
   }
   // A non-finite number cannot be written as a bare numeric literal in either dialect, so it goes
   // back as the quoted text the database itself spells it with.
-  if (typeof value === "number") return Number.isFinite(value) ? String(value) : quote(String(value), dialect);
+  if (typeof value === "number")
+    return Number.isFinite(value) ? String(value) : quote(String(value), dialect);
   // A BIGINT or NUMERIC arrives as a STRING, because neither fits a JS number without losing
   // digits. Quoting it would still compare equal — both dialects cast — but it would put
   // `year = '2009'` on screen for an integer column, and the whole point of this SQL is that it
   // reads like something a person would have written. The driver's own type name is what settles
   // it, and the shape check is there so a text column full of digits is never unquoted by mistake.
-  if (column !== undefined && NUMERIC_TYPES.has(column.type) && NUMERIC_TEXT.test(value)) return value;
+  if (column !== undefined && NUMERIC_TYPES.has(column.type) && NUMERIC_TEXT.test(value))
+    return value;
   return quote(value, dialect);
 }
 
 /** Driver type names that hold a number, from both drivers' own naming. */
 const NUMERIC_TYPES = new Set([
-  "int2", "int4", "int8", "float4", "float8", "numeric",
-  "decimal", "newdecimal", "tiny", "short", "long", "longlong", "int24", "float", "double",
+  "int2",
+  "int4",
+  "int8",
+  "float4",
+  "float8",
+  "numeric",
+  "decimal",
+  "newdecimal",
+  "tiny",
+  "short",
+  "long",
+  "longlong",
+  "int24",
+  "float",
+  "double",
 ]);
 
 const NUMERIC_TEXT = /^-?\d+(\.\d+)?([eE][-+]?\d+)?$/;
@@ -405,6 +409,22 @@ export type BoundRow = {
   readonly left: Cell;
   readonly leftLiteral: string | null;
 };
+
+/** The key from the literals alone, for the grid probe, which has the values before it has a row to
+ *  hang them on. */
+export const bindKey = (literals: readonly string[]): string => JSON.stringify(literals);
+
+/**
+ * The key a bound row's cells are filed under: its bound values, spelled as SQL.
+ *
+ * `useGridRun` files every cell it fetches under this, and the grid scene and `terminus.ts` read
+ * them back out by it, so all three have to spell it the same way — which is why it is one function
+ * rather than a convention. The values are `sqlLiteral`'s spelling everywhere, so the match is on
+ * what the SQL would say rather than on how a driver happened to hand the value back.
+ */
+export function bindKeyOf(row: BoundRow): string {
+  return bindKey([...row.literals.values()]);
+}
 
 /**
  * The outer probe's rows, read back into what the view needs.
@@ -445,8 +465,9 @@ export function boundRows(plan: BoundPlan, result: StatementResult): BoundRow[] 
       // true, and a WHERE drops the row exactly as it drops a false one. So anything that is not
       // truthy is a fail, which is what the database did.
       pass: passAt >= 0 && truthy(row[passAt]),
-      nulls: plan.columns.flatMap((column) => (values.get(column.ref) === null ? [column.ref] : [])),
+      nulls: plan.columns.flatMap((column) =>
+        values.get(column.ref) === null ? [column.ref] : [],
+      ),
     };
   });
 }
-

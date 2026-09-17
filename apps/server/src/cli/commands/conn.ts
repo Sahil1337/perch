@@ -1,9 +1,24 @@
 // `perch conn add|ls|rm|test|dbs`
 
 import { defaultPort, parseConnectionUrl } from "../../db/index.js";
-import { listConnections, redactConnection, removeConnection, upsertConnection } from "../../storage/index.js";
+import {
+  listConnections,
+  redactConnection,
+  removeConnection,
+  upsertConnection,
+} from "../../storage/index.js";
 import type { ConnectionConfig, Dialect } from "@perch/protocol";
-import { bold, defineCommand, die, dim, printJson, readStdinLine, requireConnection, withDriver } from "../util/index.js";
+import {
+  bold,
+  defineCommand,
+  defineGroup,
+  die,
+  dim,
+  printJson,
+  readStdinLine,
+  requireConnection,
+  withDriver,
+} from "../util/index.js";
 
 const CONN_HELP = `usage: perch conn add <name> <url> [--test]
        perch conn add <name> --dialect <postgres|mysql> --host <h> --user <u> --database <db>
@@ -46,7 +61,8 @@ const add = defineCommand(
       base = parseConnectionUrl(url);
     } else {
       const dialect = values.dialect as Dialect | undefined;
-      if (dialect !== "postgres" && dialect !== "mysql") die('--dialect must be "postgres" or "mysql"');
+      if (dialect !== "postgres" && dialect !== "mysql")
+        die('--dialect must be "postgres" or "mysql"');
       if (!values.host || !values.user || !values.database) {
         die("missing required flags: --host --user --database");
       }
@@ -64,7 +80,10 @@ const add = defineCommand(
 
     const conn = await upsertConnection({ ...base, name });
     if (json) printJson(redactConnection(conn));
-    else console.log(`added "${bold(conn.name)}" — ${conn.dialect}://${conn.host}:${conn.port}/${conn.database}`);
+    else
+      console.log(
+        `added "${bold(conn.name)}" — ${conn.dialect}://${conn.host}:${conn.port}/${conn.database}`,
+      );
 
     if (values.test) await testAndPrint(conn, json);
   },
@@ -81,7 +100,9 @@ const ls = defineCommand({ usage: "usage: perch conn ls [--json]" }, async ({ js
     return;
   }
   for (const c of list) {
-    console.log(`${bold(c.name)}  ${c.dialect}  ${c.user}@${c.host}:${c.port}/${c.database}${c.ssl ? " (ssl)" : ""}`);
+    console.log(
+      `${bold(c.name)}  ${c.dialect}  ${c.user}@${c.host}:${c.port}/${c.database}${c.ssl ? " (ssl)" : ""}`,
+    );
   }
 });
 
@@ -112,12 +133,4 @@ const dbs = defineCommand(
   },
 );
 
-const SUBCOMMANDS: Record<string, (argv: string[]) => Promise<void>> = { add, ls, rm, test, dbs };
-
-export async function cmdConn(argv: string[]): Promise<void> {
-  const [sub, ...rest] = argv;
-  const run = sub ? SUBCOMMANDS[sub] : undefined;
-  if (run) return run(rest);
-  console.log(CONN_HELP.trimEnd());
-  if (sub && sub !== "--help" && sub !== "-h") process.exitCode = 1;
-}
+export const cmdConn = defineGroup(CONN_HELP, { add, ls, rm, test, dbs });

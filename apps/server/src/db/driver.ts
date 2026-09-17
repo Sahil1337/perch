@@ -39,10 +39,7 @@ export type BaseDriverOptions = {
   ssl: { rejectUnauthorized: false } | undefined;
 };
 
-export function baseDriverOptions(
-  config: ConnectionConfig,
-  database?: string,
-): BaseDriverOptions {
+export function baseDriverOptions(config: ConnectionConfig, database?: string): BaseDriverOptions {
   return {
     host: config.host,
     port: config.port,

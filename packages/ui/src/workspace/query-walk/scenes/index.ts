@@ -38,7 +38,15 @@ export type {
 export { answerView } from "./answer";
 export { boundScene, innerCard } from "./bound";
 export { gridScene } from "./grid";
-export { countAt, countValue, errorOf, inputCount, joinKeys, previousIndex, sampleId } from "./results";
+export {
+  countAt,
+  countValue,
+  errorOf,
+  inputCount,
+  joinKeys,
+  previousIndex,
+  sampleId,
+} from "./results";
 
 export function buildScene(index: number, phase: number, walk: WalkData): Scene {
   const scene = sceneAt(index, phase, walk);

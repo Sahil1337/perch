@@ -1,10 +1,12 @@
 // connections.json — the saved connection list, written 0600 because it may hold passwords.
 
-import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { type ConnectionConfig } from "@perch/protocol";
-import { CONNECTIONS_FILE, ensureDir } from "./paths.js";
-import { readJson, writeJsonAtomic } from "./json-file.js";
+import { CONNECTIONS_FILE } from "./paths.js";
+import { JsonStore } from "./json-file.js";
+
+/** 0600: this is the one file perch writes that can hold a password. */
+const store = new JsonStore<ConnectionConfig[]>(CONNECTIONS_FILE, () => [], 0o600);
 
 /**
  * The connection without its password — the shape both the API's ConnectionSummary and the CLI's
@@ -16,15 +18,9 @@ export function redactConnection(config: ConnectionConfig): Omit<ConnectionConfi
   return rest as Omit<ConnectionConfig, "password">;
 }
 
-export async function listConnections(): Promise<ConnectionConfig[]> {
-  const dir = await ensureDir();
-  return readJson<ConnectionConfig[]>(path.join(dir, CONNECTIONS_FILE), []);
-}
+export const listConnections = (): Promise<ConnectionConfig[]> => store.read();
 
-export async function saveConnections(list: ConnectionConfig[]): Promise<void> {
-  const dir = await ensureDir();
-  await writeJsonAtomic(path.join(dir, CONNECTIONS_FILE), list, 0o600);
-}
+export const saveConnections = (list: ConnectionConfig[]): Promise<void> => store.write(list);
 
 export async function getConnection(idOrName: string): Promise<ConnectionConfig | undefined> {
   const list = await listConnections();

@@ -1,11 +1,11 @@
-// `perch run <conn> (<file.sql> | -e "<sql>" | -)` — runs directly through the driver, no server
-// involved. Prints each statement's result and exits 1 on SQL error (with a caret under position).
+// `perch run <conn> (<file.sql> | -e "<sql>" | -)` — no HTTP server involved, but the run itself
+// goes through the same QueryRunner the API uses, so history, truncation and the settings defaults
+// mean one thing in both. This file owns only the printing: each statement's result as it arrives,
+// a caret under an error's position, and exit 1 when the run did not finish clean.
 
-import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { createDriver } from "../../db/index.js";
-import { appendHistory } from "../../storage/index.js";
-import type { QueryError, RunEvent, RunStatus, StatementResult } from "@perch/protocol";
+import type { QueryError, RunEvent, RunRecord, StatementResult } from "@perch/protocol";
+import { createServices } from "../../server/services/create-services.js";
 import { format, footer, type OutputFormat } from "../output/format.js";
 import { defineCommand, die, dim, readStdin, red, requireConnection } from "../util/index.js";
 
@@ -50,10 +50,13 @@ function printResult(result: StatementResult, fmt: OutputFormat): void {
   const isData = result.columns.length > 0;
   if (!isData) {
     const affected = result.affectedRows ?? 0;
-    console.log(`${result.command ?? "OK"}  ${dim(`(${affected} row${affected === 1 ? "" : "s"} affected · ${result.durationMs} ms)`)}`);
+    console.log(
+      `${result.command ?? "OK"}  ${dim(`(${affected} row${affected === 1 ? "" : "s"} affected · ${result.durationMs} ms)`)}`,
+    );
   } else {
     console.log(format(fmt, result.columns, result.rows));
-    if (fmt === "table") console.log(dim(footer(result.rowCount, result.durationMs, result.truncated)));
+    if (fmt === "table")
+      console.log(dim(footer(result.rowCount, result.durationMs, result.truncated)));
   }
   for (const notice of result.notices) console.error(dim(`NOTICE: ${notice}`));
 }
@@ -87,22 +90,13 @@ export const cmdRun = defineCommand(
     const timeoutMs = values.timeout !== undefined ? Number(values.timeout) : undefined;
 
     const conn = await requireConnection(positionals[0]!);
-    const driver = createDriver(conn);
-    await driver.connect();
-
-    const runId = randomUUID();
-    const startedAt = new Date().toISOString();
-    const t0 = Date.now();
-    const results: StatementResult[] = [];
     const statementSql = new Map<number, string>();
-
     const emit = (ev: RunEvent): void => {
       switch (ev.type) {
         case "statement":
           statementSql.set(ev.index, ev.sql);
           break;
         case "result":
-          results.push(ev.result);
           printResult(ev.result, fmt);
           break;
         case "error":
@@ -113,28 +107,26 @@ export const cmdRun = defineCommand(
       }
     };
 
-    let status: RunStatus;
+    // A throwaway set of services: the pool holds the one driver this run needs, and shutting it
+    // down afterwards is what closes the connection.
+    const { pool, runner } = createServices();
+    let record: RunRecord;
     try {
-      status = await driver.run(sql, { runId, database: values.database, maxRows, timeoutMs }, emit);
+      record = await runner.startRun(
+        {
+          connectionId: conn.id,
+          sql,
+          database: values.database,
+          maxRows,
+          timeoutMs,
+          source: "cli",
+        },
+        emit,
+      );
     } finally {
-      await driver.disconnect().catch(() => {
-        /* best-effort */
-      });
+      await pool.shutdown();
     }
 
-    await appendHistory({
-      id: runId,
-      connectionId: conn.id,
-      database: values.database ?? conn.database,
-      sql,
-      status,
-      startedAt,
-      finishedAt: new Date().toISOString(),
-      durationMs: Date.now() - t0,
-      results,
-      source: "cli",
-    });
-
-    if (status === "error" || status === "cancelled") process.exitCode = 1;
+    if (record.status === "error" || record.status === "cancelled") process.exitCode = 1;
   },
 );

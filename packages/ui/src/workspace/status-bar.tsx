@@ -1,20 +1,14 @@
 "use client";
 
-import * as React from "react";
+import type * as React from "react";
 import { cn } from "../lib/utils";
 import { useWorkspace } from "./context";
+import { StatusDot, dotStatusOf } from "./status-dot";
+import { SAVE_LABEL } from "./types";
 
 /** The 24px footer. One row for the whole window, not one per pane. */
-export function StatusBar({
-  items,
-  className,
-}: {
-  /** Surface-specific extras, e.g. a notebook's cell count. */
-  items?: React.ReactNode[];
-  className?: string;
-}): React.ReactElement {
+export function StatusBar({ className }: { className?: string }): React.ReactElement {
   const { connection, database, cursor, saveState, activeRun } = useWorkspace();
-  const connected = connection?.status === "connected";
 
   return (
     <footer
@@ -24,13 +18,7 @@ export function StatusBar({
       )}
     >
       <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-        <span
-          aria-hidden
-          className={cn(
-            "size-1.5 rounded-full",
-            connected ? "bg-success" : "bg-muted-foreground/40",
-          )}
-        />
+        <StatusDot status={dotStatusOf(connection?.status)} />
         {connection ? `${connection.name} · ${database ?? connection.database}` : "No connection"}
       </span>
 
@@ -45,19 +33,6 @@ export function StatusBar({
       )}
 
       <span className="ml-auto whitespace-nowrap">UTF-8</span>
-
-      {items?.map((item, index) => (
-        <span className="whitespace-nowrap" key={index}>
-          {item}
-        </span>
-      ))}
     </footer>
   );
 }
-
-const SAVE_LABEL = {
-  saved: "Saved",
-  saving: "Saving…",
-  unsaved: "Unsaved changes",
-  error: "Save failed",
-} as const;

@@ -74,7 +74,12 @@ function Bucket({
               <motion.div
                 animate={{ opacity: 1 }}
                 className="mb-1 flex h-7 items-center gap-2 overflow-hidden rounded-md border bg-card px-2 font-mono text-xs tabular-nums last:mb-0"
-                exit={{ height: 0, opacity: 0, marginBottom: 0, transition: collapseAfter(t, staggerDelay(i, bucket.members.length, 0.06)) }}
+                exit={{
+                  height: 0,
+                  opacity: 0,
+                  marginBottom: 0,
+                  transition: collapseAfter(t, staggerDelay(i, bucket.members.length, 0.06)),
+                }}
                 initial={{ opacity: 0 }}
                 key={member.key}
                 layout="position"

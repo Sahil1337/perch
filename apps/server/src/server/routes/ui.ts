@@ -8,7 +8,6 @@ import { serveStatic } from "@hono/node-server/serve-static";
 import type { Hono } from "hono";
 import type { RouteDeps } from "../create-server.js";
 
-
 export function registerUiRoutes(app: Hono, deps: RouteDeps): void {
   const uiDir = deps.uiDir && existsSync(deps.uiDir) ? path.resolve(deps.uiDir) : undefined;
   if (uiDir) {
@@ -26,7 +25,10 @@ export function registerUiRoutes(app: Hono, deps: RouteDeps): void {
   } else {
     // No UI shipped next to this build: say so plainly rather than render a stand-in page.
     app.get("/", (c) =>
-      c.text("perch UI is not built. Run `bun run --filter @perch/web build`, then restart perch.", 503),
+      c.text(
+        "perch UI is not built. Run `bun run --filter @perch/web build`, then restart perch.",
+        503,
+      ),
     );
   }
 }

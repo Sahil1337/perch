@@ -12,19 +12,15 @@ import { plugin as shadcn } from "@shadcn/lint";
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 
-const base = tseslint.config(
-  js.configs.recommended,
-  ...tseslint.configs.recommended,
-  {
-    rules: {
-      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
-      "@typescript-eslint/consistent-type-imports": [
-        "warn",
-        { prefer: "type-imports", fixStyle: "inline-type-imports" },
-      ],
-    },
+const base = tseslint.config(js.configs.recommended, ...tseslint.configs.recommended, {
+  rules: {
+    "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+    "@typescript-eslint/consistent-type-imports": [
+      "warn",
+      { prefer: "type-imports", fixStyle: "inline-type-imports" },
+    ],
   },
-);
+});
 
 // @perch/client is the browser-side API client; nothing in the server may reach for it.
 const noClient = {
@@ -47,7 +43,8 @@ const restrict = (files, ...patterns) => ({
 const serverLayering = [
   restrict(["apps/server/src/core/**/*.ts"], {
     group: ["**/db/**", "**/server/**", "**/storage/**", "**/cli/**"],
-    message: "core/ is the bottom layer: it may import @perch/protocol, node builtins and util/ only.",
+    message:
+      "core/ is the bottom layer: it may import @perch/protocol, node builtins and util/ only.",
   }),
   restrict(["apps/server/src/db/**/*.ts"], {
     group: ["**/server/**", "**/cli/**", "**/storage/**"],
@@ -65,10 +62,7 @@ const serverLayering = [
     group: ["**/core/**", "**/server/**", "**/cli/**", "**/db/**", "**/storage/**"],
     message: "util/ is leaf-level: it may not import any other layer.",
   }),
-  restrict([
-    "apps/server/src/cli/**/*.ts",
-    "apps/server/src/index.ts",
-  ]),
+  restrict(["apps/server/src/cli/**/*.ts", "apps/server/src/index.ts"]),
 ];
 
 /**
@@ -117,12 +111,7 @@ const designSystem = [
 
 export default [
   {
-    ignores: [
-      "**/dist/**",
-      "**/node_modules/**",
-      "apps/server/ui/**",
-      "apps/web/**",
-    ],
+    ignores: ["**/dist/**", "**/node_modules/**", "apps/server/ui/**", "apps/web/**"],
   },
   ...base,
   ...serverLayering,

@@ -3,11 +3,7 @@
 The published `perch` package: the `perch` CLI and the HTTP API, in one workspace. Nothing at
 the package root except config files, `README.md`, and the standard folders.
 
-This file describes the tree **as it is today**. The restructure specified in
-[`docs/architecture/briefs/BRIEF-RESTRUCTURE.md`](briefs/BRIEF-RESTRUCTURE.md) and the
-deduplication in [`docs/architecture/briefs/BRIEF-DEDUP.md`](briefs/BRIEF-DEDUP.md) have both been
-executed — the briefs are kept as the historical record of why, not as descriptions of pending
-work.
+This file describes the tree **as it is today**.
 
 ## The tree
 
@@ -159,14 +155,14 @@ cli  →  server  →  db  →  core
 A layer may only import downward. Concretely, as
 [`eslint.config.js`](../../eslint.config.js) states it:
 
-| Layer | May not import |
-|---|---|
-| `core/**` | `db/**`, `server/**`, `storage/**`, `cli/**` — the bottom layer: `@perch/protocol`, node builtins and `util/` only |
-| `db/**` | `server/**`, `cli/**`, `storage/**` — a driver layer; `core/` and `util/` only |
-| `storage/**` | `server/**`, `cli/**`, `db/**` — on-disk state; `core/` and `util/` only |
-| `server/**` | `cli/**` — shared helpers belong in `src/util/` |
-| `util/**` | every other layer |
-| anything | `@perch/client` — that is the browser-side API client |
+| Layer        | May not import                                                                                                     |
+| ------------ | ------------------------------------------------------------------------------------------------------------------ |
+| `core/**`    | `db/**`, `server/**`, `storage/**`, `cli/**` — the bottom layer: `@perch/protocol`, node builtins and `util/` only |
+| `db/**`      | `server/**`, `cli/**`, `storage/**` — a driver layer; `core/` and `util/` only                                     |
+| `storage/**` | `server/**`, `cli/**`, `db/**` — on-disk state; `core/` and `util/` only                                           |
+| `server/**`  | `cli/**` — shared helpers belong in `src/util/`                                                                    |
+| `util/**`    | every other layer                                                                                                  |
+| anything     | `@perch/client` — that is the browser-side API client                                                              |
 
 `cli/**` and `src/index.ts` sit at the top and may import anything below them; the `@perch/client`
 ban still applies to both.
@@ -248,10 +244,9 @@ plus the types that go with them (`Driver`, `RunOptions`, `StatementContext`, `R
 `ServerServices`, `ApiError`, …).
 
 Nothing in the monorepo imports it; it exists for embedders. `Registry`, `RegistryError` and
-`FileAccessError` were removed outright, with no compatibility shims — a deliberate decision
-recorded in [`BRIEF-DEDUP.md`](briefs/BRIEF-DEDUP.md) ("Decision: the library barrel is not yet a
-public API"), on the grounds that the barrel landed in 13ac787 with no consumers and the package
-is unpublished at 0.1.0. The behaviour-preservation surface is the HTTP API and the CLI, not this
+`FileAccessError` were removed outright, with no compatibility shims — a deliberate decision, on
+the grounds that the barrel landed in 13ac787 with no consumers and the package is unpublished at
+0.1.0. The behaviour-preservation surface is the HTTP API and the CLI, not this
 list.
 
 ## No tests, and the gate

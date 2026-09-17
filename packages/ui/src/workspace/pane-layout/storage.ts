@@ -32,7 +32,8 @@ export function sanitizeLayout(value: unknown, fallback: EditorLayout): EditorLa
     if (typeof raw.id !== "string") return null;
 
     if (raw.kind === "group") {
-      if (!Array.isArray(raw.panes) || !raw.panes.every((pane) => typeof pane === "string")) return null;
+      if (!Array.isArray(raw.panes) || !raw.panes.every((pane) => typeof pane === "string"))
+        return null;
       const panes = raw.panes as readonly PaneId[];
       const active = typeof raw.activePane === "string" ? raw.activePane : null;
       return {
@@ -49,10 +50,17 @@ export function sanitizeLayout(value: unknown, fallback: EditorLayout): EditorLa
     const children = raw.children.map(node).filter((child): child is PaneNode => child !== null);
     if (children.length === 0) return null;
     if (children.length === 1) return children[0] ?? null;
-    const sizes = Array.isArray(raw.sizes) && raw.sizes.length === children.length
-      ? (raw.sizes as unknown[]).map((size) => (typeof size === "number" && size > 0 ? size : 1))
-      : children.map(() => 1);
-    return { kind: "branch", id: raw.id, direction: raw.direction, children, sizes: normalizeSizes(sizes) };
+    const sizes =
+      Array.isArray(raw.sizes) && raw.sizes.length === children.length
+        ? (raw.sizes as unknown[]).map((size) => (typeof size === "number" && size > 0 ? size : 1))
+        : children.map(() => 1);
+    return {
+      kind: "branch",
+      id: raw.id,
+      direction: raw.direction,
+      children,
+      sizes: normalizeSizes(sizes),
+    };
   };
 
   if (typeof value !== "object" || value === null) return fallback;

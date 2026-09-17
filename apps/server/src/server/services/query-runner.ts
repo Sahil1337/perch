@@ -29,25 +29,36 @@ export type StartRunInput = {
   source: "ui" | "cli";
 };
 
+export type RunFinishedListener = (record: RunRecord) => void;
+
 export type QueryRunnerDeps = {
   pool: ConnectionPool;
   log: RunLog;
   /** Called once a run reaches a terminal state; the server forwards it onto the event bus. */
-  onRunFinished?: (record: RunRecord) => void;
+  onRunFinished?: RunFinishedListener;
 };
 
 export class QueryRunner {
-  /** Mutable so `createServer` can chain the event bus onto whatever the caller already set. */
-  onRunFinished: ((record: RunRecord) => void) | undefined;
   private readonly pool: ConnectionPool;
   private readonly log: RunLog;
   /** Runs currently executing, so a cancel knows which driver to ask. */
   private readonly running = new Map<string, Driver>();
+  /**
+   * A set rather than one slot: the server adds the event bus on top of whatever the caller
+   * passed, and a single assignable field meant the second listener silently replaced the first.
+   */
+  private readonly runFinished = new Set<RunFinishedListener>();
 
   constructor(deps: QueryRunnerDeps) {
     this.pool = deps.pool;
     this.log = deps.log;
-    this.onRunFinished = deps.onRunFinished;
+    if (deps.onRunFinished) this.runFinished.add(deps.onRunFinished);
+  }
+
+  /** Registers `fn` for every recorded run that reaches a terminal state; returns the remover. */
+  addRunFinishedListener(fn: RunFinishedListener): () => void {
+    this.runFinished.add(fn);
+    return () => this.runFinished.delete(fn);
   }
 
   /**
@@ -116,10 +127,13 @@ export class QueryRunner {
     } catch {
       /* history is best-effort; never fail a run because the log could not be written */
     }
-    try {
-      this.onRunFinished?.(record);
-    } catch {
-      /* a notification listener must never change the outcome of a run */
+    // Copied first: a listener may unregister itself while we are notifying.
+    for (const listener of [...this.runFinished]) {
+      try {
+        listener(record);
+      } catch {
+        /* a notification listener must never change the outcome of a run */
+      }
     }
     return record;
   }

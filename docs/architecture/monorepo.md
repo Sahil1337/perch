@@ -21,7 +21,7 @@ perch/
 └─ docs/architecture · docs/api · docs/design
 ```
 
-Note what is *not* at the root: no tsconfig. TypeScript presets live in `packages/tsconfig` and
+Note what is _not_ at the root: no tsconfig. TypeScript presets live in `packages/tsconfig` and
 are consumed by name (`extends: "@perch/tsconfig/node.json"`), so a package's compiler settings are
 a normal dependency rather than an inheritance accident of where it happens to sit on disk. Five
 workspaces extend them — the indirection buys something.
@@ -33,7 +33,7 @@ that one workspace imports is not a shared preset, it is a file with extra steps
 `peerDependencies` block and a workspace link standing in for a relative path. So the config sits
 at the root now, and `serverLayering`'s globs name their target outright
 (`apps/server/src/db/**`) instead of relying on the config file's position to scope them. If a
-workspace ever needs a *different* baseline, it gets its own `eslint.config.js` — the same escape
+workspace ever needs a _different_ baseline, it gets its own `eslint.config.js` — the same escape
 hatch `apps/web` already uses.
 
 ## Why each boundary exists
@@ -126,7 +126,7 @@ overrides the location, which is how you point a running server at a dev build.
   everything. This is why no CI job uses `working-directory`.
 - **Bun ≥ 1.2 installs and runs scripts; Node ≥ 22 runs the server.** The two are separate
   choices. `apps/server` declares `engines.node >=22`, imports `node:`
-  builtins throughout and is launched as `node dist/cli/main.js`, so everything in CI that *runs*
+  builtins throughout and is launched as `node dist/cli/main.js`, so everything in CI that _runs_
   the CLI runs it on Node, across 22/24 and three OSes — under Bun it would be Bun being tested,
   not the artifact we ship. `typecheck`/`lint` are runtime-agnostic and go through Bun. Bun's
   other job here is unchanged: `bun build --compile` produces the single-file `perch` binary.
@@ -138,13 +138,13 @@ overrides the location, which is how you point a running server at a dev build.
   `bun run build` produced — a single `perch serve`, since the built UI is a folder of static
   files the server mounts at `/` rather than a second process to supervise. The port is chosen by `scripts/dev.mjs`
   before turbo runs, because it is the one thing turbo cannot do: Next inlines `NEXT_PUBLIC_*` at
-  compile time, so the UI has to be told where the server is *before* it starts, and a port fixed
+  compile time, so the UI has to be told where the server is _before_ it starts, and a port fixed
   in both scripts would collide with a real `perch serve`. The launcher picks a free port, passes
   it to the server as `PERCH_DEV_PORT` and to the bundle as `NEXT_PUBLIC_PERCH_URL`, and refuses to
   start at all when a server is already registered in `server.json` — `perch serve` would attach to
   that one and leave the UI pointed at nothing. Turbo 2 filters task environments, so both
   variables are declared in `passThroughEnv`. It is there for the
-  *parallelism* — two long-lived processes that have to agree on a port and an origin —
+  _parallelism_ — two long-lived processes that have to agree on a port and an origin —
   not for the cache, which is why `turbo.json` declares a single `cache: false, persistent: true`
   task while `build`, `typecheck` and `lint` stay on bun's fan-out and CI never invokes turbo.
   Moving a build task in would mean thinking about cache keys for a repo whose full build takes
@@ -172,11 +172,11 @@ overrides the location, which is how you point a running server at a dev build.
 There is no test suite: the repo deliberately carries none — no `*.test.ts`, no test runner, no
 `test` script in any workspace. Three workflows are what a change has to clear instead.
 
-| Workflow | What it runs |
-|---|---|
-| `server.yml` | `typecheck`, `lint`, `build` and a CLI smoke (`--version`, `conn ls`), on **Node** across 22/24 × ubuntu/windows/macos; then `apps/server/scripts/smoke.sh` against a Postgres service container |
-| `packages.yml` | protocol `typecheck`, `bun run --filter @perch/protocol check` (the types-only guard), client `typecheck` |
-| `web.yml` | `lint`, `typecheck`, `build` for `apps/web` |
+| Workflow       | What it runs                                                                                                                                                                                     |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `server.yml`   | `typecheck`, `lint`, `build` and a CLI smoke (`--version`, `conn ls`), on **Node** across 22/24 × ubuntu/windows/macos; then `apps/server/scripts/smoke.sh` against a Postgres service container |
+| `packages.yml` | protocol `typecheck`, `bun run --filter @perch/protocol check` (the types-only guard), client `typecheck`                                                                                        |
+| `web.yml`      | `lint`, `typecheck`, `build` for `apps/web`                                                                                                                                                      |
 
 `scripts/smoke.sh` is **the only thing that exercises the HTTP API end to end** — it starts a real
 server against a real Postgres, drives the routes and shuts it down. Everything else in the gate

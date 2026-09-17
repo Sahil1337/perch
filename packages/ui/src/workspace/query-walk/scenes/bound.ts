@@ -35,7 +35,10 @@ export function boundScene(args: {
           {
             id: MATCHES,
             label: MATCHES,
-            width: widthFor(MATCHES, rows.map((row) => row.matches)),
+            width: widthFor(
+              MATCHES,
+              rows.map((row) => row.matches),
+            ),
             num: true,
             // Lit from the start: it is the column this whole section exists to produce, and the
             // reader's eye has to land on it before the verdict beside it means anything.

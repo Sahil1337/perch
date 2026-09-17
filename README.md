@@ -279,17 +279,17 @@ step.
 
 ### Keyboard shortcuts
 
-| Shortcut | Action |
-| --- | --- |
-| <kbd>⌘</kbd><kbd>↵</kbd> | Run the selection, or the statement at the cursor |
-| <kbd>⌘</kbd><kbd>⇧</kbd><kbd>↵</kbd> | Run the whole file |
-| <kbd>⌘</kbd><kbd>K</kbd> | Command palette |
-| <kbd>⌘</kbd><kbd>B</kbd> | Toggle the sidebar |
-| <kbd>⌘</kbd><kbd>J</kbd> | Toggle the results pane |
-| <kbd>⌘</kbd><kbd>S</kbd> | Save |
-| <kbd>⌘</kbd><kbd>&#92;</kbd> | Split the pane |
-| <kbd>⌘</kbd><kbd>,</kbd> | Settings |
-| <kbd>⇧</kbd><kbd>⌥</kbd><kbd>F</kbd> | Format the document |
+| Shortcut                             | Action                                            |
+| ------------------------------------ | ------------------------------------------------- |
+| <kbd>⌘</kbd><kbd>↵</kbd>             | Run the selection, or the statement at the cursor |
+| <kbd>⌘</kbd><kbd>⇧</kbd><kbd>↵</kbd> | Run the whole file                                |
+| <kbd>⌘</kbd><kbd>K</kbd>             | Command palette                                   |
+| <kbd>⌘</kbd><kbd>B</kbd>             | Toggle the sidebar                                |
+| <kbd>⌘</kbd><kbd>J</kbd>             | Toggle the results pane                           |
+| <kbd>⌘</kbd><kbd>S</kbd>             | Save                                              |
+| <kbd>⌘</kbd><kbd>&#92;</kbd>         | Split the pane                                    |
+| <kbd>⌘</kbd><kbd>,</kbd>             | Settings                                          |
+| <kbd>⇧</kbd><kbd>⌥</kbd><kbd>F</kbd> | Format the document                               |
 
 Use <kbd>Ctrl</kbd> instead of <kbd>⌘</kbd> on Windows and Linux. Formatting is explicit only — from
 the shortcut, the right-click menu or the palette — and never runs on save.

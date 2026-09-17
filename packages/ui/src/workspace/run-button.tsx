@@ -23,19 +23,7 @@ import { useFade, useSpring } from "../lib/motion";
 import { Button } from "../ui/button";
 import { useWorkspace } from "./context";
 
-export function RunButton({
-  label = "Run",
-  shortcut = "⌘↵",
-  onRun,
-  className,
-}: {
-  label?: string;
-  /** Display only — the key handler lives with whoever owns the surface. */
-  shortcut?: string;
-  /** Overrides the default run of the active file, e.g. a notebook's "Run all". */
-  onRun?: () => void | Promise<void>;
-  className?: string;
-}): React.ReactElement {
+export function RunButton({ className }: { className?: string }): React.ReactElement {
   const { activeRun, run, cancelRun } = useWorkspace();
   const spring = useSpring();
   const fade = useFade();
@@ -46,7 +34,7 @@ export function RunButton({
       className={className}
       onClick={() => {
         if (running && activeRun) void cancelRun(activeRun.id);
-        else void (onRun ? onRun() : run());
+        else void run();
       }}
       // `layout` carries the width between "Run ⌘↵" and "Cancel" instead of letting it snap.
       render={<motion.button layout transition={spring} />}
@@ -72,12 +60,10 @@ export function RunButton({
           ) : (
             <>
               <PlayIcon />
-              {label}
-              {shortcut && (
-                <span aria-hidden className="text-primary-foreground/56">
-                  {shortcut}
-                </span>
-              )}
+              Run
+              <span aria-hidden className="text-primary-foreground/56">
+                ⌘↵
+              </span>
             </>
           )}
         </motion.span>

@@ -83,10 +83,13 @@ export function ConnectingProvider({
     try {
       // `allSettled`, so a rejection neither snaps the screen away nor goes unhandled. Re-thrown
       // below, once clear.
-      const [result] = await Promise.all([work().then(
-        (value) => ({ ok: true, value }) as const,
-        (error: unknown) => ({ ok: false, error }) as const,
-      ), animated]);
+      const [result] = await Promise.all([
+        work().then(
+          (value) => ({ ok: true, value }) as const,
+          (error: unknown) => ({ ok: false, error }) as const,
+        ),
+        animated,
+      ]);
 
       if (!result.ok) throw result.error;
     } finally {

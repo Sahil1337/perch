@@ -3,18 +3,14 @@
 
 import pg from "pg";
 import Cursor from "pg-cursor";
-import {
-  type ConnectionConfig,
-  type DatabaseSchema,
-  type QueryError,
-  type ResultColumn,
-} from "@perch/protocol";
+import { type DatabaseSchema, type QueryError, type ResultColumn } from "@perch/protocol";
 import { BaseDriver, type StatementContext } from "../base-driver.js";
+import { toRow } from "../cell.js";
 import { baseDriverOptions } from "../driver.js";
 import { type StatementSink } from "../statement-sink.js";
 import { ColumnSourceCache, type Querier } from "./column-source.js";
 import { readSchema } from "./introspect.js";
-import { looksRowReturning, toQueryError, toRow } from "./types.js";
+import { looksRowReturning, toQueryError } from "./types.js";
 
 /** The handle a cancel needs: the backend pid of the client currently executing. */
 type Pid = number;
@@ -22,11 +18,8 @@ type Pid = number;
 export class PostgresDriver extends BaseDriver<pg.Pool, Pid> {
   readonly dialect = "postgres" as const;
 
-  constructor(private readonly config: ConnectionConfig) {
-    super();
-  }
-
-  // ---- lifecycle ---------------------------------------------------------------------------
+  /** oid+attnum → table and column names, per database, kept for the connection's lifetime. */
+  readonly #columnSources = new ColumnSourceCache();
 
   private clientConfig(database?: string): pg.ClientConfig {
     const opts = this.config.options ?? {};
@@ -36,52 +29,19 @@ export class PostgresDriver extends BaseDriver<pg.Pool, Pid> {
     };
   }
 
-  protected async openPool(): Promise<pg.Pool> {
-    const pool = new pg.Pool({ ...this.clientConfig(), max: 4 });
+  protected async createPool(database: string | undefined, max: number): Promise<pg.Pool> {
+    const pool = new pg.Pool({ ...this.clientConfig(database), max });
     // A pool with no listener re-throws background client errors as uncaught exceptions.
     pool.on("error", () => {});
-    try {
-      const client = await pool.connect();
-      client.release();
-    } catch (err) {
-      await pool.end().catch(() => {});
-      throw err;
-    }
     return pool;
   }
 
-  /**
-   * Pools for databases other than the connection's own, keyed by name.
-   *
-   * A run carries the database the user picked in the topbar, and until now nothing read it: the
-   * schema tree switched (introspection takes the name) while every statement kept running against
-   * the database the connection was configured with. Picking another database and running a query
-   * therefore queried the wrong one — silently, and with the history record naming the database
-   * you had chosen rather than the one it ran on.
-   *
-   * A pool rather than `set search_path` or a per-statement reconnect: the database is fixed at
-   * connection time in PostgreSQL, so switching means another connection either way, and keeping
-   * it lets a session that hops between two databases stop paying the handshake every statement.
-   */
-  readonly #databasePools = new Map<string, pg.Pool>();
-
-  /** oid+attnum → table and column names, per database, kept for the connection's lifetime. */
-  readonly #columnSources = new ColumnSourceCache();
-
-  private async poolFor(database?: string): Promise<pg.Pool> {
-    if (!database || database === this.config.database) return this.requirePool();
-    const existing = this.#databasePools.get(database);
-    if (existing) return existing;
-    const pool = new pg.Pool({ ...this.clientConfig(database), max: 2 });
-    pool.on("error", () => {});
-    this.#databasePools.set(database, pool);
-    return pool;
+  protected async checkPool(pool: pg.Pool): Promise<void> {
+    const client = await pool.connect();
+    client.release();
   }
 
   protected async closePool(pool: pg.Pool): Promise<void> {
-    const extras = [...this.#databasePools.values()];
-    this.#databasePools.clear();
-    await Promise.all(extras.map((extra) => extra.end().catch(() => {})));
     await pool.end();
   }
 
@@ -98,8 +58,6 @@ export class PostgresDriver extends BaseDriver<pg.Pool, Pid> {
     );
     return res.rows.map((r) => r.datname);
   }
-
-  // ---- schema ------------------------------------------------------------------------------
 
   async getSchema(database?: string): Promise<DatabaseSchema> {
     const target = database ?? this.config.database;
@@ -120,8 +78,6 @@ export class PostgresDriver extends BaseDriver<pg.Pool, Pid> {
       client.release();
     }
   }
-
-  // ---- running -----------------------------------------------------------------------------
 
   protected async executeStatement(sql: string, ctx: StatementContext<Pid>): Promise<void> {
     const { sink, options } = ctx;
@@ -158,7 +114,8 @@ export class PostgresDriver extends BaseDriver<pg.Pool, Pid> {
       }
     } finally {
       client.removeListener("notice", onNotice);
-      if (options.timeoutMs > 0) await client.query("set statement_timeout = default").catch(() => {});
+      if (options.timeoutMs > 0)
+        await client.query("set statement_timeout = default").catch(() => {});
       if (options.readOnly) {
         await client.query("set default_transaction_read_only = default").catch(() => {});
       }

@@ -20,7 +20,8 @@ export type DropTarget = {
  * rect geometry would decide instead of intent. The id prefixes already encode the specificity.
  */
 export const collisionDetection: CollisionDetection = (args) => {
-  const rank = (id: string): number => (id.startsWith("tab::") ? 0 : id.startsWith("strip::") ? 1 : 2);
+  const rank = (id: string): number =>
+    id.startsWith("tab::") ? 0 : id.startsWith("strip::") ? 1 : 2;
   return [...pointerWithin(args)].sort((a, b) => rank(String(a.id)) - rank(String(b.id)));
 };
 
@@ -29,9 +30,7 @@ export function resolveDrop(
   point: { x: number; y: number } | null,
   layout: EditorLayout,
 ): DropTarget | null {
-  const data = over?.data.current as
-    | { kind?: string; groupId?: string; pane?: PaneId }
-    | undefined;
+  const data = over?.data.current as { kind?: string; groupId?: string; pane?: PaneId } | undefined;
   if (!over || !data?.groupId) return null;
 
   if (data.kind === "tab" && data.pane) {

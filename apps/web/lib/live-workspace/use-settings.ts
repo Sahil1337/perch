@@ -2,52 +2,38 @@
 
 import type { PerchClient } from "@perch/client";
 import type { Settings } from "@perch/protocol";
-import { asyncError, asyncLoading, asyncReady, asyncRefreshing, type Async } from "@perch/ui";
+import { asyncError, asyncReady, type Async } from "@perch/ui";
 import * as React from "react";
-import { aborted, detached, messageOf } from "./helpers";
+import { messageOf } from "./helpers";
+import { useAsyncResource } from "./use-async-resource";
 
-export type SettingsApi = {
+export type SettingsState = {
   settings: Async<Settings>;
   refresh: () => void;
   updateSettings: (patch: Partial<Settings>) => Promise<void>;
 };
 
-export function useSettings(getClient: () => PerchClient, enabled: boolean): SettingsApi {
-  const [settings, setSettings] = React.useState<Async<Settings>>(asyncLoading);
-
-  const load = React.useCallback(
-    async (signal: AbortSignal): Promise<void> => {
-      setSettings((prev) => asyncRefreshing(prev));
-      try {
-        setSettings(asyncReady(await getClient().settings.get({ signal })));
-      } catch (error) {
-        if (!aborted(error)) setSettings((prev) => asyncError(messageOf(error), prev));
-      }
-    },
+export function useSettings(getClient: () => PerchClient, enabled: boolean): SettingsState {
+  const read = React.useCallback(
+    (signal: AbortSignal): Promise<Settings> => getClient().settings.get({ signal }),
     [getClient],
   );
-
-  React.useEffect(() => {
-    if (!enabled) return;
-    const controller = new AbortController();
-    void load(controller.signal);
-    return () => controller.abort();
-  }, [enabled, load]);
-
-  const refresh = React.useCallback((): void => void load(detached()), [load]);
+  const { value: settings, refresh, set } = useAsyncResource(enabled, read);
 
   const updateSettings = React.useCallback(
     async (patch: Partial<Settings>): Promise<void> => {
       try {
-        setSettings(asyncReady(await getClient().settings.update(patch)));
+        set(asyncReady(await getClient().settings.update(patch)));
       } catch (error) {
-        setSettings((prev) => asyncError(messageOf(error), prev));
+        // Not `applyError`: this is a write, not a read, so there is no signal and nothing to
+        // abort — and the rethrow below means the error has a caller either way.
+        set((previous) => asyncError(messageOf(error), previous));
         // Rethrown, unlike the others: a form is waiting on this one, and swallowing a rejected
         // workspace path would show a "Saved" tick over a patch the server refused.
         throw error;
       }
     },
-    [getClient],
+    [getClient, set],
   );
 
   return { settings, refresh, updateSettings };

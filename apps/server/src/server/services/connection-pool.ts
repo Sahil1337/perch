@@ -62,7 +62,14 @@ export class ConnectionPool {
       existing.config = config;
       return existing;
     }
-    const driver = (await this.factory())(config);
+    // db/ throws plain Errors by design — it may not import the HTTP layer. This is the seam
+    // where they become an answerable failure rather than an unexplained 500.
+    let driver: Driver;
+    try {
+      driver = (await this.factory())(config);
+    } catch (err) {
+      throw badRequest(errorMessage(err), "driver_unavailable");
+    }
     const entry: Entry = { config, driver, status: "disconnected" };
     this.entries.set(config.id, entry);
     return entry;

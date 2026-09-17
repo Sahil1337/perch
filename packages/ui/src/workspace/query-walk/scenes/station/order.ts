@@ -4,13 +4,11 @@
 import type { StatementResult } from "@perch/protocol";
 import { colsOf, findColumn, positional, rowsOf, visibleIndices } from "../columns";
 import type { SceneContext } from "../context";
-import { okResult } from "../results";
 import { EMPTY, type Col, type Scene } from "../types";
 import { tables } from "../view";
 
 export function orderScene(ctx: SceneContext): Scene {
-  const { parsed, phase, result, tableOf, own, prevSample } = ctx;
-  const ordered = okResult(result, "sample");
+  const { parsed, phase, sample: ordered, tableOf, own, prevSample } = ctx;
   if (!ordered) return EMPTY;
   const sortCols = (sample: StatementResult, indices: number[]): Col[] =>
     colsOf(sample, indices, positional).map((col, at) => {

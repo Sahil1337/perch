@@ -25,7 +25,9 @@ export function bool(value: unknown): boolean | undefined {
 
 export type JsonBody = Record<string, unknown>;
 
-export async function readJsonBody(c: { req: { json: () => Promise<unknown> } }): Promise<JsonBody> {
+export async function readJsonBody(c: {
+  req: { json: () => Promise<unknown> };
+}): Promise<JsonBody> {
   let parsed: unknown;
   try {
     parsed = await c.req.json();

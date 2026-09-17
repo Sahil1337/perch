@@ -10,22 +10,19 @@
 
 import { FolderIcon, SaveIcon } from "lucide-react";
 import * as React from "react";
+import { messageOf } from "../lib/errors";
+import { joinPath, tilde } from "../lib/paths";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Dialog, DialogClose, DialogDescription, DialogPopup, DialogTitle } from "../ui/dialog";
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "../ui/input-group";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
 import { useWorkspace } from "./context";
+import { ErrorText } from "./error-text";
 import { isScratch } from "./types";
 
 /** Dispatch on `window` to save the active buffer, asking where when it has never been saved. */
-export const SAVE_QUERY_EVENT = "perch:save";
-
-/** Windows paths come back with backslashes; join the way the folder is already spelled. */
-function join(folder: string, name: string): string {
-  const separator = folder.includes("\\") && !folder.includes("/") ? "\\" : "/";
-  return `${folder.replace(/[\\/]+$/, "")}${separator}${name}`;
-}
+const SAVE_QUERY_EVENT = "perch:save";
 
 /**
  * "Query 1" → "query-1": a name you would have typed, so most people press Enter. `.sql` is shown as
@@ -39,13 +36,6 @@ function suggest(name: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
   return base.length > 0 ? base : "query";
-}
-
-/** Abbreviates the home prefix, which is noise in a small dialog. */
-function tilde(path: string): string {
-  return path
-    .replace(/^\/(?:Users|home)\/[^/]+(?=\/|$)/, "~")
-    .replace(/^[A-Za-z]:\\Users\\[^\\]+(?=\\|$)/, "~");
 }
 
 export function SaveQueryDialog(): React.ReactElement {
@@ -93,10 +83,10 @@ export function SaveQueryDialog(): React.ReactElement {
     try {
       // The server may not write outside a workspace, so open the folder as one first.
       if (!roots.includes(target)) await updateSettings({ workspaces: [...roots, target] });
-      await saveAs(buffer.id, join(target, file));
+      await saveAs(buffer.id, joinPath(target, file));
       setOpen(false);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
+      setError(messageOf(cause));
     } finally {
       setBusy(false);
     }
@@ -116,7 +106,9 @@ export function SaveQueryDialog(): React.ReactElement {
           <div className="flex min-w-0 flex-col gap-0.5">
             <DialogTitle size="sm">Save query</DialogTitle>
             <DialogDescription size="sm">
-              {folders.length > 1 ? "Name it and pick a folder." : "Name it — Perch files the rest."}
+              {folders.length > 1
+                ? "Name it and pick a folder."
+                : "Name it — Perch files the rest."}
             </DialogDescription>
           </div>
         </div>
@@ -153,7 +145,10 @@ export function SaveQueryDialog(): React.ReactElement {
                no second answer. */
             <div className="flex h-8 items-center gap-2 rounded-md bg-muted/48 px-2.5">
               <FolderIcon className="size-3.5 shrink-0 text-muted-foreground" />
-              <span className="min-w-0 flex-1 truncate font-mono text-muted-foreground text-xs" title={only}>
+              <span
+                className="min-w-0 flex-1 truncate font-mono text-muted-foreground text-xs"
+                title={only}
+              >
                 {tilde(only)}
               </span>
               {only === ownFolder && (
@@ -163,10 +158,7 @@ export function SaveQueryDialog(): React.ReactElement {
               )}
             </div>
           ) : (
-            <Select
-              onValueChange={(value) => setFolder(String(value))}
-              value={folder ?? ""}
-            >
+            <Select onValueChange={(value) => setFolder(String(value))} value={folder ?? ""}>
               <SelectTrigger className="w-full" size="sm">
                 <SelectValue>
                   {(value: unknown) => (
@@ -187,11 +179,7 @@ export function SaveQueryDialog(): React.ReactElement {
             </Select>
           )}
 
-          {error !== null && (
-            <p className="text-destructive-foreground text-xs" role="alert">
-              {error}
-            </p>
-          )}
+          <ErrorText>{error}</ErrorText>
 
           <div className="flex justify-end gap-1.5 pt-1">
             <DialogClose render={<Button size="sm" variant="ghost" />}>Cancel</DialogClose>

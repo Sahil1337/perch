@@ -11,7 +11,9 @@ import { die } from "./errors.js";
 export async function requireConnection(nameOrId: string): Promise<ConnectionConfig> {
   const conn = await getConnection(nameOrId);
   if (!conn) {
-    die(`no connection named "${nameOrId}" — run "perch conn ls" to see connections, or "perch conn add" to create one`);
+    die(
+      `no connection named "${nameOrId}" — run "perch conn ls" to see connections, or "perch conn add" to create one`,
+    );
   }
   return conn;
 }

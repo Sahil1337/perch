@@ -15,7 +15,7 @@
 import { splitStatements } from "@perch/sql";
 
 /** Written at the start of its own line. Everything after it on that line is ignored. */
-export const CELL_MARKER = "-- %%";
+const CELL_MARKER = "-- %%";
 
 const MARKER_LINE = /^[ \t]*--[ \t]*%%.*$/gm;
 
@@ -30,9 +30,9 @@ export type Cell = {
   readonly offset: number;
 };
 
-export type CellMode = "markers" | "statements";
+type CellMode = "markers" | "statements";
 
-export function cellMode(source: string): CellMode {
+function cellMode(source: string): CellMode {
   MARKER_LINE.lastIndex = 0;
   return MARKER_LINE.test(source) ? "markers" : "statements";
 }
@@ -89,11 +89,6 @@ export function parseCells(source: string): readonly Cell[] {
   }));
 }
 
-/** The file with `cell`'s text replaced. Offsets of later cells shift; re-parse after calling. */
-export function replaceCell(source: string, cell: Cell, sql: string): string {
-  return source.slice(0, cell.offset) + sql + source.slice(cell.offset + cell.sql.length);
-}
-
 /** The file with `cell` and its trailing marker removed. */
 export function deleteCell(source: string, cell: Cell): string {
   const before = source.slice(0, cell.offset);
@@ -116,6 +111,9 @@ export function appendCell(source: string): string {
 
 /** Undoes `appendCell`: the trailing marker, if there is one, and the blank space before it. */
 export function dropAppendedCell(source: string): string {
-  const withoutMarker = source.replace(/(?:[ \t]*\r?\n)*[ \t]*--[ \t]*%%[ \t]*\r?\n?[ \t\r\n]*$/, "");
+  const withoutMarker = source.replace(
+    /(?:[ \t]*\r?\n)*[ \t]*--[ \t]*%%[ \t]*\r?\n?[ \t\r\n]*$/,
+    "",
+  );
   return withoutMarker.trimEnd();
 }

@@ -23,7 +23,18 @@ commands:
 Run "perch <command> --help" for command-specific options. "perch --version" prints the version.
 `;
 
-const COMMANDS = new Set(["serve", "stop", "status", "discover", "conn", "schema", "run", "history", "files", "settings"]);
+const COMMANDS = new Set([
+  "serve",
+  "stop",
+  "status",
+  "discover",
+  "conn",
+  "schema",
+  "run",
+  "history",
+  "files",
+  "settings",
+]);
 
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);

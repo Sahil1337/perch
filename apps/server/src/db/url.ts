@@ -53,7 +53,9 @@ function osUser(): string {
  * `root` for MySQL). `?sslmode=require` / `?ssl=true` turn TLS on; any other query parameter is
  * kept in `options` for the driver.
  */
-export function parseConnectionUrl(url: string): Omit<ConnectionConfig, "id" | "name" | "createdAt"> {
+export function parseConnectionUrl(
+  url: string,
+): Omit<ConnectionConfig, "id" | "name" | "createdAt"> {
   let parsed: URL;
   try {
     parsed = new URL(url);
@@ -76,7 +78,8 @@ export function parseConnectionUrl(url: string): Omit<ConnectionConfig, "id" | "
 
   const user = decode(parsed.username) || (dialect === "mysql" ? "root" : osUser());
   const password = parsed.password ? decode(parsed.password) : undefined;
-  const database = decode(parsed.pathname.replace(/^\//, "")) || (dialect === "postgres" ? "postgres" : "");
+  const database =
+    decode(parsed.pathname.replace(/^\//, "")) || (dialect === "postgres" ? "postgres" : "");
 
   const ssl = parseSsl(parsed.searchParams);
   const options: Record<string, string> = {};

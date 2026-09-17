@@ -18,32 +18,23 @@
 import { AnimatePresence, motion } from "motion/react";
 import type * as React from "react";
 import { cn } from "../../lib/utils";
+import { Crossfade } from "./crossfade";
 import type { AnswerView } from "./scenes";
 import { VerdictMark } from "./verdict-mark";
+import { WalkCard, WalkCardHeader } from "./walk-card";
 import { useT } from "./walk-motion";
 
 export function AnswerCard({ view }: { readonly view: AnswerView }): React.ReactElement {
-  const t = useT();
   return (
-    <motion.div
-      animate={{ opacity: 1 }}
-      aria-label={view.title}
-      className="w-max min-w-56 max-w-xs shrink-0 overflow-hidden rounded-lg border bg-card shadow-sm/5"
-      role="group"
-      exit={{ opacity: 0 }}
-      initial={{ opacity: 0 }}
-      // Position only: see the note on `Table` in `stage.tsx`.
-      layout="position"
-      transition={{ layout: t.spring, default: t.fade }}
-    >
-      <div className="flex h-8 items-center gap-2 border-b bg-muted/60 px-2.5 font-medium text-xs">
+    <WalkCard ariaLabel={view.title} className="w-max min-w-56 max-w-xs" role="group">
+      <WalkCardHeader>
         <span className="truncate">{view.title}</span>
         {view.kind === "values" && (
           <span className="ms-auto shrink-0 whitespace-nowrap font-mono text-muted-foreground text-xs tabular-nums">
             {view.values.length} {view.values.length === 1 ? "value" : "values"}
           </span>
         )}
-      </div>
+      </WalkCardHeader>
       {view.error ? (
         <p className="max-w-xs p-3 font-mono text-destructive-foreground text-xs">{view.error}</p>
       ) : view.kind === "values" ? (
@@ -51,11 +42,15 @@ export function AnswerCard({ view }: { readonly view: AnswerView }): React.React
       ) : (
         <Equation view={view} />
       )}
-    </motion.div>
+    </WalkCard>
   );
 }
 
-function ValueList({ view }: { readonly view: Extract<AnswerView, { kind: "values" }> }): React.ReactElement {
+function ValueList({
+  view,
+}: {
+  readonly view: Extract<AnswerView, { kind: "values" }>;
+}): React.ReactElement {
   const t = useT();
   return (
     <div className="flex flex-col">
@@ -65,20 +60,11 @@ function ValueList({ view }: { readonly view: Extract<AnswerView, { kind: "value
         <span className="min-w-0 truncate font-mono text-info-foreground text-xs">
           {view.needleLabel}
         </span>
-        <span className="relative ms-auto inline-grid">
-          <AnimatePresence initial={false} mode="popLayout">
-            <motion.span
-              animate={{ opacity: 1, y: 0 }}
-              className="block whitespace-nowrap font-mono font-medium text-info-foreground text-xs"
-              exit={{ opacity: 0, y: -4 }}
-              initial={{ opacity: 0, y: 4 }}
-              key={view.needle}
-              transition={t.fade}
-            >
-              {view.needle}
-            </motion.span>
-          </AnimatePresence>
-        </span>
+        <Crossfade
+          className="relative ms-auto inline-grid"
+          textClassName="block whitespace-nowrap font-mono font-medium text-info-foreground text-xs"
+          value={view.needle}
+        />
         <VerdictMark delayMs={0} settled verdict={view.verdict} />
       </div>
       {view.values.length === 0 ? (
@@ -103,7 +89,11 @@ function ValueList({ view }: { readonly view: Extract<AnswerView, { kind: "value
                 initial={{ opacity: 0, scale: 0.94 }}
                 key={chip.key}
                 layout="position"
-                title={chip.poison ? "a null in the set: every row fails NOT IN because of it" : undefined}
+                title={
+                  chip.poison
+                    ? "a null in the set: every row fails NOT IN because of it"
+                    : undefined
+                }
                 transition={{ layout: t.spring, default: t.fade }}
               >
                 {chip.text}
@@ -121,7 +111,11 @@ function ValueList({ view }: { readonly view: Extract<AnswerView, { kind: "value
   );
 }
 
-function Equation({ view }: { readonly view: Extract<AnswerView, { kind: "equation" }> }): React.ReactElement {
+function Equation({
+  view,
+}: {
+  readonly view: Extract<AnswerView, { kind: "equation" }>;
+}): React.ReactElement {
   return (
     <div className="flex flex-col gap-2 p-2.5">
       <div className="flex items-center gap-1.5">
@@ -140,8 +134,8 @@ function Equation({ view }: { readonly view: Extract<AnswerView, { kind: "equati
       )}
       {view.missing && (
         <p className="rounded-md border bg-muted/40 p-2 text-muted-foreground text-xs leading-relaxed">
-          No row came back, so the value is null and the comparison is unknown rather than false. The
-          row is dropped either way, which is why an empty scalar subquery is so easy to miss.
+          No row came back, so the value is null and the comparison is unknown rather than false.
+          The row is dropped either way, which is why an empty scalar subquery is so easy to miss.
         </p>
       )}
     </div>
@@ -157,27 +151,16 @@ function Value({
   readonly text: string;
   readonly lit: boolean;
 }): React.ReactElement {
-  const t = useT();
   return (
     <span className="flex min-w-0 flex-1 flex-col gap-0.5">
       <span className="truncate font-mono text-muted-foreground text-xs">{label}</span>
-      <span className="relative inline-grid">
-        <AnimatePresence initial={false} mode="popLayout">
-          <motion.span
-            animate={{ opacity: 1, y: 0 }}
-            className={cn(
-              "block truncate rounded-md px-1.5 py-0.5 font-mono text-sm",
-              lit ? "bg-info/10 text-info-foreground" : "bg-muted text-foreground",
-            )}
-            exit={{ opacity: 0, y: -4 }}
-            initial={{ opacity: 0, y: 4 }}
-            key={text}
-            transition={t.fade}
-          >
-            {text}
-          </motion.span>
-        </AnimatePresence>
-      </span>
+      <Crossfade
+        textClassName={cn(
+          "block truncate rounded-md px-1.5 py-0.5 font-mono text-sm",
+          lit ? "bg-info/10 text-info-foreground" : "bg-muted text-foreground",
+        )}
+        value={text}
+      />
     </span>
   );
 }

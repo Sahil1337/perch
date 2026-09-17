@@ -51,7 +51,7 @@ export function registerFilesRoutes(app: Hono, deps: RouteDeps): void {
     const ifModifiedAt = str(body.ifModifiedAt);
     if (ifModifiedAt) {
       const stale = await assertNotStale(full, ifModifiedAt);
-      if (stale) return c.json(stale, 409);
+      if (stale) throw conflict("the file changed on disk since it was read", stale, "stale_write");
     }
     const modifiedAt = await writeSqlFile(full, content);
     // Our own write must not come back to the client as an external change.

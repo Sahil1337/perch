@@ -43,7 +43,9 @@ export async function realpathOrClosest(target: string): Promise<string> {
 }
 
 export function contains(root: string, candidate: string): boolean {
-  return candidate === root || candidate.startsWith(root.endsWith(path.sep) ? root : root + path.sep);
+  return (
+    candidate === root || candidate.startsWith(root.endsWith(path.sep) ? root : root + path.sep)
+  );
 }
 
 /** Realpaths the roots, dropping the ones that do not exist. */

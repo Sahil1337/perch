@@ -16,10 +16,11 @@
 import type { StatementResult } from "@perch/protocol";
 import * as React from "react";
 import { boundRows, boundRowSql, type BoundPlan, type BoundRow } from "./bound";
+import { messageOf, only, type QueryOutcome } from "./probe-outcome";
 import { SAMPLE_ROWS } from "./steps";
-import type { Probe, QueryOutcome } from "./use-walk";
+import type { Probe } from "./use-walk";
 
-export type BoundRun = {
+type BoundRun = {
   readonly outer: StatementResult | null;
   /** The outer probe could not run at all: both shapes of it failed. */
   readonly outerError: string | null;
@@ -40,17 +41,6 @@ export type BoundRun = {
    */
   readonly answers: ReadonlyMap<number, StatementResult>;
 };
-
-function messageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
-/** The first statement's result, or the reason there is none. */
-function only(record: Awaited<ReturnType<Probe>>): QueryOutcome {
-  const result = record.results?.[0];
-  if (result) return { ok: true, result };
-  return { ok: false, error: record.error?.message ?? "The database returned nothing.", skipped: false };
-}
 
 export function useBoundRun(plan: BoundPlan, probe: Probe): BoundRun {
   const [outer, setOuter] = React.useState<QueryOutcome | null>(null);

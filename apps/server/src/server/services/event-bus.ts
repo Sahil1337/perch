@@ -34,9 +34,4 @@ export class EventBus {
       }
     }
   }
-
-  /** Number of live listeners; handy in tests and for deciding whether anyone is watching. */
-  get size(): number {
-    return this.listeners.size;
-  }
 }

@@ -168,7 +168,7 @@ function PaneTab({
   );
 }
 
-export type PaneLabelText = {
+type PaneLabelText = {
   readonly name: string;
   readonly scratch: boolean;
   readonly dirty: boolean;

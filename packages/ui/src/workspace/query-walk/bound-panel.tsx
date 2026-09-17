@@ -12,6 +12,7 @@
 
 import { CornerUpRightIcon } from "lucide-react";
 import * as React from "react";
+import { cn } from "../../lib/utils";
 import { Button } from "../../ui/button";
 import { Tabs, TabsList, TabsPanel, TabsTab } from "../../ui/tabs";
 import { highlightSql } from "../sql-editor/highlight-sql";
@@ -19,6 +20,7 @@ import { boundRowParts, type BoundPlan, type BoundRow } from "./bound";
 import type { SqlPart } from "./clauses";
 import type { GridBuild } from "./grid";
 import {
+  bindingPairs,
   boundCountSentence,
   boundNullSentence,
   boundRowSentence,
@@ -31,14 +33,16 @@ import {
   scalarSentence,
   scalarShapeSentence,
 } from "./narration";
+import { NarratorShell } from "./narrator-shell";
 import { Sentence } from "./narrator";
 import type { AnswerView } from "./scenes";
+import { SqlBlock } from "./sql-block";
 import { SqlParts } from "./sql-parts";
 import type { GridColumn } from "./use-grid";
 import type { QueryOutcome } from "./use-walk";
 
 /** The picked cell, once there is one: which column, the statement it ran, and what came back. */
-export type PickedCell = {
+type PickedCell = {
   readonly column: GridColumn;
   readonly parts: readonly SqlPart[] | null;
   readonly result: QueryOutcome | undefined;
@@ -95,10 +99,7 @@ export function BoundPanel({
   const rowParts = React.useMemo(() => (row ? boundRowParts(plan, row) : null), [plan, row]);
 
   return (
-    <aside
-      aria-label="Narrator"
-      className="flex min-h-0 min-w-0 flex-col gap-3 rounded-xl border bg-card p-4"
-    >
+    <NarratorShell>
       <div className="flex items-center gap-2">
         <h2 className="min-w-0 truncate font-medium font-mono text-sm">{plan.section.label}</h2>
         <Button
@@ -143,26 +144,10 @@ export function BoundPanel({
 
       {/* The two caveats. Neither is an error, and both are things a reader would otherwise blame
           on their own query: a null that matches nothing, and a count the dialect would not give. */}
-      {nulls && (
-        <p className="rounded-md border bg-muted/40 p-2.5 text-muted-foreground text-xs leading-relaxed">
-          <Sentence text={nulls} />
-        </p>
-      )}
-      {countless && (
-        <p className="rounded-md border bg-muted/40 p-2.5 text-muted-foreground text-xs leading-relaxed">
-          <Sentence text={countless} />
-        </p>
-      )}
-      {poison && (
-        <p className="rounded-md border border-destructive/30 bg-destructive/8 p-2.5 text-destructive-foreground text-xs leading-relaxed">
-          <Sentence text={poison} />
-        </p>
-      )}
-      {shape && (
-        <p className="rounded-md border bg-muted/40 p-2.5 text-muted-foreground text-xs leading-relaxed">
-          <Sentence text={shape} />
-        </p>
-      )}
+      <Caveat text={nulls} />
+      <Caveat text={countless} />
+      <Caveat text={poison} tone="alarm" />
+      <Caveat text={shape} />
 
       <Tabs className="min-h-0 flex-1" onValueChange={(next) => setTab(String(next))} value={tab}>
         <TabsList size="sm">
@@ -191,13 +176,7 @@ export function BoundPanel({
                 This row&apos;s values, in place of the correlated columns
                 {durationMs !== null && <span className="opacity-70"> · {durationMs} ms</span>}
               </p>
-              {rowParts ? (
-                <SqlParts parts={rowParts} />
-              ) : (
-                <pre className="whitespace-pre-wrap rounded-md bg-muted p-2 font-mono text-sm leading-5">
-                  {highlightSql(plan.section.text)}
-                </pre>
-              )}
+              {rowParts ? <SqlParts parts={rowParts} /> : <SqlBlock sql={plan.section.text} />}
               {innerError && (
                 <p className="mt-1 whitespace-pre-wrap font-mono text-destructive-foreground text-xs">
                   {innerError}
@@ -206,11 +185,10 @@ export function BoundPanel({
             </div>
             <div className="min-w-0">
               <p className="mb-1 text-muted-foreground text-xs">
-                Every outer row at once, with its verdict{plan.counting !== null && " and match count"}
+                Every outer row at once, with its verdict
+                {plan.counting !== null && " and match count"}
               </p>
-              <pre className="whitespace-pre-wrap rounded-md bg-muted p-2 font-mono text-sm leading-5">
-                {highlightSql(plan.counting === null ? plan.verdictSql : plan.outerSql)}
-              </pre>
+              <SqlBlock sql={plan.counting === null ? plan.verdictSql : plan.outerSql} />
             </div>
             {/* The grid's own probe. It writes no literal at all — every fragment of it is a range
                 sliced out of the query — which is worth being able to check by eye. */}
@@ -219,9 +197,7 @@ export function BoundPanel({
                 <p className="mb-1 text-muted-foreground text-xs">
                   Every cell at once: the outer rows crossed with {grid.driveTitle}
                 </p>
-                <pre className="whitespace-pre-wrap rounded-md bg-muted p-2 font-mono text-sm leading-5">
-                  {highlightSql(grid.sql)}
-                </pre>
+                <SqlBlock sql={grid.sql} />
               </div>
             )}
           </div>
@@ -232,7 +208,7 @@ export function BoundPanel({
           </pre>
         </TabsPanel>
       </Tabs>
-    </aside>
+    </NarratorShell>
   );
 }
 
@@ -260,7 +236,37 @@ function rowSentence(args: {
 /** The substitutions a cell's SQL made, spelled the way the panel highlights them. */
 function boundPairs(plan: BoundPlan, row: BoundRow, cell: PickedCell): string[] {
   return [
-    ...plan.columns.map((column) => `${column.ref} = ${row.literals.get(column.ref) ?? "null"}`),
+    ...bindingPairs(plan, row),
     ...[...cell.column.literals].map(([ref, literal]) => `${ref} = ${literal}`),
   ];
+}
+
+/**
+ * A note under the sentences: not an error, and something a reader would otherwise blame on their
+ * own query — a null that matches nothing, a count the dialect would not give, a set poisoned by a
+ * null, the promise a scalar subquery makes.
+ *
+ * `alarm` is for the one of them that is about a result being wrong rather than missing. Null text
+ * renders nothing, so a caller can list all four and let each decide whether it applies.
+ */
+function Caveat({
+  text,
+  tone = "quiet",
+}: {
+  readonly text: string | null;
+  readonly tone?: "quiet" | "alarm";
+}): React.ReactElement | null {
+  if (text === null) return null;
+  return (
+    <p
+      className={cn(
+        "rounded-md border p-2.5 text-xs leading-relaxed",
+        tone === "alarm"
+          ? "border-destructive/30 bg-destructive/8 text-destructive-foreground"
+          : "bg-muted/40 text-muted-foreground",
+      )}
+    >
+      <Sentence text={text} />
+    </p>
+  );
 }

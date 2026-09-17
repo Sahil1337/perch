@@ -55,11 +55,6 @@ export class FileWatcher {
     this.expectTtlMs = opts.expectTtlMs ?? EXPECT_TTL_MS;
   }
 
-  /** The roots currently being watched (realpath'd). */
-  roots(): string[] {
-    return [...this.rootPaths.values()];
-  }
-
   /**
    * Diffs `roots` against what is already watched: starts watchers for the new ones, closes the
    * ones that went away. Resolves with the roots that are actually being watched.
@@ -81,7 +76,7 @@ export class FileWatcher {
       this.watchers.set(key, watcher);
       this.rootPaths.set(key, root);
     }
-    return this.roots();
+    return [...this.rootPaths.values()];
   }
 
   /**
@@ -113,8 +108,6 @@ export class FileWatcher {
     this.expectedWrites.clear();
     this.expectedDeletes.clear();
   }
-
-  // ---- internals -----------------------------------------------------------------------------
 
   private closeWatcher(watcher: FSWatcher): void {
     try {

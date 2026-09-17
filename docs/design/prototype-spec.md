@@ -47,7 +47,7 @@ Tabs: **Schema | Files | History**. Below them, an **Open SQL Notebook** action.
 Flattened from the mockup's five levels to two:
 
 - **No database root.** The selected database is already in the topbar and the status bar. The
-  tree *is* the current database's contents and swaps when the picker changes — which also fixes
+  tree _is_ the current database's contents and swaps when the picker changes — which also fixes
   the mockup bug where `state.database` was only the root row's label.
 - **No Tables/Views folders.** `Table["kind"]` is an icon, not a folder.
 - **Schema level only when it carries information**: a Postgres database with more than one
@@ -64,14 +64,14 @@ Flattened from the mockup's five levels to two:
 
 **CodeMirror 6.** Replaces the mockup's 248-line textarea + regex overlay.
 
-| Need | How |
-|---|---|
-| Highlighting | `@codemirror/lang-sql`, `PostgreSQL` / `MySQL` dialect per connection |
-| `table.column` completion | same package's `schema` option, fed from `DatabaseSchema` |
-| Alias resolution (`from orders o` → `o.`) | built in |
-| Format document | `sql-formatter`, `⇧⌥F`, `keywordCase: "lower"` |
-| Error squiggle | `@codemirror/lint`, at `statement.offset + error.position` |
-| Settings at runtime | compartments — no remount, no lost cursor |
+| Need                                      | How                                                                   |
+| ----------------------------------------- | --------------------------------------------------------------------- |
+| Highlighting                              | `@codemirror/lang-sql`, `PostgreSQL` / `MySQL` dialect per connection |
+| `table.column` completion                 | same package's `schema` option, fed from `DatabaseSchema`             |
+| Alias resolution (`from orders o` → `o.`) | built in                                                              |
+| Format document                           | `prettier-plugin-sql-cst`, `⇧⌥F`, `keywordCase: "lower"`              |
+| Error squiggle                            | `@codemirror/lint`, at `statement.offset + error.position`            |
+| Settings at runtime                       | compartments — no remount, no lost cursor                             |
 
 **No pre-run validation.** Errors surface after Run, where `toQueryError` already gives an exact
 0-based offset into the statement (`postgres/types.ts:81`, and MySQL via `at line N`). Treating
@@ -82,8 +82,18 @@ the server as the only source of truth avoids maintaining a second, subtly-wrong
 Keep the existing `highlightSql` regex tokeniser for read-only SQL previews (history rows,
 palette entries) — a CodeMirror instance per list row would be absurd.
 
-`sql-formatter` is lazy-loaded on first use and throws on input it cannot parse; catch and keep
-the original text. Format per statement, skipping any statement containing a dollar-quoted body.
+`prettier-plugin-sql-cst` parses into a CST and prints through Prettier, so layout follows the
+text: a clause that fits stays on one line. Lazy-loaded on first use.
+
+A real grammar rejects what it does not know, and this one has holes: `EXPLAIN (ANALYZE, …)`,
+`VACUUM` and `COPY … FROM` on PostgreSQL; `GROUP_CONCAT(… SEPARATOR …)`, index hints and
+`CAST(x AS UNSIGNED)` on MySQL. Those statements keep the author's text — deliberately, rather
+than carrying a second tokenising formatter to reflow them.
+
+Format per statement, so one unreadable statement costs only itself. Case follows
+`Settings.keywordCase` — keywords, literals and type names together, so `preserve` really
+preserves. Canonical-syntax rewriting is off (`orders o` must not become `orders AS o`):
+formatting moves whitespace, it does not edit what someone wrote.
 
 ## Results (D's sheet, docked)
 
@@ -166,7 +176,7 @@ alone would pull in 9.1MB of recharts the day someone imports it.
 
 - **ER / relational schema view** — built, not parked any more, and not with Mermaid: foreign keys
   are introspected on both dialects (`Table.foreignKeys`) and `packages/ui/src/workspace/
-  schema-diagram.tsx` draws the cards and wires itself, because a text-to-SVG renderer cannot
+schema-diagram.tsx` draws the cards and wires itself, because a text-to-SVG renderer cannot
   anchor a wire to a column row or animate a pulse along it.
 - **Connections CRUD screen.** Eight routes exist; the UI has a picker over the configured list
   and no way to add, edit or test one. Topbar picker stubs it in v1.

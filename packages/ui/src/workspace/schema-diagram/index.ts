@@ -3,7 +3,6 @@
 // library because the two things this view exists for — a wire that starts at *this* column and
 // a pulse that travels along it — are exactly what a text-to-SVG renderer cannot give back.
 
-export { tableKey } from "./graph";
 export { SchemaDiagramDialog } from "./schema-diagram-dialog";
 export {
   SCHEMA_DIAGRAM_EVENT,

@@ -15,11 +15,12 @@ import type { SqlComment } from "@perch/sql";
 import * as React from "react";
 import { cn } from "../../lib/utils";
 import { Tabs, TabsList, TabsPanel, TabsTab } from "../../ui/tabs";
-import { highlightSql } from "../sql-editor/highlight-sql";
 import type { Phase } from "./narration";
+import { NarratorShell } from "./narrator-shell";
 import { countNotes, NotesPanel, StationNote } from "./notes-panel";
 import type { Section } from "./program";
 import { QueryPane, stationRange } from "./query-pane";
+import { SqlBlock } from "./sql-block";
 import type { Station } from "./steps";
 import { TickNumber } from "./tick-number";
 import type { StationResult, StationState } from "./use-walk";
@@ -93,10 +94,7 @@ export function Narrator({
   // clause can be found. Null when the chapter does not map — see `query-pane.tsx`.
   const here = stationRange(section, station);
   return (
-    <aside
-      aria-label="Narrator"
-      className="flex min-h-0 min-w-0 flex-col gap-3 rounded-xl border bg-card p-4"
-    >
+    <NarratorShell>
       <div className="flex items-center gap-2">
         <h2 className="font-medium font-mono text-sm">{station.label}</h2>
         {!failed && (
@@ -179,9 +177,7 @@ export function Narrator({
                       <span className="opacity-70"> · {outcome.result.durationMs} ms</span>
                     )}
                   </p>
-                  <pre className="whitespace-pre-wrap rounded-md bg-muted p-2 font-mono text-sm leading-5">
-                    {highlightSql(query.sql)}
-                  </pre>
+                  <SqlBlock sql={query.sql} />
                   {outcome && !outcome.ok && (
                     <p className="mt-1 whitespace-pre-wrap font-mono text-destructive-foreground text-xs">
                       {outcome.error}
@@ -196,7 +192,7 @@ export function Narrator({
           <NotesPanel comments={comments} />
         </TabsPanel>
       </Tabs>
-    </aside>
+    </NarratorShell>
   );
 }
 

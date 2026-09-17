@@ -71,7 +71,10 @@ export function useHotkey(hotkey: Hotkey, handler: () => void, enabled = true): 
 }
 
 /** The label for a shortcut, so a Kbd and its handler cannot drift apart. */
-export function hotkeyLabel(hotkey: Hotkey, platform = globalThis.navigator?.platform ?? ""): string {
+export function hotkeyLabel(
+  hotkey: Hotkey,
+  platform = globalThis.navigator?.platform ?? "",
+): string {
   const mac = /mac|iphone|ipad/i.test(platform);
   const keyLabel =
     hotkey.key === "Enter" ? "↵" : hotkey.key.length === 1 ? hotkey.key.toUpperCase() : hotkey.key;

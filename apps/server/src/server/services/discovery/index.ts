@@ -74,9 +74,4 @@ export class DiscoveryService {
     }
     return this.inflight;
   }
-
-  /** Drops the memo, so the next `scan()` probes again. */
-  clear(): void {
-    this.cached = undefined;
-  }
 }

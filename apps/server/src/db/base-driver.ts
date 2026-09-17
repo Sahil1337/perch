@@ -1,9 +1,11 @@
 // The half of a driver that has nothing to do with a dialect: the pool lifecycle, the run loop
 // (one `start`, one `statement` per statement, one `done`), the cancellation flag, and the
-// bookkeeping around each statement. A dialect supplies a pool, a way to run one statement into a
+// bookkeeping around each statement, including the extra pools a run aimed at another database
+// needs. A dialect supplies a way to build and check a pool, a way to run one statement into a
 // StatementSink, and its own notion of what a cancellation looks like.
 
 import type {
+  ConnectionConfig,
   DatabaseSchema,
   Dialect,
   QueryError,
@@ -68,13 +70,42 @@ export type StatementContext<Handle> = {
 
 type RunEntry<Handle> = { handle: Handle | null; cancelled: boolean };
 
+/** The connection's own pool. A statement holds one client at a time; four covers concurrent runs. */
+const MAIN_POOL_MAX = 4;
+/** A database other than the connection's own is a side trip, so it gets a smaller pool. */
+const SECONDARY_POOL_MAX = 2;
+
 export abstract class BaseDriver<Pool, Handle> implements Driver {
   abstract readonly dialect: Dialect;
 
   #pool: Pool | null = null;
   readonly #runs = new Map<string, RunEntry<Handle>>();
 
-  protected abstract openPool(): Promise<Pool>;
+  /**
+   * Pools for databases other than the connection's own, keyed by name.
+   *
+   * A run carries the database the user picked in the topbar, and it has to be honoured: the
+   * schema tree takes the name for introspection, so without this every statement kept running
+   * against the database the connection was configured with. Picking another database and running
+   * a query therefore queried the wrong one — silently, and with the history record naming the
+   * database you had chosen rather than the one it ran on.
+   *
+   * A pool rather than `set search_path` / `USE db`: in PostgreSQL the database is fixed at
+   * connection time, so switching means another connection either way, and in MySQL a `USE` would
+   * outlive the statement and quietly redirect whatever ran next on that pooled connection.
+   * Keeping the pool lets a session that hops between two databases stop paying the handshake.
+   */
+  readonly #databasePools = new Map<string, Promise<Pool>>();
+
+  constructor(protected readonly config: ConnectionConfig) {}
+
+  /**
+   * Builds (but does not verify) a pool for `database`, or for the connection's own when it is
+   * undefined, holding at most `max` connections.
+   */
+  protected abstract createPool(database: string | undefined, max: number): Promise<Pool>;
+  /** Borrows and returns one connection, so `connect()` fails loudly on an unusable config. */
+  protected abstract checkPool(pool: Pool): Promise<void>;
   protected abstract closePool(pool: Pool): Promise<void>;
   /** Runs `sql` and returns its single value as text — the round trip behind `test()`. */
   protected abstract queryScalar(sql: string): Promise<string>;
@@ -89,13 +120,23 @@ export abstract class BaseDriver<Pool, Handle> implements Driver {
 
   async connect(): Promise<void> {
     if (this.#pool) return;
-    this.#pool = await this.openPool();
+    const pool = await this.createPool(undefined, MAIN_POOL_MAX);
+    try {
+      await this.checkPool(pool);
+    } catch (err) {
+      await this.closePool(pool).catch(() => {});
+      throw err;
+    }
+    this.#pool = pool;
   }
 
   async disconnect(): Promise<void> {
     const pool = this.#pool;
     this.#pool = null;
     this.#runs.clear();
+    const extras = [...this.#databasePools.values()];
+    this.#databasePools.clear();
+    await Promise.all(extras.map((extra) => extra.then((p) => this.closePool(p)).catch(() => {})));
     if (pool) await this.closePool(pool);
   }
 
@@ -107,6 +148,19 @@ export abstract class BaseDriver<Pool, Handle> implements Driver {
     if (!this.#pool) await this.connect();
     if (!this.#pool) throw new Error("not connected");
     return this.#pool;
+  }
+
+  /** The pool a statement aimed at `database` must run on. See `#databasePools`. */
+  protected async poolFor(database?: string): Promise<Pool> {
+    if (!database || database === this.config.database) return this.requirePool();
+    const cached = this.#databasePools.get(database);
+    if (cached) return cached;
+    // The promise, not the pool: two statements starting at once must share one pool, and a
+    // createPool that fails must not leave a broken entry behind.
+    const pending = this.createPool(database, SECONDARY_POOL_MAX);
+    this.#databasePools.set(database, pending);
+    pending.catch(() => this.#databasePools.delete(database));
+    return pending;
   }
 
   async test(): Promise<{ serverVersion: string; latencyMs: number }> {

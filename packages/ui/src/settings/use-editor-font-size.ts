@@ -8,33 +8,23 @@
 // through a tiny store so the Settings dialog and the editor cannot disagree about it.
 
 import * as React from "react";
+import { createExternalStore } from "../lib/external-store";
+import { readRaw, writeRaw } from "../lib/storage";
 
 const KEY = "perch.editor.fontSize";
 
 /** Matches the workspace's 13px body. Anything outside the range is a typo or a bad restore. */
 export const EDITOR_FONT_SIZES: readonly number[] = [11, 12, 13, 14, 16, 18];
-export const EDITOR_FONT_SIZE_DEFAULT = 13;
+const DEFAULT = 13;
 
-const listeners = new Set<() => void>();
-let cached: number | null = null;
+/** What this session chose. Held here too, so a store that refuses the write still applies it. */
+let chosen: number | null = null;
 
-function read(): number {
-  if (cached !== null) return cached;
-  let value = EDITOR_FONT_SIZE_DEFAULT;
-  try {
-    const stored = Number(globalThis.localStorage?.getItem(KEY));
-    if (EDITOR_FONT_SIZES.includes(stored)) value = stored;
-  } catch {
-    // Storage unavailable — the default is a perfectly good answer.
-  }
-  cached = value;
-  return value;
-}
-
-function subscribe(listener: () => void): () => void {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
-}
+const store = createExternalStore(() => {
+  if (chosen !== null) return chosen;
+  const stored = Number(readRaw(KEY));
+  return EDITOR_FONT_SIZES.includes(stored) ? stored : DEFAULT;
+}, DEFAULT);
 
 /**
  * The editor's font size in px, and a setter that persists it.
@@ -43,16 +33,16 @@ function subscribe(listener: () => void): () => void {
  * useEditorFontSize()` and ignore the rest.
  */
 export function useEditorFontSize(): [number, (size: number) => void] {
-  const size = React.useSyncExternalStore(subscribe, read, () => EDITOR_FONT_SIZE_DEFAULT);
+  const size = React.useSyncExternalStore(
+    store.subscribe,
+    store.getSnapshot,
+    store.getServerSnapshot,
+  );
 
   const set = React.useCallback((next: number) => {
-    cached = EDITOR_FONT_SIZES.includes(next) ? next : EDITOR_FONT_SIZE_DEFAULT;
-    try {
-      globalThis.localStorage?.setItem(KEY, String(cached));
-    } catch {
-      // In-memory only for this session.
-    }
-    for (const listener of listeners) listener();
+    chosen = EDITOR_FONT_SIZES.includes(next) ? next : DEFAULT;
+    writeRaw(KEY, String(chosen));
+    store.invalidate();
   }, []);
 
   return [size, set];

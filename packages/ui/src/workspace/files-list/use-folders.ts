@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { messageOf } from "../../lib/errors";
 import { useWorkspace } from "../context";
 
 /**
@@ -26,7 +27,7 @@ export function useFolders(): {
       try {
         await updateSettings({ workspaces: next });
       } catch (cause) {
-        setError(cause instanceof Error ? cause.message : String(cause));
+        setError(messageOf(cause));
       } finally {
         setBusy(null);
       }
@@ -45,7 +46,11 @@ export function useFolders(): {
     ),
     // Closing stops perch reading the folder; the path stays under Recent.
     close: React.useCallback(
-      async (folder: string) => write(folder, roots.filter((root) => root !== folder)),
+      async (folder: string) =>
+        write(
+          folder,
+          roots.filter((root) => root !== folder),
+        ),
       [roots, write],
     ),
     busy,

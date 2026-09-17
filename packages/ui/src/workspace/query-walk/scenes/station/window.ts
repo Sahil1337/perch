@@ -11,7 +11,6 @@ import { formatCell } from "../../../results-grid";
 import { WALK_PREFIX, WINDOW_COLUMN, windowFunctions } from "../../steps";
 import { colsOf, findColumn, hashCells, positional, rowsOf, visibleIndices } from "../columns";
 import type { SceneContext } from "../context";
-import { okResult } from "../results";
 import { EMPTY, type BucketView, type Col, type Row, type Scene } from "../types";
 import { plain, tables } from "../view";
 
@@ -22,8 +21,7 @@ const MEMBER_COLS = 3;
 const DIRECTIONS = /\s+(asc|desc)\b|\s+nulls\s+(first|last)\b/gi;
 
 export function windowScene(ctx: SceneContext): Scene {
-  const { parsed, phase, result, tableOf, input, own, mainTitle } = ctx;
-  const sample = okResult(result, "sample");
+  const { parsed, phase, sample, tableOf, input, own, mainTitle } = ctx;
   if (!sample) return EMPTY;
   const count = own ?? input;
   const fn = windowFunctions(parsed)[0];
@@ -51,7 +49,9 @@ export function windowScene(ctx: SceneContext): Scene {
   // one along stands in rather than leaving the value sitting next to a bare name.
   const colAt = (index: number | null): Col[] =>
     index === null ? [] : [cols[visible.indexOf(index)]!].filter(Boolean);
-  const frame = fn.order[0] ? findColumn(sample, visible, fn.order[0].replace(DIRECTIONS, ""), tableOf) : null;
+  const frame = fn.order[0]
+    ? findColumn(sample, visible, fn.order[0].replace(DIRECTIONS, ""), tableOf)
+    : null;
   // A partition key the user also selected is already the bucket's header, and printing it again
   // on every member of a pane it defines says nothing — unless it is all the row has.
   const paneCols = new Set(
@@ -90,7 +90,8 @@ export function windowScene(ctx: SceneContext): Scene {
         key: `w:${hash}`,
         // With no PARTITION BY the function sees one pane holding everything, and saying so is the
         // point: the panes are not a property of the rows, they are what the clause cut.
-        title: keys.length > 0 ? keys.map((k) => formatCell(raw[k] ?? null)).join(" · ") : "every row",
+        title:
+          keys.length > 0 ? keys.map((k) => formatCell(raw[k] ?? null)).join(" · ") : "every row",
         members,
         count: 0,
         summary: null,

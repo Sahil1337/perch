@@ -1,9 +1,11 @@
 // Output formatters for `perch run` (table/csv/json/ndjson). CSV is not written here: the RFC 4180
 // writer in server/http/csv.ts is the only one in the package, and `cli -> server` is a legal
 // import direction, so this just points `--format csv` at it with terminal-friendly options.
+// `--format json|ndjson` reaches the same way for the column/row zip the run export also uses.
 
 import type { Cell, ResultColumn, Row } from "@perch/protocol";
 import { toCsv } from "../../server/http/csv.js";
+import { rowsToObjects } from "../../server/http/rows.js";
 
 export type OutputFormat = "table" | "json" | "csv" | "ndjson";
 
@@ -36,17 +38,6 @@ export function formatCsv(columns: ResultColumn[], rows: Row[]): string {
     rows,
     { trailingEol: false },
   );
-}
-
-/** Rows as an array of `{ column: value }` objects, in column order. */
-export function rowsToObjects(columns: ResultColumn[], rows: Row[]): Record<string, Cell>[] {
-  return rows.map((r) => {
-    const obj: Record<string, Cell> = {};
-    columns.forEach((c, i) => {
-      obj[c.name] = r[i] ?? null;
-    });
-    return obj;
-  });
 }
 
 /** Pretty-printed JSON array of row objects. */

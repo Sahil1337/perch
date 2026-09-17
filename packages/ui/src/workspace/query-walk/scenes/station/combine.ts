@@ -48,7 +48,11 @@ function card(result: StationResult | undefined, id: string, title: string): Tab
   return plain(key, title, sample, total);
 }
 
-export function combineScene(station: Station, phase: number, result: StationResult | undefined): Scene {
+export function combineScene(
+  station: Station,
+  phase: number,
+  result: StationResult | undefined,
+): Scene {
   const word = station.label.replace(/ \d+$/, "");
   const hasRegions = station.batches.length > 1;
   const resultCount = countValue(result, "count");
@@ -56,7 +60,10 @@ export function combineScene(station: Station, phase: number, result: StationRes
   // Beat 1: the two results as they arrived, side by side.
   if (phase === 0) {
     return tables(
-      [card(result, "left", "the left-hand result"), card(result, "right", "the right-hand result")],
+      [
+        card(result, "left", "the left-hand result"),
+        card(result, "right", "the right-hand result"),
+      ],
       null,
       false,
     );
@@ -67,10 +74,25 @@ export function combineScene(station: Station, phase: number, result: StationRes
     const kept = keeps(word);
     // The region an operator's own answer already IS — see `buildSetStations`, which does not send
     // that query twice. Reading it off `sample` is not an inference: it is the same statement.
-    const isResult = word.startsWith("INTERSECT") ? "both" : word.startsWith("EXCEPT") ? "onlyLeft" : null;
+    const isResult = word.startsWith("INTERSECT")
+      ? "both"
+      : word.startsWith("EXCEPT")
+        ? "onlyLeft"
+        : null;
     const region = (id: string, title: string, survives: boolean): TableView => {
-      const view = card(result, id === isResult ? "" : id, `${title} — ${survives ? "kept" : "dropped"}`);
-      return { ...view, settled: true, rows: view.rows.map((row) => ({ ...row, verdict: survives ? "pass" as const : "fail" as const })) };
+      const view = card(
+        result,
+        id === isResult ? "" : id,
+        `${title} — ${survives ? "kept" : "dropped"}`,
+      );
+      return {
+        ...view,
+        settled: true,
+        rows: view.rows.map((row) => ({
+          ...row,
+          verdict: survives ? ("pass" as const) : ("fail" as const),
+        })),
+      };
     };
     return tables(
       [

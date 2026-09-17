@@ -50,7 +50,7 @@ const FOLD: Transition = {
   opacity: WALK_COLLAPSE.opacity,
 };
 
-export type WalkTransitions = {
+type WalkTransitions = {
   readonly spring: Transition;
   readonly fade: Transition;
   readonly collapse: Transition;
@@ -63,14 +63,25 @@ export function useT(): WalkTransitions {
   const reduced = useReducedMotion() ?? false;
   return reduced
     ? { spring: INSTANT, fade: INSTANT, collapse: INSTANT, fold: INSTANT, reduced: true }
-    : { spring: WALK_SPRING, fade: FADE, collapse: FOLD, fold: WALK_COLLAPSE.height, reduced: false };
+    : {
+        spring: WALK_SPRING,
+        fade: FADE,
+        collapse: FOLD,
+        fold: WALK_COLLAPSE.height,
+        reduced: false,
+      };
 }
 
 /** A fold whose every track starts after `delay` seconds, for staggered exits. */
 export function collapseAfter(t: WalkTransitions, delay: number): Transition {
   if (t.reduced) return INSTANT;
   const size = { ...WALK_COLLAPSE.height, delay };
-  return { height: size, width: size, marginBottom: size, opacity: { ...WALK_COLLAPSE.opacity, delay } };
+  return {
+    height: size,
+    width: size,
+    marginBottom: size,
+    opacity: { ...WALK_COLLAPSE.opacity, delay },
+  };
 }
 
 /**

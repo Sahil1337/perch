@@ -29,15 +29,21 @@ for (const [name, origin] of Object.entries(MIRRORED)) {
   if (readFileSync(copy, "utf8") === want) continue;
   if (fix) {
     writeFileSync(copy, want);
-    console.log(`@perch/sql: synced src/${name} from ${path.relative(path.join(here, "..", "..", ".."), origin)}`);
+    console.log(
+      `@perch/sql: synced src/${name} from ${path.relative(path.join(here, "..", "..", ".."), origin)}`,
+    );
   } else {
     drifted.push(`src/${name}  <=  ${path.relative(path.join(here, "..", "..", ".."), origin)}`);
   }
 }
 
 if (drifted.length > 0) {
-  console.error("@perch/sql has drifted from the files apps/server owns:\n  " + drifted.join("\n  "));
-  console.error("\napps/server is the authority. Re-sync with:\n  bun run --filter @perch/sql check -- --fix");
+  console.error(
+    "@perch/sql has drifted from the files apps/server owns:\n  " + drifted.join("\n  "),
+  );
+  console.error(
+    "\napps/server is the authority. Re-sync with:\n  bun run --filter @perch/sql check -- --fix",
+  );
   process.exit(1);
 }
 console.log("@perch/sql: in-sync check passed");

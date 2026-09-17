@@ -12,7 +12,6 @@ function wrap(code: string, s: string): string {
 export const bold = (s: string): string => wrap("1", s);
 export const dim = (s: string): string => wrap("2", s);
 export const red = (s: string): string => wrap("31", s);
-export const green = (s: string): string => wrap("32", s);
 
 export function printJson(value: unknown): void {
   console.log(JSON.stringify(value, null, 2));

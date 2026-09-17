@@ -178,27 +178,10 @@ export function FilesList({ className }: { className?: string }): React.ReactEle
       </GroupHeader>
       <FolderPicker onOpenChange={setPickingRoot} onPick={openRoot} open={pickingRoot} />
 
-      {rootError !== null && (
-        <p
-          className="flex shrink-0 items-start gap-1.5 border-destructive/24 border-y bg-destructive/8 px-2 py-1.5 text-destructive-foreground text-xs"
-          onClick={clearError}
-          role="alert"
-        >
-          <TriangleAlertIcon className="size-3.5 shrink-0" />
-          <span className="min-w-0">{rootError}</span>
-        </p>
-      )}
+      {rootError !== null && <ErrorBanner onDismiss={clearError}>{rootError}</ErrorBanner>}
 
-      {workspace.status === "error" && (
-        // Above the tree, not instead of it: a browsable stale tree beats an empty panel.
-        <p
-          className="flex shrink-0 items-start gap-1.5 border-destructive/24 border-y bg-destructive/8 px-2 py-1.5 text-destructive-foreground text-xs"
-          role="alert"
-        >
-          <TriangleAlertIcon className="size-3.5 shrink-0" />
-          <span className="min-w-0">{workspace.error}</span>
-        </p>
-      )}
+      {/* Above the tree, not instead of it: a browsable stale tree beats an empty panel. */}
+      {workspace.status === "error" && <ErrorBanner>{workspace.error}</ErrorBanner>}
 
       <div className="min-h-0 flex-1 overflow-y-auto pb-1">
         {entries === undefined ? (
@@ -238,11 +221,30 @@ export function FilesList({ className }: { className?: string }): React.ReactEle
           })
         )}
       </div>
-
     </div>
   );
 }
 
 function Note({ children }: { children: React.ReactNode }): React.ReactElement {
   return <p className="px-2 py-1.5 text-muted-foreground text-xs">{children}</p>;
+}
+
+/** The panel's full-width failure line. Sits above the tree, never in place of it. */
+function ErrorBanner({
+  children,
+  onDismiss,
+}: {
+  children: React.ReactNode;
+  onDismiss?: () => void;
+}): React.ReactElement {
+  return (
+    <p
+      className="flex shrink-0 items-start gap-1.5 border-destructive/24 border-y bg-destructive/8 px-2 py-1.5 text-destructive-foreground text-xs"
+      onClick={onDismiss}
+      role="alert"
+    >
+      <TriangleAlertIcon className="size-3.5 shrink-0" />
+      <span className="min-w-0">{children}</span>
+    </p>
+  );
 }

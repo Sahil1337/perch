@@ -21,6 +21,7 @@ import { ScrollArea } from "../ui/scroll-area";
 import { Skeleton } from "../ui/skeleton";
 import { useWorkspace } from "../workspace/context";
 import { asyncData } from "../workspace/types";
+import { ErrorText } from "../workspace/error-text";
 import { ConnectionsSection } from "./connections-section";
 import { SavedTick, useSettingsWriter } from "./saved-tick";
 import { AppearanceSection, EditorSection, FilesSection, QuerySection } from "./sections";
@@ -64,7 +65,9 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps): Rea
               aria-current={pane === item.id ? "page" : undefined}
               className={cn(
                 "relative flex h-8 cursor-pointer items-center gap-2 rounded-md px-2 text-left text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
-                pane === item.id ? "text-foreground" : "text-muted-foreground hover:text-foreground",
+                pane === item.id
+                  ? "text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
               )}
               key={item.id}
               onClick={() => setPane(item.id)}
@@ -141,11 +144,7 @@ function Panes({
 
 function SettingsSkeleton({ status }: { status: string }): React.ReactElement {
   if (status === "error") {
-    return (
-      <p className="text-destructive-foreground text-xs" role="alert">
-        Settings could not be loaded.
-      </p>
-    );
+    return <ErrorText>Settings could not be loaded.</ErrorText>;
   }
   return (
     <div aria-label="Loading settings" className="flex flex-col gap-4 py-2">

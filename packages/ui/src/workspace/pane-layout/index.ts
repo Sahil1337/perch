@@ -23,14 +23,7 @@ export {
 
 export { findGroup, groupOf, groups, isGroup, paneGroup, panesOf, singleGroup } from "./tree";
 
-export {
-  activatePane,
-  focusGroup,
-  movePane,
-  openPane,
-  removePane,
-  setBranchSizes,
-} from "./operations";
+export { activatePane, focusGroup, movePane, openPane, setBranchSizes } from "./operations";
 
 export { reconcile } from "./reconcile";
 

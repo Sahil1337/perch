@@ -8,9 +8,10 @@
 // setting, and may be one load stale.
 
 import type { Settings } from "@perch/protocol";
+import { readRaw, writeRaw } from "./storage";
 
 /** Where the paint hint lives. Written by `applyTheme`, read by `THEME_BOOT_SCRIPT`. */
-export const THEME_STORAGE_KEY = "perch.theme";
+const THEME_STORAGE_KEY = "perch.theme";
 
 /**
  * Puts a theme on the document and remembers it for the next load.
@@ -21,22 +22,15 @@ export const THEME_STORAGE_KEY = "perch.theme";
  */
 export function applyTheme(theme: Settings["theme"]): void {
   document.documentElement.classList.toggle("dark", theme === "dark");
-  try {
-    localStorage.setItem(THEME_STORAGE_KEY, theme);
-  } catch {
-    // Private windows and blocked site data. The theme still applies; it just is not remembered,
-    // which costs one flash on the next load and nothing else.
-  }
+  // A store that will not take it — a private window, blocked site data — costs one flash on the
+  // next load and nothing else. The theme itself has already applied.
+  writeRaw(THEME_STORAGE_KEY, theme);
 }
 
 /** The hint, if this browser has one. Not the setting — the server owns that. */
 export function storedTheme(): Settings["theme"] | undefined {
-  try {
-    const stored = localStorage.getItem(THEME_STORAGE_KEY);
-    return stored === "dark" || stored === "light" ? stored : undefined;
-  } catch {
-    return undefined;
-  }
+  const stored = readRaw(THEME_STORAGE_KEY);
+  return stored === "dark" || stored === "light" ? stored : undefined;
 }
 
 /**
