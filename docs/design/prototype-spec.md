@@ -69,7 +69,7 @@ Flattened from the mockup's five levels to two:
 | Highlighting                              | `@codemirror/lang-sql`, `PostgreSQL` / `MySQL` dialect per connection |
 | `table.column` completion                 | same package's `schema` option, fed from `DatabaseSchema`             |
 | Alias resolution (`from orders o` → `o.`) | built in                                                              |
-| Format document                           | `sql-formatter`, `⇧⌥F`, `keywordCase: "lower"`                        |
+| Format document                           | `prettier-plugin-sql-cst`, `⇧⌥F`, `keywordCase: "lower"`              |
 | Error squiggle                            | `@codemirror/lint`, at `statement.offset + error.position`            |
 | Settings at runtime                       | compartments — no remount, no lost cursor                             |
 
@@ -82,8 +82,18 @@ the server as the only source of truth avoids maintaining a second, subtly-wrong
 Keep the existing `highlightSql` regex tokeniser for read-only SQL previews (history rows,
 palette entries) — a CodeMirror instance per list row would be absurd.
 
-`sql-formatter` is lazy-loaded on first use and throws on input it cannot parse; catch and keep
-the original text. Format per statement, skipping any statement containing a dollar-quoted body.
+`prettier-plugin-sql-cst` parses into a CST and prints through Prettier, so layout follows the
+text: a clause that fits stays on one line. Lazy-loaded on first use.
+
+A real grammar rejects what it does not know, and this one has holes: `EXPLAIN (ANALYZE, …)`,
+`VACUUM` and `COPY … FROM` on PostgreSQL; `GROUP_CONCAT(… SEPARATOR …)`, index hints and
+`CAST(x AS UNSIGNED)` on MySQL. Those statements keep the author's text — deliberately, rather
+than carrying a second tokenising formatter to reflow them.
+
+Format per statement, so one unreadable statement costs only itself. Case follows
+`Settings.keywordCase` — keywords, literals and type names together, so `preserve` really
+preserves. Canonical-syntax rewriting is off (`orders o` must not become `orders AS o`):
+formatting moves whitespace, it does not edit what someone wrote.
 
 ## Results (D's sheet, docked)
 

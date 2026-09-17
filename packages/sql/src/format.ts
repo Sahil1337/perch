@@ -28,8 +28,8 @@ type Printer = {
  * not breaks. `prettier/standalone` is the browser build — the default entry point reaches for
  * node:fs.
  *
- * Both are lazily imported, and memoised so a second format does not pay the import again. They
- * are the largest thing reachable from the editor and most sessions never format anything.
+ * Lazily imported, and memoised so a second format does not pay the import again. It is the
+ * largest thing reachable from the editor and most sessions never format anything.
  */
 let printer: Promise<Printer> | undefined;
 const loadPrinter = (): Promise<Printer> =>
@@ -41,34 +41,24 @@ const loadPrinter = (): Promise<Printer> =>
     return { format: prettier.format, plugin };
   })());
 
-/**
- * `sql-formatter` only tokenises, so it never fails to produce *something*. That makes it the
- * floor under the parser: a real grammar rejects what it does not know, and the CST plugin's
- * PostgreSQL grammar has holes worth caring about in a SQL client — `EXPLAIN (ANALYZE, …)`,
- * `VACUUM`, `COPY … FROM`. On MySQL it misses `GROUP_CONCAT(… SEPARATOR …)`, index hints and
- * `CAST(x AS UNSIGNED)`. Those statements format the way they did before this plugin existed
- * rather than silently doing nothing.
- *
- * Imported only when a statement actually needs it, so a document of ordinary SQL never loads it.
- */
-let fallback: Promise<typeof import("sql-formatter")> | undefined;
-const loadFallback = (): Promise<typeof import("sql-formatter")> =>
-  (fallback ??= import("sql-formatter"));
-
-/** The dialect names both formatters happen to share. */
-const languageOf = (dialect: Dialect): "mysql" | "postgresql" =>
+/** The dialect names the plugin's parsers go by. */
+const parserFor = (dialect: Dialect): "mysql" | "postgresql" =>
   dialect === "mysql" ? "mysql" : "postgresql";
 
+/**
+ * A real grammar rejects what it does not know, and this one has holes: `EXPLAIN (ANALYZE, …)`,
+ * `VACUUM` and `COPY … FROM` on PostgreSQL; `GROUP_CONCAT(… SEPARATOR …)`, index hints and
+ * `CAST(x AS UNSIGNED)` on MySQL. Those statements — and any statement still being typed — keep
+ * the author's text rather than costing 285K of tokeniser to reflow.
+ */
 async function formatStatement(
   statement: string,
   options: Required<FormatSqlOptions>,
 ): Promise<string> {
-  const language = languageOf(options.dialect);
-
   try {
     const { format, plugin } = await loadPrinter();
     const formatted = await format(statement, {
-      parser: language,
+      parser: parserFor(options.dialect),
       plugins: [plugin],
       printWidth: options.printWidth,
       tabWidth: 2,
@@ -87,18 +77,6 @@ async function formatStatement(
     });
     return formatted.trimEnd();
   } catch {
-    // A construct the grammar does not cover, or a statement still being typed.
-  }
-
-  try {
-    const { format } = await loadFallback();
-    return format(statement, {
-      keywordCase: options.keywordCase,
-      language,
-      tabWidth: 2,
-    }).trimEnd();
-  } catch {
-    // Unparseable by either. Keep the author's text.
     return statement;
   }
 }
@@ -106,10 +84,10 @@ async function formatStatement(
 /**
  * Formats each statement in `sql` independently.
  *
- * Per statement rather than per document because one statement neither formatter can read should
- * not cost you the formatting of the other nine, and because re-assembling the text from the
- * original gaps between statements leaves the comments, blank lines and semicolons between them
- * exactly as they were.
+ * Per statement rather than per document because one statement the parser cannot read should not
+ * cost you the formatting of the other nine, and because re-assembling the text from the original
+ * gaps between statements leaves the comments, blank lines and semicolons between them exactly as
+ * they were.
  */
 export async function formatSql(sql: string, options: FormatSqlOptions): Promise<string> {
   const statements = splitStatements(sql);
