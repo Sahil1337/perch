@@ -47,7 +47,7 @@
 #           bun-version: latest
 #       - run: bun install --frozen-lockfile
 #       - run: bun run --filter perch build
-#       - run: node apps/server/dist/cli/main.js --version && node apps/server/dist/cli/main.js conn ls
+#       - run: node apps/server/dist/cli/main.js --version && node apps/server/dist/cli/main.js status
 #         env:
 #           PERCH_HOME: ${{ runner.temp }}/perch-home
 #

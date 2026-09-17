@@ -17,27 +17,16 @@ apps/server/
 │   │                         (run it as `bun run --filter perch smoke` from the root)
 │   └── postbuild.mjs         chmod +x on dist/cli/main.js after `tsc`
 └── src/
-    ├── cli/                  everything the `perch` binary does
+    ├── cli/                  everything the `perch` binary does: serve, stop, status
     │   ├── main.ts           the entry point (shebang, --version/--help, dispatch).
-    │   │                     package.json "bin" → dist/cli/main.js. Command modules are
-    │   │                     imported lazily, so `perch run` never loads the HTTP server.
+    │   │                     package.json "bin" → dist/cli/main.js. The command module is
+    │   │                     imported lazily, so --version never loads the HTTP server.
     │   ├── commands/         one module per command group — thin: parse args, call, print.
     │   │   │                 Every one is a `defineCommand({...}, handler)` (see below)
-    │   │   ├── serve.ts      `perch serve` (the default command), `perch stop`, `perch status`
-    │   │   ├── discover.ts   `perch discover` — local Postgres/MySQL servers, as a table
-    │   │   ├── conn.ts       `perch conn add|ls|rm|test|dbs`
-    │   │   ├── schema.ts     `perch schema <conn>`
-    │   │   ├── run.ts        `perch run <conn> (<file> | -e <sql> | -)` — straight through the
-    │   │   │                 driver, no server involved; exit 1 on SQL error
-    │   │   ├── history.ts    `perch history`
-    │   │   ├── files.ts      `perch files ls [dir]`
-    │   │   └── settings.ts   `perch settings get|set`
-    │   ├── output/
-    │   │   └── format.ts     output formatters: table / csv / json / ndjson
+    │   │   └── serve.ts      `perch serve` (the default command), `perch stop`, `perch status`
     │   └── util/             CLI leaf helpers, re-exported from util/index.ts
     │       ├── command.ts    defineCommand(): the scaffold every command is built on
     │       ├── ansi.ts       TTY styling; every helper no-ops off a TTY or under NO_COLOR
-    │       ├── args.ts       stdin reading, connection lookup, withDriver()
     │       └── errors.ts     CliError — expected failures print as one line, no stack
     ├── core/                 framework-free, no I/O, no dependencies on any other layer
     │   ├── sql/split.ts      statement splitter (strings, identifiers, comments, $$ bodies)
@@ -129,7 +118,7 @@ apps/server/
     │       ├── body.ts       readJsonBody() plus the str/num/bool coercions every route needs
     │       ├── ndjson.ts     one JSON value per line, flushed in order (POST /api/query)
     │       ├── sse.ts        `event: <type>` frames plus the `: ping` keep-alive
-    │       └── csv.ts        RFC 4180 writer, shared by /export and the CLI
+    │       └── csv.ts        RFC 4180 writer, behind GET /api/runs/:id/export?format=csv
     ├── util/                 leaf helpers; import nothing from the other layers
     │   ├── atomic-write.ts   writeFileAtomic(): temp file + rename, with the Windows rename
     │   │                     retry (EPERM/EBUSY while an editor or scanner holds the target)
@@ -255,7 +244,7 @@ list.
 script in any workspace. What stands in for one:
 
 - `.github/workflows/server.yml` — `typecheck`, `lint`, `build` and a CLI smoke
-  (`--version`, `conn ls`) run on **Node** across 22/24 × ubuntu/windows/macos, plus a second job
+  (`--version`, `status`) run on **Node** across 22/24 × ubuntu/windows/macos, plus a second job
   that runs `apps/server/scripts/smoke.sh` against a real Postgres service container.
   **That smoke script is the only end-to-end exercise of the HTTP API** — it starts a server,
   drives the routes and shuts it down. It is load-bearing, not a nicety; do not drop it.

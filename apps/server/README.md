@@ -1,8 +1,9 @@
 # perch — server and CLI
 
 The engine room of [perch](../../README.md), a lightweight SQL client for Postgres and MySQL.
-`perch` is a single CLI binary that can start a local web UI server, or run SQL directly from your
-terminal without any server at all.
+`perch` is a single binary: the CLI starts, stops and inspects the local server, and everything
+else — connections, schema, queries, files, history, settings — is the HTTP API that server
+serves, which the UI is a pure client of.
 
 > The package is still named `perch` and the binary `perch`; the rename to perch is in
 > progress, docs first. Commands below are what you type today.
@@ -33,12 +34,14 @@ the other runtime this CLI has to work on — see CONTRIBUTING.md.
 ## Quick start
 
 ```sh
-perch conn add local postgres://postgres@localhost:5432/postgres  # save a connection
-perch conn test local                                             # check it connects
-perch run local -e "select 1"                                     # run SQL, no server needed
-perch schema local                                                 # browse tables
-perch serve                                                        # start the UI + API, opens a browser
+perch                       # start the UI + API and open a browser (serve is the default command)
+perch serve --port 4600     # the same thing, explicitly, on a port of your choosing
+perch status                # is a server running, and where
+perch stop                  # stop it
 ```
+
+Connections, schema, queries, files, history and settings are all reached over the HTTP API below
+(and through the UI that sits on it).
 
 ## Commands
 
@@ -47,21 +50,11 @@ perch serve                                                        # start the U
 | `perch [serve]`              | `perch serve --port 4600 --dir ~/sql --no-open` — starts the local server (default command). Prints `perch v0.1.0 → http://127.0.0.1:4600` and opens it in your browser. If a server is already running (per `server.json`), just prints/opens its URL instead of starting a second one. `--dir` adds a workspace directory the file API may read/write from (repeatable; persisted to settings). `--ui <dir>` serves a prebuilt UI from disk. |
 | `perch stop`                 | `perch stop` — sends `SIGTERM` to the running server (from `server.json`) and clears the file.                                                                                                                                                                                                                                                                                                                                                 |
 | `perch status`               | `perch status --json` — prints the running server's info, or `not running`.                                                                                                                                                                                                                                                                                                                                                                    |
-| `perch conn add`             | `perch conn add local postgres://user:pass@host:5432/db --test`, or with explicit flags: `perch conn add prod --dialect mysql --host db.internal --user app --password-stdin --database app`                                                                                                                                                                                                                                                   |
-| `perch conn ls`              | `perch conn ls --json` — lists saved connections (never prints passwords).                                                                                                                                                                                                                                                                                                                                                                     |
-| `perch conn rm`              | `perch conn rm local` — removes a saved connection.                                                                                                                                                                                                                                                                                                                                                                                            |
-| `perch conn test`            | `perch conn test local` — round-trips `select version()` (or equivalent) and prints latency.                                                                                                                                                                                                                                                                                                                                                   |
-| `perch conn dbs`             | `perch conn dbs local` — lists databases visible to the connection.                                                                                                                                                                                                                                                                                                                                                                            |
-| `perch schema`               | `perch schema local`, or `perch schema local --table public.orders --json` — schema/table tree, or one table's columns.                                                                                                                                                                                                                                                                                                                        |
-| `perch run`                  | `perch run local query.sql`, `perch run local -e "select * from orders limit 10"`, `cat q.sql \| perch run local -` — runs SQL **directly through the driver**, no server involved. `--format table\|json\|csv\|ndjson`, `--max-rows`, `--timeout`, `--database`. Exits 1 on SQL error, printing a caret under the error position.                                                                                                             |
-| `perch history`              | `perch history --limit 20 --conn local [--json]` — recent runs (CLI and UI) from local history.                                                                                                                                                                                                                                                                                                                                                |
-| `perch files ls`             | `perch files ls ~/sql --json` — lists `.sql` files and subdirectories in a directory (hidden entries skipped).                                                                                                                                                                                                                                                                                                                                 |
-| `perch settings get` / `set` | `perch settings get maxRows`, `perch settings set autosave false`                                                                                                                                                                                                                                                                                                                                                                              |
 | `perch --version`            | prints the installed version                                                                                                                                                                                                                                                                                                                                                                                                                   |
 
-Every command accepts `--help`; commands that print data accept `--json` for machine-readable
-output. Both are handled by the one scaffold every command is built on, which also means a
-command called without a required argument exits 1 with `missing <name>` and its usage line.
+Every command accepts `--help`, and `perch status` accepts `--json` for machine-readable output.
+Both are handled by the one scaffold every command is built on, which also means a command called
+without a required argument exits 1 with `missing <name>` and its usage line.
 
 ## HTTP API (`perch serve`)
 
