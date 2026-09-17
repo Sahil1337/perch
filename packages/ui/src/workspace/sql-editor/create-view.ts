@@ -32,6 +32,7 @@ import type * as React from "react";
 import type { CursorPosition } from "../types";
 import type { EditorBridge } from "./editor-commands";
 import { formatDocument } from "./format-document";
+import { formatNotice } from "./format-notice";
 import { statementAtCursor } from "./statements";
 import { cellHeight, editorThemeBase, paneHeight, sqlHighlighting } from "./theme";
 
@@ -100,6 +101,7 @@ export function createEditorView({
             },
           ]),
         ),
+        formatNotice,
         history(),
         drawSelection(),
         dropCursor(),

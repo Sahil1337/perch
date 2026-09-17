@@ -8,4 +8,4 @@
 
 export { splitStatements, type SplitStatement } from "./split";
 export { scanComments, stripComments, type SqlComment } from "./comments";
-export { formatSql, type FormatSqlOptions } from "./format";
+export { formatSql, type FormatSqlOptions, type FormatSqlResult } from "./format";

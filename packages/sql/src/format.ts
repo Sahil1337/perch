@@ -7,6 +7,17 @@
 import type { Dialect, Settings } from "@perch/protocol";
 import { splitStatements } from "./split";
 
+export type FormatSqlResult = {
+  /** The formatted script. */
+  text: string;
+  /**
+   * Offsets, in the original `sql`, of the statements the parser could not read. Empty when
+   * everything formatted. The caller turns these into something a person can act on — which is
+   * the point: a statement left exactly as typed is indistinguishable from one already formatted.
+   */
+  unformatted: number[];
+};
+
 export type FormatSqlOptions = {
   dialect: Dialect;
   /** `Settings.keywordCase`. `"preserve"` leaves every keyword as the author typed it. */
@@ -49,12 +60,13 @@ const parserFor = (dialect: Dialect): "mysql" | "postgresql" =>
  * A real grammar rejects what it does not know, and this one has holes: `EXPLAIN (ANALYZE, …)`,
  * `VACUUM` and `COPY … FROM` on PostgreSQL; `GROUP_CONCAT(… SEPARATOR …)`, index hints and
  * `CAST(x AS UNSIGNED)` on MySQL. Those statements — and any statement still being typed — keep
- * the author's text rather than costing 285K of tokeniser to reflow.
+ * the author's text rather than costing 285K of tokeniser to reflow. `null` says so, so the
+ * caller can tell the difference between "left alone" and "already formatted".
  */
 async function formatStatement(
   statement: string,
   options: Required<FormatSqlOptions>,
-): Promise<string> {
+): Promise<string | null> {
   try {
     const { format, plugin } = await loadPrinter();
     const formatted = await format(statement, {
@@ -77,7 +89,7 @@ async function formatStatement(
     });
     return formatted.trimEnd();
   } catch {
-    return statement;
+    return null;
   }
 }
 
@@ -89,9 +101,12 @@ async function formatStatement(
  * gaps between statements leaves the comments, blank lines and semicolons between them exactly as
  * they were.
  */
-export async function formatSql(sql: string, options: FormatSqlOptions): Promise<string> {
+export async function formatSql(
+  sql: string,
+  options: FormatSqlOptions,
+): Promise<FormatSqlResult> {
   const statements = splitStatements(sql);
-  if (statements.length === 0) return sql;
+  if (statements.length === 0) return { text: sql, unformatted: [] };
 
   const resolved: Required<FormatSqlOptions> = {
     dialect: options.dialect,
@@ -99,13 +114,16 @@ export async function formatSql(sql: string, options: FormatSqlOptions): Promise
     printWidth: options.printWidth ?? DEFAULT_PRINT_WIDTH,
   };
 
+  const unformatted: number[] = [];
   let out = "";
   let cursor = 0;
   for (const statement of statements) {
     // Whatever sits between the previous statement and this one — the semicolon, blank lines,
     // comments — is copied verbatim.
     out += sql.slice(cursor, statement.offset);
-    out += await formatStatement(statement.sql, resolved);
+    const formatted = await formatStatement(statement.sql, resolved);
+    if (formatted === null) unformatted.push(statement.offset);
+    out += formatted ?? statement.sql;
     cursor = statement.offset + statement.sql.length;
   }
   out += sql.slice(cursor);
@@ -114,5 +132,5 @@ export async function formatSql(sql: string, options: FormatSqlOptions): Promise
   // into `out` on its own; put back exactly one if the original had one.
   if (/\n\s*$/.test(sql) && !out.endsWith("\n")) out += "\n";
 
-  return out;
+  return { text: out, unformatted };
 }
