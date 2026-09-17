@@ -6,14 +6,17 @@ import type { KeyPair } from "../../clauses";
 import { sourceTitle } from "../../steps";
 import { colsOf, findColumn, positional, rowsOf, visibleIndices, withHl } from "../columns";
 import type { SceneContext } from "../context";
-import { countValue, okResult } from "../results";
+import { countValue, joinKeys, okResult } from "../results";
 import { EMPTY, type Scene, type TableView } from "../types";
 import { plain, tables } from "../view";
 
 export function joinScene(ctx: SceneContext): Scene {
-  const { walk, phase, station, result, tableOf, chainTitle, input, own, prevSample } = ctx;
+  const { walk, index, phase, station, result, tableOf, chainTitle, input, own, prevSample } = ctx;
   const join = station.join!;
   const j = station.joinIndex;
+  // A natural join names no columns, so these are the ones it was found to share. Null means the
+  // sides have not both landed; nothing is lit until they have, which is what was on screen anyway.
+  const keys = joinKeys(walk, index, station) ?? [];
   const joined = okResult(result, "sample");
   if (!joined) return EMPTY;
   const right = okResult(walk.results[0], `src${j + 1}.sample`);
@@ -32,7 +35,7 @@ export function joinScene(ctx: SceneContext): Scene {
     refs: (pair: KeyPair) => string,
   ): Set<string> =>
     new Set(
-      join.keys.flatMap((pair) => {
+      keys.flatMap((pair) => {
         const found = findColumn(sample, indices, refs(pair), tableOf);
         return found === null ? [] : [positional(found)];
       }),

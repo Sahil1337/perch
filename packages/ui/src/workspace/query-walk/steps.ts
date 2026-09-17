@@ -819,8 +819,13 @@ export function buildStations(parsed: ParsedSelect, dialect: Dialect): Station[]
     if (join.kind === "inner" && join.label !== ",") {
       // The same chain with this join spelled as a left join: the rows an inner join drops are the
       // ones that come back with nothing on the right.
+      //
+      // `NATURAL` has to survive the rewrite. It is part of the join's keyword run, so replacing
+      // that run outright leaves `left join t` with no condition at all — which is a syntax error,
+      // not a wider join, and the probe came back empty every time.
+      const spelled = join.natural ? "natural left join" : "left join";
       const pairs =
-        `select *\n${text.slice(parsed.fromKeyword.from, join.keyword.from)}left join${text.slice(join.keyword.to, join.range.to)}`;
+        `select *\n${text.slice(parsed.fromKeyword.from, join.keyword.from)}${spelled}${text.slice(join.keyword.to, join.range.to)}`;
       queries.push({ id: "pairs", label: "Every pairing (as a left join)", sql: limited(pairs) });
     }
     stations.push({

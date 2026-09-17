@@ -2,9 +2,9 @@
 // the phases each station plays through.
 
 import type { BoundPlan, BoundRow } from "./bound";
-import type { JoinClause, SubqueryPredicateKind } from "./clauses";
+import type { JoinClause, KeyPair, SubqueryPredicateKind } from "./clauses";
 import { cellFound, isNegativeKind, type GridBuild } from "./grid";
-import { previousIndex, sampleId, type AnswerView } from "./scenes";
+import { joinKeys, previousIndex, sampleId, type AnswerView } from "./scenes";
 import { caseExpressions, sourceTitle, WALK_PREFIX, type WindowFn, windowFunctions } from "./steps";
 import type { StationState, WalkData } from "./use-walk";
 
@@ -76,10 +76,27 @@ function paneKeys(fn: WindowFn): string {
   return fn.partition.map(code).join(" and ");
 }
 
-function joinCondition(join: JoinClause): string {
+/** `keys` is what the join was FOUND to match on, which for a natural join is not what it says. */
+function joinCondition(join: JoinClause, keys: readonly KeyPair[] | null): string {
+  if (join.natural) {
+    // Null is "the sides have not both landed", and the columns cannot be named until they have.
+    // The rule can be, though, and it is the half that matters: a reader who knows a natural join
+    // matches on shared names already knows to go looking for one they did not intend.
+    if (keys === null) return "the column names both sides share match";
+    return `${list(keys.map((pair) => code(pair.left)))} ${keys.length === 1 ? "matches" : "match"}`;
+  }
   if (join.using) return `${code(`using (${join.keys.map((pair) => pair.left).join(", ")})`)} matches`;
   if (join.keys.length === 0) return "the ON condition holds";
   return join.keys.map((pair) => code(`${pair.left} = ${pair.right}`)).join(" and ");
+}
+
+/** The half of a natural join's sentence that says where its condition came from. */
+function naturalSource(keys: readonly KeyPair[] | null, left: string, right: string): string {
+  if (keys === null || keys.length === 0) return "";
+  const named = list(keys.map((pair) => code(pair.left)));
+  return keys.length === 1
+    ? ` Nothing in the query says ${named}: it is the one column name ${left} and ${right} share, and a natural join matches on every one of them.`
+    : ` Nothing in the query says ${named}: those are the column names ${left} and ${right} share, and a natural join matches on every one of them, not just the one you had in mind.`;
 }
 
 /**
@@ -167,7 +184,14 @@ export function sentenceFor(
       if (join.kind === "cross") {
         return `Pair every row of ${left} with every row of ${right}. There is no condition, so the result is one row per combination.`;
       }
-      const pair = `Pair each row of ${left} with its match in ${right} where ${joinCondition(join)}.`;
+      const keys = joinKeys(walk, index, station);
+      // A natural join between two sides that share no column name has nothing to match on, and a
+      // database does not refuse it: it quietly becomes a cross join. Reaching the sentence below
+      // would announce a condition that does not exist over a result that just squared.
+      if (join.natural && keys !== null && keys.length === 0) {
+        return `A natural join matches on the column names both sides share, and ${left} and ${right} share none. With no condition left to apply it pairs every row with every row, exactly as a cross join would.`;
+      }
+      const pair = `Pair each row of ${left} with its match in ${right} where ${joinCondition(join, keys)}.${join.natural ? naturalSource(keys, left, right) : ""}`;
       switch (join.kind) {
         case "left":
           return `${pair} With a left join a row with no match is kept, and its ${right} columns are null.`;

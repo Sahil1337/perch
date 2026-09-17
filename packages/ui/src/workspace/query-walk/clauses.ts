@@ -63,6 +63,14 @@ export type JoinClause = {
   /** Equality pairs found in the ON clause, or the USING columns. Empty when not extractable. */
   readonly keys: readonly KeyPair[];
   readonly using: boolean;
+  /**
+   * Written `NATURAL`, so the columns it joins on are not in the query at all.
+   *
+   * They are every column name the two sides have in common, which cannot be read off the text: it
+   * depends on what the left side is carrying by the time the join happens. `keys` is empty for one
+   * of these, and `joinKeys` derives the real ones from the samples once they land.
+   */
+  readonly natural: boolean;
 };
 
 export type Clause = {
@@ -703,6 +711,7 @@ function parseTokens(
         source,
         keys: [],
         using: false,
+        natural: false,
       });
       fromEnd = source.range.to;
       continue;
@@ -739,19 +748,29 @@ function parseTokens(
       const parens = toks[i + 1]!;
       end = parens.to;
       using = true;
+      // Everything inside `using (…)` is a column name. Nothing else can be there, so the names are
+      // taken by removing the punctuation rather than by keeping what the grammar calls an
+      // identifier: a dialect's keyword list wins over that test, and `using (id)` reads as a
+      // KEYWORD under the PostgreSQL grammar. Filtering for identifiers dropped it — `using (id)`
+      // came back with no keys at all, and `using (id, dept)` with only `dept` — so the column a
+      // join actually matched on was the one column the walk would not light.
       keys = children(parens.node, text)
-        .filter((child) => IDENT.has(child.name))
+        .filter((child) => child.name !== "(" && child.name !== ")" && child.name !== "Punctuation")
         .map((child) => ({ left: child.text, right: child.text }));
       i += 2;
     }
     joins.push({
-      kind: natural ? "inner" : kind,
+      // `NATURAL` says how the join finds its condition, not which rows it keeps: a
+      // `NATURAL LEFT JOIN` is still a left join, and reading it as an inner one both narrates the
+      // wrong rule and sends the walk looking for unmatched rows a left join has already kept.
+      kind,
       label: words.join(" ").toUpperCase(),
       range: { from: kwStart.from, to: end },
       keyword: { from: kwStart.from, to: joinKw.to },
       source,
       keys,
       using,
+      natural,
     });
     fromEnd = end;
   }
