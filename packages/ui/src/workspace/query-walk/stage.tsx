@@ -221,6 +221,19 @@ function Table({
       className="shrink-0 overflow-hidden rounded-lg border bg-card shadow-sm/5"
       exit={{ opacity: 0 }}
       initial={{ opacity: 0 }}
+      // The two spacers a row carries besides its columns, as widths rather than as props, because
+      // the rows centre their content: a row is placed by how wide it is, so any row that disagrees
+      // about a spacer is drawn out of line with the rest. `AnimatePresence` renders a LEAVING row
+      // from the element it last returned, props and all, so a row on its way out of a card that has
+      // just stopped stamping verdicts would hold a 22px gutter the header and its neighbours had
+      // already dropped — and be centred 11px to their right for as long as it took to collapse.
+      // Read off the card instead, a leaving row follows the card it is leaving.
+      style={
+        {
+          "--gutter": marks ? "1.375rem" : "0rem",
+          "--fold": hidden.length > 0 ? "3rem" : "0rem",
+        } as React.CSSProperties
+      }
       // POSITION, not size. A bare `layout` animates a card's width and height by SCALING it and
       // then un-scaling every projection node inside, which is both the most expensive thing on this
       // stage — a correction written to every child, every frame — and a second animation of a
@@ -282,19 +295,24 @@ function Table({
       ) : (
         <>
           <div className="flex h-7 items-stretch justify-center border-b">
-            {marks && <div className="w-5.5 shrink-0" />}
+            <div className="w-(--gutter) shrink-0" />
             {view.cols.map((col) => (
               <HeaderCell col={col} key={col.id} />
             ))}
             {hidden.length > 0 && (
               <div
-                className="flex h-7 w-12 shrink-0 items-center justify-center font-mono text-muted-foreground text-xs"
+                className="flex h-7 w-(--fold) shrink-0 items-center justify-center font-mono text-muted-foreground text-xs"
                 title={`${hidden.length} more columns: ${hidden.join(", ")}`}
               >
                 +{hidden.length}
               </div>
             )}
           </div>
+          {view.note && (
+            <p className="border-b bg-muted/40 px-3 py-1.5 text-muted-foreground text-xs leading-5">
+              {view.note}
+            </p>
+          )}
           {/* The rows scroll under the header rather than growing the card past the stage: a
               25-row sample is three screens tall, and the card's title has to stay in sight. The
               cap is 16 rows: `h-7` plus each row's own bottom border, so no row is cut in half. */}
@@ -312,10 +330,8 @@ function Table({
                   <Row
                     cols={view.cols}
                     count={view.rows.length}
-                    folded={hidden.length > 0}
                     index={item.index}
                     key={item.row.key}
-                    marks={marks}
                     row={item.row}
                     settled={view.settled === true}
                   />
@@ -400,8 +416,6 @@ function Row({
   cols,
   index,
   count,
-  folded,
-  marks,
   settled,
 }: {
   row: RowView;
@@ -409,10 +423,6 @@ function Row({
   index: number;
   /** How many rows are moving together, which is what bounds the stagger. See `staggerDelay`. */
   count: number;
-  /** The card folded some columns away: this row needs the same placeholder its header has. */
-  folded: boolean;
-  /** Some row on this card carries a verdict, so every row keeps the gutter the marks sit in. */
-  marks: boolean;
   /** The card arrived with its verdicts already decided: nothing here is a test happening now. */
   settled: boolean;
 }): React.ReactElement {
@@ -479,11 +489,9 @@ function Row({
           transition={{ duration: t.reduced ? 0 : 0.9, delay: delayMs / 1000, times: [0, 0.25, 1] }}
         />
       )}
-      {marks && (
-        <div className="flex w-5.5 shrink-0 items-center justify-center">
-          <VerdictMark delayMs={delayMs} settled={settled} verdict={verdict} />
-        </div>
-      )}
+      <div className="flex w-(--gutter) shrink-0 items-center justify-center overflow-hidden">
+        <VerdictMark delayMs={delayMs} settled={settled} verdict={verdict} />
+      </div>
       {cols.map((col) => (
         <Cell
           col={col}
@@ -494,14 +502,12 @@ function Row({
           value={row.cells[col.id] ?? null}
         />
       ))}
-      {folded && (
-        <span
-          aria-hidden
-          className="flex h-7 w-12 shrink-0 items-center justify-center font-mono text-muted-foreground/50 text-xs"
-        >
-          ⋯
-        </span>
-      )}
+      <span
+        aria-hidden
+        className="flex h-7 w-(--fold) shrink-0 items-center justify-center overflow-hidden font-mono text-muted-foreground/50 text-xs"
+      >
+        ⋯
+      </span>
     </motion.div>
   );
 }

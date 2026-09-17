@@ -131,11 +131,11 @@ function referentialAction(code: string): string {
 }
 
 export async function readSchema(client: pg.ClientBase, database: string): Promise<DatabaseSchema> {
-  const [relations, columns, foreignKeys] = await Promise.all([
-    client.query<RelationRow>(RELATIONS_SQL),
-    client.query<ColumnRow>(COLUMNS_SQL),
-    client.query<ForeignKeyRow>(FOREIGN_KEYS_SQL),
-  ]);
+  // One client is one connection, so these run one after another on the wire regardless;
+  // issuing them together only trips pg's "already executing a query" deprecation.
+  const relations = await client.query<RelationRow>(RELATIONS_SQL);
+  const columns = await client.query<ColumnRow>(COLUMNS_SQL);
+  const foreignKeys = await client.query<ForeignKeyRow>(FOREIGN_KEYS_SQL);
 
   const byTable = new Map<string, Column[]>();
   for (const c of columns.rows) {

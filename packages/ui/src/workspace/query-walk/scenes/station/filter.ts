@@ -39,7 +39,8 @@ function membershipCols(
 ): { readonly cols: readonly Col[]; readonly cells: readonly (readonly (string | null)[])[] } {
   const cols: Col[] = [];
   const cells: (string | null)[][] = [];
-  for (const { list, index } of station.inLists) {
+  for (const { list, index, measured } of station.inLists) {
+    if (!measured) continue;
     const at = list.values.map((_, vi) =>
       source.columns.findIndex((column) => column.name === memberColumn(index, vi)),
     );
@@ -80,6 +81,13 @@ export function filterScene(ctx: SceneContext): Scene {
     // Only the verdict probe carries the membership columns; when the card is falling back to the
     // previous station's sample there is nothing to read and the list stays one opaque test.
     const member = verdict ? membershipCols(station, source, parsed.text) : { cols: [], cells: [] };
+    // A list too long to measure keeps its plain pass/fail, and says so rather than simply lacking
+    // the column its neighbour got. See `measurableInLists` for the cap and why it exists.
+    const capped = station.inLists.filter((entry) => !entry.measured).length;
+    const note =
+      capped === 0
+        ? undefined
+        : `${capped === 1 ? "One IN list is" : `${capped} IN lists are`} too long to show value by value, so ${capped === 1 ? "it stays" : "they stay"} a single pass/fail test.`;
     const rows = rowsOf(source, cols, indices, "m:").map((row, i): Row => {
       const raw = source.rows[i]!;
       const pass = passAt >= 0 ? truthy(raw[passAt]) : kept.has(hashCells(raw, indices));
@@ -88,7 +96,7 @@ export function filterScene(ctx: SceneContext): Scene {
       );
       return { ...row, cells: { ...row.cells, ...extra }, verdict: pass ? "pass" : "fail", testIndex: i };
     });
-    return tables([{ key: "main", title, cols: [...cols, ...member.cols], rows }], input);
+    return tables([{ key: "main", title, cols: [...cols, ...member.cols], rows, note }], input);
   }
   // An empty result is the honest answer to plenty of queries, and it is exactly the answer a
   // reader is most likely to mistake for a broken step, so the card says what emptied it and how
@@ -97,7 +105,7 @@ export function filterScene(ctx: SceneContext): Scene {
   // A `NOT IN` list holding a null is never true of any row, whatever is in the table. It is read
   // off the query's own text rather than off a result, so it can be said even here, and it is the
   // one explanation a reader will not arrive at by staring at the rows.
-  const nullTrap = station.inLists.some(({ list }) => list.negated && list.hasNull);
+  const nullTrap = station.inLists.some(({ list, measured }) => measured && list.negated && list.hasNull);
   const empty =
     input === null
       ? `No ${noun} passed this test.`

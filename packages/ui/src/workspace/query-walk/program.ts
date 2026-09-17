@@ -54,7 +54,7 @@ import {
   type SubqueryPredicate,
   type Unsupported,
 } from "./clauses";
-import { gridBuild } from "./grid";
+import { gridBuild, gridOf } from "./grid";
 
 export type SectionId = string;
 
@@ -775,7 +775,7 @@ function addChildren(
   // allows one. Computed once here, from the same text and the same function the view will use, so
   // "no chapter" and "there is a grid" can never disagree — the one way this could go wrong is a
   // predicate losing its chapter to a grid that then refuses to build.
-  const grid =
+  const gridOutcome =
     host !== null && binding.kind === "bound"
       ? gridBuild({
           outer: host.parsed,
@@ -786,6 +786,7 @@ function addChildren(
           prefix: args.prefix,
         })
       : null;
+  const grid = gridOutcome === null ? null : gridOf(gridOutcome);
 
   /* FROM: a CTE reference is an edge to the section that computes it; a derived table is one more. */
   const sources = [parsed.first, ...parsed.joins.map((join) => join.source)];

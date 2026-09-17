@@ -106,6 +106,14 @@ export type TableView = {
   /** Names of the columns the cap dropped, when a card was too wide to show them all. */
   readonly hidden?: readonly string[];
   /**
+   * One line under the card saying what it is NOT showing, and why.
+   *
+   * For a downgrade the reader would otherwise read as a bug: a cap that took a column away, a
+   * measurement the station declined to make. It is not an error and not an emptiness — `error`
+   * and `empty` cover those — so it sits quietly under the rows rather than replacing them.
+   */
+  readonly note?: string;
+  /**
    * The card arrived settled: its rows were already tested when it came on screen.
    *
    * Entering a chapter is not a test. The outer probe ran once, before the reader got here, so

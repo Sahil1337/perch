@@ -90,16 +90,23 @@ export const memberNullColumn = (list: number): string => `${WALK_PREFIX}mn${lis
 export const MAX_IN_VALUES = 12;
 const MAX_IN_LISTS = 3;
 
-/** The `IN` lists of a WHERE that are small enough to measure, with their original positions. */
+/**
+ * Every `IN` list of a WHERE, each saying whether it was small enough to measure.
+ *
+ * The unmeasured ones are carried rather than dropped so the scene can SAY that a list is being
+ * shown as one plain pass/fail — a reader who got a matched column on one list and nothing on the
+ * next would otherwise read the gap as a bug rather than as a cap.
+ */
 export function measurableInLists(
   parsed: ParsedSelect,
   dialect: Dialect,
-): { readonly list: InList; readonly index: number }[] {
+): { readonly list: InList; readonly index: number; readonly measured: boolean }[] {
   if (!parsed.where) return [];
-  return inLists(parsed.text, parsed.where.body, dialect)
-    .map((list, index) => ({ list, index }))
-    .filter(({ list }) => list.values.length <= MAX_IN_VALUES)
-    .slice(0, MAX_IN_LISTS);
+  return inLists(parsed.text, parsed.where.body, dialect).map((list, index) => ({
+    list,
+    index,
+    measured: list.values.length <= MAX_IN_VALUES && index < MAX_IN_LISTS,
+  }));
 }
 /**
  * The two names the grid probe adds on top of those.
@@ -166,7 +173,11 @@ export type Station = {
    * which column belongs to which value, and it would need the dialect threaded down to it to do
    * that. Empty for every station but WHERE, and for a WHERE whose lists were all too long.
    */
-  readonly inLists: readonly { readonly list: InList; readonly index: number }[];
+  readonly inLists: readonly {
+    readonly list: InList;
+    readonly index: number;
+    readonly measured: boolean;
+  }[];
 };
 
 const ABSENT: Station["batches"] = [];
@@ -844,7 +855,7 @@ export function buildStations(parsed: ParsedSelect, dialect: Dialect): Station[]
     // than false when `x` is, so the value columns alone cannot tell "matched nothing" from "had
     // nothing to match with".
     const lists = measurableInLists(parsed, dialect);
-    const members = lists.flatMap(({ list, index }) => [
+    const members = lists.filter((entry) => entry.measured).flatMap(({ list, index }) => [
       ...list.values.map(
         (value, vi) => `, ((${slice(list.left)}) = (${slice(value)})) as ${memberColumn(index, vi)}`,
       ),

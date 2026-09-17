@@ -104,7 +104,13 @@ function BoundWalk({
   readonly onOpenSection: (id: SectionId) => void;
 }): React.ReactElement {
   const run = useBoundRun(plan, probe);
-  const build = React.useMemo(() => boundGrid(plan), [plan]);
+  const outcome = React.useMemo(() => boundGrid(plan), [plan]);
+  // The grid, and — when there is none — the sentence saying which clause ruled it out. The ledger
+  // below is a complete picture either way; what the reason prevents is a reader reading the
+  // difference between this chapter and the last one as the walk quietly giving up.
+  const build = outcome.kind === "grid" ? outcome.grid : null;
+  // Only when a grid was genuinely on the table: see `GridRefusal.candidate`.
+  const noGrid = outcome.kind === "none" && outcome.candidate ? outcome.reason : null;
   const speed = useSpeed();
   const t = useT();
   const { current, rows, inner, bind } = run;
@@ -309,6 +315,13 @@ function BoundWalk({
             onGrab={onPause}
             rows={rows}
           />
+        )}
+        {/* Why this is a ledger and not a grid. It is not an error and nothing failed — the ledger
+            answers the question completely — so it is a quiet line rather than a red box. */}
+        {noGrid !== null && (
+          <p className="shrink-0 rounded-md border border-dashed bg-muted/40 p-2 text-muted-foreground text-xs leading-5">
+            Shown row by row rather than as a grid. {noGrid}
+          </p>
         )}
         {run.outerError && (
           <p className="shrink-0 whitespace-pre-wrap rounded-md border border-destructive/30 bg-destructive/8 p-3 font-mono text-destructive-foreground text-xs leading-5">

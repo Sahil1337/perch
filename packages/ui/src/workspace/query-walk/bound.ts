@@ -28,7 +28,7 @@ import {
   type SubqueryPredicate,
   type SubqueryPredicateKind,
 } from "./clauses";
-import { gridBuild, type GridBuild } from "./grid";
+import { gridBuild, type GridBuild, type GridOutcome } from "./grid";
 import { sectionById, type Program, type Section } from "./program";
 import { truthy } from "./scenes/columns";
 import { bindColumn, LEFT_COLUMN, MATCH_COLUMN, PASS_COLUMN } from "./steps";
@@ -263,17 +263,36 @@ export function boundRowParts(plan: BoundPlan, row: BoundRow): readonly SqlPart[
 }
 
 /**
- * The grid this per-row section can be shown as, or null when the ledger is the right picture.
+ * The grid this per-row section can be shown as, or the stated reason the ledger is right instead.
  *
  * Deliberately the same call `program.ts` made when it decided whether the inner predicate gets a
  * chapter, from the same two parses: if these two ever disagreed, a predicate would lose its chapter
  * to a grid that then refused to build, and the query would be one subquery short on screen.
+ *
+ * The reason travels with the refusal so the view can SAY why it is showing a ledger. A reader who
+ * has seen a grid once and gets a ledger next reads the difference as the walk giving up, unless
+ * something on screen names the clause that moved the line.
  */
-export function boundGrid(plan: BoundPlan): GridBuild | null {
+export function boundGrid(plan: BoundPlan): GridOutcome {
   const outer = plan.outer.parsed;
   const middle = plan.section.parsed;
-  if (outer === null || middle === null || isSetOp(outer) || isSetOp(middle)) return null;
-  if (plan.section.binding.kind !== "bound") return null;
+  if (outer === null || middle === null) {
+    return { kind: "none", reason: "This section has no clauses to build a grid from.", candidate: false };
+  }
+  if (isSetOp(outer) || isSetOp(middle)) {
+    return {
+      kind: "none",
+      reason: "A set operation has no single select list to hang a grid's cell expression off.",
+      candidate: false,
+    };
+  }
+  if (plan.section.binding.kind !== "bound") {
+    return {
+      kind: "none",
+      reason: "This section does not run per row, so there are no pairs to grid.",
+      candidate: false,
+    };
+  }
   return gridBuild({
     outer,
     middle,
