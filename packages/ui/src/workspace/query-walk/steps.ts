@@ -8,9 +8,15 @@ import type { Dialect } from "@perch/protocol";
 import {
   bareName,
   conjuncts,
+  regroups,
+  type InList,
+  inLists,
   type JoinClause,
   type ParsedSelect,
+  type ParsedSetOp,
   type Range,
+  type SetOperator,
+  type SetTree,
   type SourceRef,
   WALK_PREFIX,
 } from "./clauses";
@@ -35,7 +41,9 @@ export type StationId =
   | "order"
   | "limit"
   /** The whole of a section that has no clause sequence: see `buildResultStation`. */
-  | "result";
+  | "result"
+  /** One meeting of two results in a set-operator chain: see `buildSetStations`. */
+  | "combine";
 
 /** Rows a sample asks for. The server caps at the same number through `maxRows`. */
 export const SAMPLE_ROWS = 25;
@@ -58,6 +66,41 @@ export const bindColumn = (index: number): string => `${WALK_PREFIX}v${index}`;
 export const LEFT_COLUMN = `${WALK_PREFIX}left`;
 /** One depth-zero conjunct of a WHERE, evaluated per row: how far from passing a failing row was. */
 export const conjunctColumn = (index: number): string => `${WALK_PREFIX}c${index}`;
+/**
+ * One value of an `IN (…)` list tested against the row: did THIS row match THIS value.
+ *
+ * The database answers it, never the walk. Comparing the row's value to the literal in JavaScript
+ * would mean re-deciding collation, numeric coercion and `CHAR` padding, and would differ from the
+ * query's own verdict in precisely the cases nobody checks.
+ */
+export const memberColumn = (list: number, value: number): string =>
+  `${WALK_PREFIX}m${list}_${value}`;
+/** Whether the compared expression was itself null, which is why a row matched nothing. */
+export const memberNullColumn = (list: number): string => `${WALK_PREFIX}mn${list}`;
+
+/**
+ * Caps on the membership columns one WHERE probe may grow.
+ *
+ * A long `IN` list is a lookup table pasted into a query, not a lesson: past a dozen values the
+ * card cannot show them and the reader was never reading them one by one. Lists past the cap keep
+ * the ordinary pass/fail they have today rather than a partial answer, which would be the worse
+ * of the two — a row reported as matching nothing when the value it matched was simply not asked
+ * about.
+ */
+export const MAX_IN_VALUES = 12;
+const MAX_IN_LISTS = 3;
+
+/** The `IN` lists of a WHERE that are small enough to measure, with their original positions. */
+export function measurableInLists(
+  parsed: ParsedSelect,
+  dialect: Dialect,
+): { readonly list: InList; readonly index: number }[] {
+  if (!parsed.where) return [];
+  return inLists(parsed.text, parsed.where.body, dialect)
+    .map((list, index) => ({ list, index }))
+    .filter(({ list }) => list.values.length <= MAX_IN_VALUES)
+    .slice(0, MAX_IN_LISTS);
+}
 /**
  * The two names the grid probe adds on top of those.
  *
@@ -116,6 +159,14 @@ export type Station = {
    * program mapped when it took the section apart. Null when neither is available.
    */
   readonly root: Range | null;
+  /**
+   * The `IN (value, …)` lists this station measured, with the index each one's probe columns carry.
+   *
+   * Carried rather than recomputed: the scene would otherwise have to re-parse the clause to learn
+   * which column belongs to which value, and it would need the dialect threaded down to it to do
+   * that. Empty for every station but WHERE, and for a WHERE whose lists were all too long.
+   */
+  readonly inLists: readonly { readonly list: InList; readonly index: number }[];
 };
 
 const ABSENT: Station["batches"] = [];
@@ -441,7 +492,156 @@ export function buildResultStation(text: string): Station {
     joinIndex: -1,
     sentence: null,
     root: null,
+    inLists: [],
   };
+}
+
+/**
+ * One station per meeting of two results in a set-operator chain.
+ *
+ * WHY THIS IS NOT A PLACEHOLDER ANY MORE. A combine has no clauses, so the station rail's usual
+ * vocabulary says nothing about it — but "which rows survived, and from which side" is a question
+ * with an exact answer, and the database can be asked it directly. What made it look unanswerable
+ * was that the obvious way to answer it is wrong: the branches' own cards hold 25 sampled rows
+ * each, and deciding membership by comparing those two samples would report a row as dropped by an
+ * INTERSECT whenever its partner happened to fall outside the other sample. That is a confident
+ * lie of exactly the kind this screen exists not to tell. So nothing is compared here. Every
+ * bucket below is a set operation the DATABASE evaluates over the full branches.
+ *
+ * THE THREE BUCKETS. `L INTERSECT R`, `L EXCEPT R` and `R EXCEPT L` partition the distinct rows of
+ * the two sides, and between them they explain every operator: UNION keeps all three, INTERSECT
+ * keeps the middle one, EXCEPT keeps the first. The picture is a Venn diagram whose regions were
+ * each computed rather than inferred, and the only words the walk writes are the operator names.
+ *
+ * WHY `ALL` GETS NO BUCKETS. The partition is about DISTINCT rows. `UNION ALL` keeps duplicates, so
+ * its answer can be longer than the three buckets put together, and drawing them beside it would
+ * misdescribe the very thing that makes `ALL` different. Those stations show the two inputs and the
+ * real result, and say why the regions are missing.
+ *
+ * Each subtree is a CONTIGUOUS run of branches, and its verbatim text re-parses to the same
+ * grouping, because that grouping came from precedence in the first place — which is what lets a
+ * node's SQL be a slice of the user's statement rather than something reassembled.
+ */
+export function buildSetStations(parsed: ParsedSetOp): Station[] {
+  const withPrefix = parsed.with
+    ? `${parsed.text.slice(parsed.with.from, parsed.with.to)}\n`
+    : "";
+  // The branches a subtree spans. Contiguity is the invariant the slice below depends on.
+  const span = (node: SetTree): { min: number; max: number } => {
+    if (node.kind === "branch") return { min: node.index, max: node.index };
+    const left = span(node.left);
+    const right = span(node.right);
+    return { min: Math.min(left.min, right.min), max: Math.max(left.max, right.max) };
+  };
+  const sqlOf = (node: SetTree): string => {
+    const { min, max } = span(node);
+    const from = parsed.branches[min]!.range.from;
+    const to = parsed.branches[max]!.range.to;
+    return parsed.text.slice(from, to);
+  };
+  /** A subtree as an operand: parenthesised, so a branch's own ORDER BY or LIMIT stays inside it. */
+  const operand = (node: SetTree): string => `(\n${sqlOf(node)}\n)`;
+  const limited = (sql: string): string => `${withPrefix}${sql}\nlimit ${SAMPLE_ROWS}`;
+  const counted = (sql: string): string =>
+    `${withPrefix}select count(*) from (\n${sql}\n) as ${WALK_PREFIX}count`;
+  const pair = (id: string, label: string, sql: string): Query[] => [
+    { id: `${id}.sample`, label, sql: limited(sql) },
+    { id: `${id}.count`, label: `${label} — count`, sql: counted(sql) },
+  ];
+
+  const nodes: Extract<SetTree, { kind: "combine" }>[] = [];
+  // Post-order, so the chapter plays in the order the database evaluates: the tightest-binding
+  // meeting first, and each later station's inputs are ones the reader has already been shown.
+  const collect = (node: SetTree): void => {
+    if (node.kind === "branch") return;
+    collect(node.left);
+    collect(node.right);
+    nodes.push(node);
+  };
+  collect(parsed.tree);
+
+  const repeated = new Set<string>();
+  const seen = new Set<string>();
+  for (const node of nodes) {
+    const word = node.op.toUpperCase();
+    if (seen.has(word)) repeated.add(word);
+    seen.add(word);
+  }
+  const ordinal = new Map<string, number>();
+
+  return nodes.map((node) => {
+    const word = node.op.toUpperCase();
+    const next = (ordinal.get(word) ?? 0) + 1;
+    ordinal.set(word, next);
+    const left = operand(node.left);
+    const right = operand(node.right);
+    const result = `${left}\n${node.op}\n${right}`;
+    const keepsDuplicates = node.op.endsWith(" all");
+
+    // Two batches on purpose. The first is the chapter: the inputs and the answer, and it must not
+    // be lost to a dialect that cannot evaluate the second. The second is the Venn regions, which
+    // need INTERSECT and EXCEPT — MySQL only learned them in 8.0.31 — so when they fail they fail
+    // alone and the scene says the regions are unavailable rather than showing them empty.
+    const batches: Query[][] = [
+      [
+        ...pair("left", "The left-hand result", sqlOf(node.left)),
+        ...pair("right", "The right-hand result", sqlOf(node.right)),
+        { id: "sample", label: `After ${word}`, sql: limited(result) },
+        { id: "count", label: "Count", sql: counted(result) },
+      ],
+    ];
+    if (!keepsDuplicates) {
+      // One region of every INTERSECT and EXCEPT is the operator's own answer — `L intersect R` IS
+      // the middle region, `L except R` IS the left one — so asking for it again would send the
+      // same statement to the user's database twice per station. The region is dropped here and
+      // the scene reads it off `sample`, which also means it survives a dialect that cannot
+      // evaluate the rest of this batch.
+      const same = node.op.startsWith("intersect") ? "both" : node.op.startsWith("except") ? "onlyLeft" : null;
+      batches.push([
+        ...(same === "both" ? [] : pair("both", "In both", `${left}\nintersect\n${right}`)),
+        ...(same === "onlyLeft" ? [] : pair("onlyLeft", "Only on the left", `${left}\nexcept\n${right}`)),
+        ...pair("onlyRight", "Only on the right", `${right}\nexcept\n${left}`),
+      ]);
+    }
+
+    return {
+      key: `combine${node.opIndex}`,
+      id: "combine" as const,
+      label: repeated.has(word) ? `${word} ${next}` : word,
+      present: true,
+      clause: parsed.operators[node.opIndex]?.range ?? null,
+      batches,
+      join: null,
+      joinIndex: -1,
+      // A chain that regroups owes the reader one more sentence, and only on the station that DOES
+      // the regrouping: these two results met first because this operator binds tighter, not
+      // because they were written next to each other.
+      sentence: combineSentence(
+        node.op,
+        keepsDuplicates,
+        regroups(parsed) && node.op.startsWith("intersect"),
+      ),
+      root: null,
+      inLists: [],
+    };
+  });
+}
+
+/** What the operator does to the two results, in the reader's terms. */
+function combineSentence(op: SetOperator, keepsDuplicates: boolean, tighter: boolean): string {
+  const base =
+    op.startsWith("union")
+      ? "keeps every row that appeared on either side"
+      : op.startsWith("intersect")
+        ? "keeps only the rows that appeared on BOTH sides"
+        : "keeps the rows from the left that did NOT appear on the right";
+  const duplicates = keepsDuplicates
+    ? " ALL keeps duplicates, so a row that appeared twice still appears twice — which is why the regions below are not drawn for it."
+    : " Duplicates collapse: the result is a set, so a row that appeared on both sides appears once.";
+  const binding = tighter
+    ? " These two met before the rest of the chain because INTERSECT binds tighter than UNION and EXCEPT — not because they were written side by side."
+    : "";
+  return `This step ${base}.${duplicates}${binding}`;
 }
 
 /**
@@ -501,6 +701,7 @@ export function buildRecursionStations(
     joinIndex: -1,
     sentence,
     root,
+    inLists: [],
   });
 
   const settleBody = `select * from ${cteName}`;
@@ -594,11 +795,12 @@ export function buildStations(parsed: ParsedSelect, dialect: Dialect): Station[]
     joinIndex: -1,
     sentence: null,
     root: null,
+    inLists: [],
   });
 
   /* JOIN n: the FROM list up to and including join n. */
   if (parsed.joins.length === 0) {
-    stations.push({ key: "join", id: "join", label: "JOIN", present: false, clause: null, batches: ABSENT, join: null, joinIndex: -1, sentence: null, root: null });
+    stations.push({ key: "join", id: "join", label: "JOIN", present: false, clause: null, batches: ABSENT, join: null, joinIndex: -1, sentence: null, root: null, inLists: [] });
   }
   parsed.joins.forEach((join, index) => {
     const through = `select *\n${text.slice(parsed.fromKeyword.from, join.range.to)}`;
@@ -621,6 +823,7 @@ export function buildStations(parsed: ParsedSelect, dialect: Dialect): Station[]
       joinIndex: index,
       sentence: null,
       root: null,
+      inLists: [],
     });
   });
 
@@ -634,6 +837,19 @@ export function buildStations(parsed: ParsedSelect, dialect: Dialect): Station[]
     // one column would be the verdict again under another name.
     const parts = parsed.where ? conjuncts(text, parsed.where.body, dialect) : [];
     const tests = parts.length > 1 ? parts.map((part, index) => `, (${slice(part)}) as ${conjunctColumn(index)}`) : [];
+    // One boolean per value of each `IN (…)` list, on the same widened statement. `x in (a, b)` is
+    // one verdict but three facts, and the two that the pass/fail throws away — WHICH value matched,
+    // and whether the left side was null and so matched nothing it could have — are the two the
+    // predicate is actually about. The null test is asked separately because `x = a` is null rather
+    // than false when `x` is, so the value columns alone cannot tell "matched nothing" from "had
+    // nothing to match with".
+    const lists = measurableInLists(parsed, dialect);
+    const members = lists.flatMap(({ list, index }) => [
+      ...list.values.map(
+        (value, vi) => `, ((${slice(list.left)}) = (${slice(value)})) as ${memberColumn(index, vi)}`,
+      ),
+      `, ((${slice(list.left)}) is null) as ${memberNullColumn(index)}`,
+    ]);
     const queries: Query[] = parsed.where
       ? [
           sample(base),
@@ -643,14 +859,14 @@ export function buildStations(parsed: ParsedSelect, dialect: Dialect): Station[]
             label: "Row test",
             sql: limited(
               lines(
-                `select *, (${slice(parsed.where.body)}) as ${PASS_COLUMN}${tests.join("")}`,
+                `select *, (${slice(parsed.where.body)}) as ${PASS_COLUMN}${tests.join("")}${members.join("")}`,
                 fullFrom,
               ),
             ),
           },
         ]
       : [];
-    stations.push({ key: "where", id: "where", label: "WHERE", present: parsed.where !== null, clause: parsed.where?.range ?? null, batches: parsed.where ? [queries] : ABSENT, join: null, joinIndex: -1, sentence: null, root: null });
+    stations.push({ key: "where", id: "where", label: "WHERE", present: parsed.where !== null, clause: parsed.where?.range ?? null, batches: parsed.where ? [queries] : ABSENT, join: null, joinIndex: -1, sentence: null, root: null, inLists: parsed.where ? lists : [] });
   }
 
   /* GROUP BY: the grouped rows, plus the rows before grouping ordered by the keys. */
@@ -675,7 +891,7 @@ export function buildStations(parsed: ParsedSelect, dialect: Dialect): Station[]
           },
         ]
       : [];
-    stations.push({ key: "group", id: "group", label: "GROUP BY", present: parsed.groupBy !== null, clause: parsed.groupBy?.range ?? null, batches: parsed.groupBy ? [queries] : ABSENT, join: null, joinIndex: -1, sentence: null, root: null });
+    stations.push({ key: "group", id: "group", label: "GROUP BY", present: parsed.groupBy !== null, clause: parsed.groupBy?.range ?? null, batches: parsed.groupBy ? [queries] : ABSENT, join: null, joinIndex: -1, sentence: null, root: null, inLists: [] });
   }
 
   /* HAVING */
@@ -692,7 +908,7 @@ export function buildStations(parsed: ParsedSelect, dialect: Dialect): Station[]
           },
         ]
       : [];
-    stations.push({ key: "having", id: "having", label: "HAVING", present: parsed.having !== null, clause: parsed.having?.range ?? null, batches: parsed.having ? [queries] : ABSENT, join: null, joinIndex: -1, sentence: null, root: null });
+    stations.push({ key: "having", id: "having", label: "HAVING", present: parsed.having !== null, clause: parsed.having?.range ?? null, batches: parsed.having ? [queries] : ABSENT, join: null, joinIndex: -1, sentence: null, root: null, inLists: [] });
   }
 
   /* WINDOW: the rows HAVING left, each one given the window function's value.
@@ -734,6 +950,7 @@ export function buildStations(parsed: ParsedSelect, dialect: Dialect): Station[]
       joinIndex: -1,
       sentence: null,
       root: null,
+      inLists: [],
     });
   }
 
@@ -763,6 +980,7 @@ export function buildStations(parsed: ParsedSelect, dialect: Dialect): Station[]
       joinIndex: -1,
       sentence: null,
       root: null,
+      inLists: [],
     });
   }
 
@@ -779,6 +997,7 @@ export function buildStations(parsed: ParsedSelect, dialect: Dialect): Station[]
     joinIndex: -1,
     sentence: null,
     root: null,
+    inLists: [],
   });
 
   /* ORDER BY: no count, the rows only move. */
@@ -793,6 +1012,7 @@ export function buildStations(parsed: ParsedSelect, dialect: Dialect): Station[]
     joinIndex: -1,
     sentence: null,
     root: null,
+    inLists: [],
   });
 
   /* LIMIT / OFFSET: the query exactly as written. The server still caps the rows it returns. */
@@ -812,6 +1032,7 @@ export function buildStations(parsed: ParsedSelect, dialect: Dialect): Station[]
     joinIndex: -1,
     sentence: null,
     root: null,
+    inLists: [],
   });
 
   return stations;

@@ -5,12 +5,13 @@
 // contents and every entry stays one click away, which is the whole reason the breadcrumb stack it
 // replaced could go.
 
+import { RepeatIcon } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import type * as React from "react";
 import { cn } from "../../lib/utils";
 import type { SubqueryPredicateKind } from "./clauses";
 import { Spinner } from "../../ui/spinner";
-import type { SectionRun, SectionStatus } from "./use-walk";
+import { runsPerRow, type SectionRun, type SectionStatus } from "./use-walk";
 import { useT } from "./walk-motion";
 
 /**
@@ -163,6 +164,13 @@ export function Chapters({
                 >
                   <Dot status={run.status} />
                   <span className="min-w-0 truncate font-mono">{run.section.label}</span>
+                  {/* The strip is read left to right, and every OTHER chapter on it really does
+                      precede what reads it — a CTE, a derived table, an uncorrelated subquery. A
+                      per-row chapter does not: it is listed before the query that drives it the way
+                      a footnote is printed before the page citing it. The dashed dot alone carries
+                      too much of that, so the mark is said out loud here and explained under the
+                      strip. The accessible name already says it in words. */}
+                  {runsPerRow(run.status) && <RepeatIcon aria-hidden className="size-3 shrink-0" />}
                 </button>
               </li>
             );
@@ -190,6 +198,23 @@ export function Chapters({
           </motion.p>
         )}
       </AnimatePresence>
+      {/* The companion to the mark on the pill. It stands whenever any chapter runs per row, rather
+          than only when one is open, because the misreading it prevents happens while SCANNING the
+          strip — by the time a reader has opened the chapter, `describe` has already told them. */}
+      {sections.some((run) => runsPerRow(run.status)) && (
+        <motion.p
+          animate={{ opacity: 1 }}
+          className="flex items-center gap-1 px-1 text-muted-foreground text-xs"
+          initial={{ opacity: 0 }}
+          transition={t.fade}
+        >
+          <RepeatIcon aria-hidden className="size-3 shrink-0" />
+          <span>
+            A chapter marked this way is listed before the query that drives it, but it runs once for
+            every row of that query — not before it.
+          </span>
+        </motion.p>
+      )}
       {/* Wave 1's rule, and the one place this screen could actively mislead: the branch list is
           flat and SQL binds INTERSECT tighter than UNION and EXCEPT, so a left-to-right reading of
           the strip is simply wrong. Saying so costs one line. */}

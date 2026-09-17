@@ -4,6 +4,7 @@
 // every builder needs, and `station/` for one builder per clause.
 
 import type { WalkData } from "../use-walk";
+import { combineScene } from "./station/combine";
 import { sceneContext } from "./context";
 import { distinctScene } from "./station/distinct";
 import { filterScene } from "./station/filter";
@@ -50,6 +51,9 @@ export function buildScene(index: number, phase: number, walk: WalkData): Scene 
 function sceneAt(index: number, phase: number, walk: WalkData): Scene {
   const station = walk.stations[index];
   if (!station) return EMPTY;
+  // Before the `parsed === null` fall-through below, because a set-op walk has no parse either and
+  // would otherwise be handed to `resultScene`, which knows only how to draw one card.
+  if (station.id === "combine") return combineScene(station, phase, walk.results[index]);
   // Both checks say the same thing from either end: a result-only walk has this one station and no
   // parse, and `sceneContext` would need the parse's sources on its first line.
   if (station.id === "result" || walk.parsed === null) return resultScene(walk.results[index]);

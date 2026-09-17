@@ -1018,6 +1018,64 @@ function readSetOperator(
  * by running this again over each predicate's own `parsed` clauses, which is also how a predicate
  * two levels down gets its own correlation worked out.
  */
+/**
+ * Every depth-zero `IN (value, value, …)` in a clause body.
+ *
+ * Depth zero for the same reason `subqueryPredicates` scans it: a list nested inside parentheses is
+ * part of a bigger expression whose truth this cannot describe on its own. A list holding a SELECT
+ * is skipped here and picked up there — the two functions partition the `IN`s between them.
+ */
+export function inLists(text: string, body: Range, dialect: Dialect): InList[] {
+  const tree = parserFor(dialect).parse(text);
+  const host = nodeContaining(tree.topNode, body);
+  const toks = children(host, text).filter(
+    (token) => token.from >= body.from && token.to <= body.to && token.name !== "(" && token.name !== ")",
+  );
+
+  const out: InList[] = [];
+  for (let i = 0; i < toks.length; i++) {
+    const tok = toks[i]!;
+    if (tok.kw !== "in") continue;
+    const parens = toks[i + 1];
+    if (!parens || parens.name !== "Parens") continue;
+    // A subquery is the other function's business.
+    if (isSelectParens(parens.node, text)) continue;
+    const negated = toks[i - 1]?.kw === "not";
+    const left = expressionBefore(toks, negated ? i - 1 : i);
+    if (left === null) continue;
+
+    // Split on depth-zero commas. A comma INSIDE a value — `in (point(1, 2))` — is a child of that
+    // value's own node and never a direct child here, so the split cannot cut a value in half.
+    const inner = parensTokens(parens.node, text);
+    const values: Range[] = [];
+    let start: Token | undefined;
+    let end: Token | undefined;
+    for (const token of inner) {
+      if (token.name === "Punctuation" && token.text === ",") {
+        if (start && end) values.push({ from: start.from, to: end.to });
+        start = undefined;
+        end = undefined;
+        continue;
+      }
+      start ??= token;
+      end = token;
+    }
+    if (start && end) values.push({ from: start.from, to: end.to });
+    if (values.length === 0) continue;
+
+    out.push({
+      // `x not in (1, 2)` starts at `x`: the left expression is part of the predicate as written.
+      range: { from: left.from, to: parens.to },
+      left,
+      values,
+      negated,
+      hasNull: values.some((value) => text.slice(value.from, value.to).trim().toLowerCase() === "null"),
+    });
+    i += 1;
+  }
+  return out;
+}
+
 export function subqueryPredicates(text: string, body: Range, dialect: Dialect): SubqueryPredicate[] {
   const tree = parserFor(dialect).parse(text);
   const host = nodeContaining(tree.topNode, body);
@@ -1254,7 +1312,60 @@ function correlatedIn(
   scopeCtes: readonly Cte[],
 ): string[] {
   const out: string[] = [];
-  collectCorrelated(parens, text, definedQualifiers(parsed), skipRanges(parsed), scopeCtes, out);
+  // A set-operation body is refused by the SELECT slicer, and an `Unsupported` defines no
+  // qualifiers and skips no source ranges — so without the branches below, every `t.semester`
+  // inside `select t.ID from takes t … intersect …` would look like a reference to the OUTER query
+  // and the predicate would be classed as correlated. That is the expensive direction to be wrong
+  // in: the subquery would be re-run once per outer row and described as depending on a row it has
+  // never heard of.
+  const branches = parsed.kind === "select" ? [] : setOpBranchParses(parens, text, scopeCtes);
+  const defined =
+    parsed.kind === "select"
+      ? definedQualifiers(parsed)
+      : new Set(branches.flatMap((branch) => [...definedQualifiers(branch)]));
+  const skip = parsed.kind === "select" ? skipRanges(parsed) : branches.flatMap(skipRanges);
+  collectCorrelated(parens, text, defined, skip, scopeCtes, out);
+  return out;
+}
+
+/**
+ * The branches of a set-operation body, parsed over the SAME text the caller is scanning.
+ *
+ * `parseStatement` would also produce branches, but only by re-parsing a SLICE, and every range it
+ * returned would then index that slice instead of this text — which is useless to a scan that works
+ * in the enclosing statement's coordinates. Splitting the token run here keeps one coordinate
+ * space, and reuses the same operator reader the statement-level split does.
+ */
+function setOpBranchParses(
+  parens: SyntaxNode,
+  text: string,
+  scopeCtes: readonly Cte[],
+): ParsedSelect[] {
+  const toks = parensTokens(parens, text);
+  const bounds: { from: number; to: number }[] = [];
+  let start = 0;
+  for (let i = 0; i < toks.length; i++) {
+    const op = readSetOperator(toks, i);
+    if (!op) continue;
+    bounds.push({ from: start, to: i });
+    start = op.next;
+    i = op.next - 1;
+  }
+  if (bounds.length === 0) return [];
+  bounds.push({ from: start, to: toks.length });
+
+  const out: ParsedSelect[] = [];
+  for (const bound of bounds) {
+    const run = toks.slice(bound.from, bound.to);
+    const head = run[0];
+    if (!head) continue;
+    const inner =
+      run.length === 1 && head.name === "Parens" && isSelectParens(head.node, text)
+        ? parensTokens(head.node, text)
+        : run;
+    const parsed = parseTokens(text, inner, scopeCtes);
+    if (parsed.kind === "select") out.push(parsed);
+  }
   return out;
 }
 

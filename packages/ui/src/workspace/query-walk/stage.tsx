@@ -281,7 +281,7 @@ function Table({
         <p className="max-w-xs p-3 font-mono text-destructive-foreground text-xs">{view.error}</p>
       ) : (
         <>
-          <div className="flex h-7 items-stretch border-b">
+          <div className="flex h-7 items-stretch justify-center border-b">
             {marks && <div className="w-5.5 shrink-0" />}
             {view.cols.map((col) => (
               <HeaderCell col={col} key={col.id} />
@@ -338,13 +338,14 @@ function Table({
 function HeaderCell({ col }: { col: Col }): React.ReactElement {
   const t = useT();
   return (
-    // `--w` is a floor, not a width. A card is as wide as the WIDEST thing in it, which is regularly
-    // its own title bar rather than its table — `result · 12 rows` over one eight-character column —
-    // and a table that only ever measured its columns left the difference as dead space down the
-    // right of every row, so the column floated in the middle of a card it did not fill. The columns
-    // share that slack instead. Header and cell carry the same basis and the same growth, which is
-    // what keeps a label over its own values.
-    <div className="shrink-0 grow basis-(--w) overflow-hidden" style={{ "--w": `${col.width}px` } as React.CSSProperties}>
+    // `--w` is the width, and the slack a card has over its table falls OUTSIDE the columns. A card
+    // is as wide as the widest thing in it, which is regularly its own title bar rather than its
+    // table — `result · 9 rows · showing 1` over one `count` column. Stretching the columns to close
+    // that gap moved the emptiness inside them, which reads worst in exactly the narrowest case: a
+    // right-aligned number ends up on the card's edge, a lone digit an inch from the label it
+    // belongs to. The header and the rows centre their columns instead, and carry the same width
+    // and the same centring, which is what keeps a label over its own values.
+    <div className="w-(--w) shrink-0 overflow-hidden" style={{ "--w": `${col.width}px` } as React.CSSProperties}>
       <div
         className={cn(
           "flex h-7 w-full items-center gap-1 whitespace-nowrap px-2 font-mono text-xs transition-colors duration-200",
@@ -455,7 +456,7 @@ function Row({
       // a sighted reader, and nothing at all to anyone using a screen reader without it.
       aria-current={row.current ? "true" : undefined}
       className={cn(
-        "relative flex overflow-hidden border-b border-border/70 transition-colors delay-(--d) duration-200 last:border-b-0",
+        "relative flex justify-center overflow-hidden border-b border-border/70 transition-colors delay-(--d) duration-200 last:border-b-0",
         verdict === "fail" && "bg-destructive/8",
         row.current && "z-10 ring-1 ring-info ring-inset",
       )}
@@ -529,8 +530,8 @@ function Cell({
   delayMs: number;
 }): React.ReactElement {
   return (
-    // Same basis and growth as the header above it: see `HeaderCell`.
-    <div className="shrink-0 grow basis-(--w) overflow-hidden" style={{ "--w": `${col.width}px` } as React.CSSProperties}>
+    // Same width as the header above it: see `HeaderCell`.
+    <div className="w-(--w) shrink-0 overflow-hidden" style={{ "--w": `${col.width}px` } as React.CSSProperties}>
       <div
         className={cn(
           "flex h-7 w-full items-center truncate whitespace-nowrap px-2 font-mono text-xs tabular-nums line-through decoration-transparent transition-colors delay-(--d) duration-200",

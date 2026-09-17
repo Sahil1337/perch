@@ -17,7 +17,6 @@
 <img src="https://img.shields.io/badge/PostgreSQL-supported-336791?style=flat-square&logo=postgresql&logoColor=white" alt="PostgreSQL">
 <img src="https://img.shields.io/badge/MySQL-supported-4479A1?style=flat-square&logo=mysql&logoColor=white" alt="MySQL">
 <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="MIT License">
-<img src="https://img.shields.io/badge/status-early-orange?style=flat-square" alt="Early">
 
 </div>
 
@@ -147,6 +146,25 @@ each row's verdict, and every correlated reference replaced by that row's value,
 `takes.ID = s.ID` becomes `takes.ID = '12345'` on screen. Parts of a query that could not be sliced
 into a section are listed rather than quietly dropped.
 
+A `UNION`, `INTERSECT` or `EXCEPT` gets a chapter for each branch and then one more for each meeting
+of two results, in the order the database evaluates them — `INTERSECT` binds tighter than the other
+two, so it is walked first. That chapter shows the two sides, then the three regions they divide
+into (only on the left, in both, only on the right) with the ones this operator keeps marked, then
+the answer itself. Every region is a set operation the database evaluated over the full branches,
+never a comparison of the two sampled cards. An `ALL` variant keeps duplicates, so it shows the
+sides and the answer and says why the regions do not describe it.
+
+A subquery correlated on both sides — `WHERE NOT EXISTS (... WHERE NOT EXISTS (...))`, the shape
+behind relational division — gets a grid instead of a scrubber: outer rows down the side, the
+subquery's own rows across the top, and a cell holding the innermost check for that pair, tinted by
+what it does to the outer verdict. That grid is the only view where "no student has taken every
+required course" is visible at all — no single position of a per-row scrubber can show a comparison
+across rows.
+
+<!-- TODO(asset): docs/assets/query-walk-grid.png — the division grid with one cell picked and its
+     row and column highlighted. Alt: "Outer rows down the side, subquery rows across the top, one
+     cell picked and its bound SQL shown beside it." -->
+
 <!-- TODO(asset): docs/assets/query-walk-sections.png — the chapter strip over a correlated
      subquery's per-row scrubber. Alt: "Chapter strip with a CTE, a subquery and the main query,
      above a scrubber with one tick per outer row." -->
@@ -204,6 +222,8 @@ boundary of what the server is allowed to read and write.
 
 - Files open and save **in place**, so your editor, your repository and Perch see the same bytes
 - External changes are detected: adopted when the buffer is clean, offered as a choice when it is not
+- Reopens the tabs you had open, and which one had focus, on your next visit — remembered per
+  machine, not written into the workspace
 - Autosave with a configurable delay, or off
 - <kbd>⌘</kbd><kbd>S</kbd> on an untitled query saves it into a workspace folder of your choosing
 
@@ -357,29 +377,12 @@ Settings are editable in the UI with <kbd>⌘</kbd><kbd>,</kbd> or from the CLI 
 
 - **Persistent notebook view** — reopening a saved notebook currently returns the script editor; the
   `-- %%` markers survive, the view does not.
-- **OS keychain** for saved credentials, in place of the 0600 file.
-- **Additional dialects** — the driver interface is small, so SQLite or SQL Server is contained work
-  rather than a rewrite.
-
-## Status
-
-Perch is early-stage software under active development.
-
-| Component | Status |
-| --- | --- |
-| CLI | Stable |
-| HTTP API | Complete |
-| Web UI | Active development |
-| Cross-platform releases | Manual for now |
-
-PostgreSQL is the best-tested path; MySQL is supported but has seen less use. Bug reports and
-feature requests are welcome in [Issues](https://github.com/Sahil1337/perch/issues).
 
 ## Contributing
 
-Contributions are welcome — additional drivers, editor and schema work, CLI features and UI
-improvements especially. The repository is a Bun workspace monorepo; setup, scripts, project layout
-and the verification steps are in [CONTRIBUTING.md](CONTRIBUTING.md).
+A Bun workspace monorepo — setup, scripts, project layout and verification steps are in
+[CONTRIBUTING.md](CONTRIBUTING.md). Bug reports and feature requests:
+[Issues](https://github.com/Sahil1337/perch/issues).
 
 ## License
 

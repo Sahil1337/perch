@@ -149,6 +149,10 @@ export function sentenceFor(
   const sources = [parsed.first, ...parsed.joins.map((join) => join.source)];
 
   switch (station.id) {
+    // A combine always arrives with its own sentence, which the guard at the top of this function
+    // has already returned. The case exists so the switch stays exhaustive over `StationId`.
+    case "combine":
+      return "";
     case "from": {
       const named = sources.some((source) => source.kind !== "table");
       return named
@@ -285,6 +289,19 @@ export function phasesFor(index: number, walk: WalkData, state: StationState): P
     // to cut between: the rows arrive whole or not at all.
     case "result":
       return [{ ms: 1600, label: "the rows it produces" }];
+    // The two sides, then the regions they share, then what the operator kept. An `ALL` station
+    // asks for no regions — see `buildSetStations` — so it simply does not get that beat.
+    case "combine":
+      return station.batches.length > 1
+        ? [
+            { ms: 1200, label: "the two results" },
+            { ms: 1600, label: "what they share" },
+            { ms: 1400, label: "what the operator kept" },
+          ]
+        : [
+            { ms: 1200, label: "the two results" },
+            { ms: 1400, label: "what the operator kept" },
+          ];
     case "from":
       return [{ ms: 700, label: "raw tables" }];
     case "join": {

@@ -1180,7 +1180,13 @@ function predicateBinding(
   }
   return {
     kind: "standalone",
-    certain: isCertainlyUncorrelated(predicate.parsed, sql, build.dialect, predicate.kind === "scalar"),
+    certain: bodyIsCertainlyUncorrelated(
+      predicate.parsed,
+      sql.slice(predicate.body.from, predicate.body.to),
+      sql,
+      build.dialect,
+      predicate.kind === "scalar",
+    ),
   };
 }
 
@@ -1206,7 +1212,16 @@ function projectionBinding(
   if (subquery.correlated.length > 0) {
     return { kind: "bound", outer: path, columns: subquery.correlated };
   }
-  return { kind: "standalone", certain: isCertainlyUncorrelated(subquery.parsed, sql, dialect, true) };
+  return {
+    kind: "standalone",
+    certain: bodyIsCertainlyUncorrelated(
+      subquery.parsed,
+      sql.slice(subquery.body.from, subquery.body.to),
+      sql,
+      dialect,
+      true,
+    ),
+  };
 }
 
 /**
@@ -1238,6 +1253,36 @@ function projectionLabel(subquery: SelectSubquery, sql: string): string {
  *
  * A bare name found in one of those ranges is not the end of it: see `resolvesLocally`.
  */
+/**
+ * The same question for a body that may be a SET OPERATION.
+ *
+ * `parseTokens` refuses a chain of SELECTs, so `parsed` arrives `unsupported` and the check below
+ * would call it uncertain on principle — which is how `where ID in (select … intersect select …)`
+ * came to wear "could not rule out that this depends on the outer row" while plainly depending on
+ * nothing. A chain is exactly as answerable as one SELECT: it is correlated only if some BRANCH is,
+ * and every branch is an ordinary `ParsedSelect`.
+ *
+ * The re-parse is of the body alone, so the branches' ranges index the body rather than the whole
+ * statement, and the branch text has to be handed down with them. It is the same parse the section
+ * builder already makes for this predicate, so the two cannot disagree about what is being walked.
+ */
+function bodyIsCertainlyUncorrelated(
+  parsed: ParsedSelect | Unsupported,
+  body: string,
+  sql: string,
+  dialect: Dialect,
+  valueMatters: boolean,
+): boolean {
+  if (parsed.kind === "select") return isCertainlyUncorrelated(parsed, sql, dialect, valueMatters);
+  const whole = parseStatement(body, dialect);
+  if (isUnsupported(whole) || !isSetOp(whole)) return false;
+  return whole.branches.every(
+    (branch) =>
+      branch.parsed.kind === "select" &&
+      isCertainlyUncorrelated(branch.parsed, whole.text, dialect, valueMatters),
+  );
+}
+
 function isCertainlyUncorrelated(
   parsed: ParsedSelect | Unsupported,
   sql: string,

@@ -2,96 +2,27 @@
 
 // What a section that is real but has no clauses of its own looks like.
 //
-// Two of them are left. A set-operation combine puts the branches' rows together and nothing else:
-// there is no FROM, WHERE or SELECT to step through, so there is no walk to show. A section that
-// WRITES — `with d as (delete from takes returning *) …` — has rows and could show them, and is
-// still held here on purpose: every station the walk builds is a probe, and probing a DELETE would
-// delete the rows a second time. Neither is an error and neither is loading, so neither gets a
-// spinner or a red box — what they get is a sentence naming exactly what they are, because a reader
-// who cannot tell "nothing to show here" from "broken" stops trusting the rest of the screen.
+// One of them is left. A section that WRITES — `with d as (delete from takes returning *) …` — has
+// rows and could show them, and is held here on purpose: every station the walk builds is a probe,
+// and probing a DELETE would delete the rows a second time. It is not an error and it is not
+// loading, so it gets neither a spinner nor a red box — what it gets is a sentence naming exactly
+// what it is, because a reader who cannot tell "nothing to show here" from "broken" stops trusting
+// the rest of the screen.
 //
-// A third used to be a `bound` section, which held the same kind of placeholder while it waited for
-// a row-by-row walk that did not exist yet. It exists now: `bound-section.tsx` runs it.
+// Two others used to live here. A `bound` section held this kind of placeholder while it waited for
+// a row-by-row walk that did not exist yet; `bound-section.tsx` runs it now. A set-operation combine
+// held one too, on the reasoning that putting two results together has no clauses to step through —
+// true, and beside the point: `buildSetStations` asks the database which rows survived and from
+// which side, so the combine is a station walk like any other and never reaches this file.
 
 import { motion } from "motion/react";
 import type * as React from "react";
 import { highlightSql } from "../sql-editor/highlight-sql";
-import { isSetOp, regroups, type ParsedSetOp, type SetTree } from "./clauses";
 import type { Section } from "./program";
 import { useT } from "./walk-motion";
 
-/** `union` and `union all` say the same thing to a reader here; the word is what matters. */
-function operatorList(section: Section): string[] {
-  if (section.parsed === null || !isSetOp(section.parsed)) return [];
-  const seen = new Set<string>();
-  for (const { op } of section.parsed.operators) seen.add(op.split(" ")[0]!.toUpperCase());
-  return [...seen];
-}
-
-function joinWords(words: readonly string[]): string {
-  if (words.length <= 1) return words[0] ?? "";
-  return `${words.slice(0, -1).join(", ")} and ${words[words.length - 1]}`;
-}
-
-/**
- * The chain as it evaluates: `1 UNION (2 INTERSECT 3)`.
- *
- * Branches are numbered from 1 because that is how they are counted on the chapter strip above,
- * where the reader has just watched each one run. The outermost combine is left unbracketed — it is
- * the whole statement, and a pair of parentheses around everything says nothing.
- */
-function grouping(parsed: ParsedSetOp): string {
-  const draw = (node: SetTree, top: boolean): string => {
-    if (node.kind === "branch") return String(node.index + 1);
-    const op = parsed.operators[node.opIndex]?.op.toUpperCase() ?? "?";
-    const body = `${draw(node.left, false)} ${op} ${draw(node.right, false)}`;
-    return top ? body : `(${body})`;
-  };
-  return draw(parsed.tree, true);
-}
-
 export function SectionHold({ section }: { section: Section }): React.ReactElement {
-  const t = useT();
-  const operators = operatorList(section);
-  const setOp = section.parsed !== null && isSetOp(section.parsed) ? section.parsed : null;
-  const branches = setOp?.branches.length ?? 0;
-  // Only a chain that does NOT evaluate left to right needs explaining. When it does, the order on
-  // the strip is already the order it runs in, and a line restating that is noise.
-  const regrouped = setOp !== null && regroups(setOp);
-
-  if (section.unsafeToProbe) return <WritingSection section={section} />;
-
-  return (
-    <motion.section
-      animate={{ opacity: 1 }}
-      aria-label="Section"
-      className="flex min-h-96 min-w-0 flex-1 flex-col items-center justify-center gap-3 overflow-auto rounded-xl border border-dashed bg-muted/40 p-6 text-center"
-      initial={{ opacity: 0 }}
-      transition={t.fade}
-    >
-      <h2 className="font-medium text-sm">
-        Combines the branches above with{" "}
-        <span className="font-mono">{joinWords(operators) || "a set operator"}</span>
-      </h2>
-      <p className="max-w-prose text-muted-foreground text-sm leading-relaxed">
-        {branches > 0 ? `Each of the ${branches} branches` : "Each branch"} ran on its own, in the
-        chapters before this one. This step only puts their rows together, so it has no FROM, WHERE
-        or SELECT of its own to step through — there is nothing here to walk yet.
-      </p>
-      {regrouped && (
-        <p className="max-w-prose text-muted-foreground text-sm leading-relaxed">
-          They do not combine in the order they are written:{" "}
-          <span className="font-mono">INTERSECT</span> binds tighter than{" "}
-          <span className="font-mono">UNION</span> and <span className="font-mono">EXCEPT</span>, so
-          this runs as <span className="font-mono text-foreground">{grouping(setOp)}</span>, by
-          branch number on the strip above.
-        </p>
-      )}
-      <pre className="max-w-full overflow-x-auto whitespace-pre-wrap rounded-md bg-card p-3 text-start font-mono text-xs leading-5">
-        {highlightSql(section.text)}
-      </pre>
-    </motion.section>
-  );
+  return <WritingSection section={section} />;
 }
 
 /**

@@ -17,6 +17,7 @@ import type { Program, ResultOnly, Section } from "./program";
 import {
   buildRecursionStations,
   buildResultStation,
+  buildSetStations,
   buildStations,
   SAMPLE_ROWS,
   type Station,
@@ -256,7 +257,24 @@ function planSection(program: Program, section: Section): SectionPlan {
       status: "pending",
     };
   }
-  const parsed = section.parsed !== null && !isSetOp(section.parsed) ? section.parsed : null;
+  // A set-operator chain gets one station per meeting of two results rather than the clause walk:
+  // it has no clauses of its own, but "which rows survived, and from which side" is a question the
+  // database can be asked directly, and `buildSetStations` asks it. Its `parsed` stays null for the
+  // same reason a recursive CTE's does — each station is a statement, not a clause of one.
+  if (section.parsed !== null && isSetOp(section.parsed)) {
+    // Inside a per-row section there is no outer row bound yet, so these would answer a question
+    // nobody asked. It holds with a note, as any other unbindable section does.
+    if (section.binding.kind === "bound") {
+      return { section, parsed: null, stations: [], status: "held" };
+    }
+    return {
+      section,
+      parsed: null,
+      stations: buildSetStations(section.parsed),
+      status: "pending",
+    };
+  }
+  const parsed = section.parsed;
   const bound =
     section.binding.kind === "bound" && boundPlan(program, section).kind === "plan"
       ? "per-row"
