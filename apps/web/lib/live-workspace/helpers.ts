@@ -1,24 +1,21 @@
 import { isPerchError } from "@perch/client";
+import { baseName, messageOf as textOf } from "@perch/ui";
 
 export const RECONNECT_MIN_MS = 1_000;
 export const RECONNECT_MAX_MS = 10_000;
 
-/** Server paths are native, so a Windows server sends backslashes. Split on both. */
-const SEPARATORS = /[\\/]/;
+export { dirName } from "@perch/ui";
 
-export function fileName(path: string): string {
-  const parts = path.split(SEPARATORS);
-  return parts[parts.length - 1] ?? path;
-}
+/** Named for what it is here: every path this app splits is a file the server opened. */
+export const fileName = baseName;
 
-export function dirName(path: string): string {
-  const cut = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
-  return cut <= 0 ? path : path.slice(0, cut);
-}
-
+/**
+ * The app-side reading of a failure, which knows one thing the package cannot: `@perch/client`
+ * throws a `PerchError` carrying the server's own message, and that message is better than
+ * anything this side could write. Everything else falls through to the shared reading.
+ */
 export function messageOf(error: unknown): string {
-  if (isPerchError(error)) return error.message;
-  return error instanceof Error ? error.message : "the request failed";
+  return isPerchError(error) ? error.message : textOf(error, "the request failed");
 }
 
 export function aborted(error: unknown): boolean {

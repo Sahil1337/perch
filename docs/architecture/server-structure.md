@@ -159,14 +159,14 @@ cli  →  server  →  db  →  core
 A layer may only import downward. Concretely, as
 [`eslint.config.js`](../../eslint.config.js) states it:
 
-| Layer | May not import |
-|---|---|
-| `core/**` | `db/**`, `server/**`, `storage/**`, `cli/**` — the bottom layer: `@perch/protocol`, node builtins and `util/` only |
-| `db/**` | `server/**`, `cli/**`, `storage/**` — a driver layer; `core/` and `util/` only |
-| `storage/**` | `server/**`, `cli/**`, `db/**` — on-disk state; `core/` and `util/` only |
-| `server/**` | `cli/**` — shared helpers belong in `src/util/` |
-| `util/**` | every other layer |
-| anything | `@perch/client` — that is the browser-side API client |
+| Layer        | May not import                                                                                                     |
+| ------------ | ------------------------------------------------------------------------------------------------------------------ |
+| `core/**`    | `db/**`, `server/**`, `storage/**`, `cli/**` — the bottom layer: `@perch/protocol`, node builtins and `util/` only |
+| `db/**`      | `server/**`, `cli/**`, `storage/**` — a driver layer; `core/` and `util/` only                                     |
+| `storage/**` | `server/**`, `cli/**`, `db/**` — on-disk state; `core/` and `util/` only                                           |
+| `server/**`  | `cli/**` — shared helpers belong in `src/util/`                                                                    |
+| `util/**`    | every other layer                                                                                                  |
+| anything     | `@perch/client` — that is the browser-side API client                                                              |
 
 `cli/**` and `src/index.ts` sit at the top and may import anything below them; the `@perch/client`
 ban still applies to both.

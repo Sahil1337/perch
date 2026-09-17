@@ -2,9 +2,10 @@
 
 import type { Settings } from "@perch/protocol";
 import { defaultSettings, getSettings, saveSettings } from "../../storage/index.js";
-import { defineCommand, die, printJson } from "../util/index.js";
+import { defineCommand, defineGroup, die, printJson } from "../util/index.js";
 
-const SETTINGS_HELP = "usage: perch settings get [key] [--json]\n       perch settings set <key> <value>";
+const SETTINGS_HELP =
+  "usage: perch settings get [key] [--json]\n       perch settings set <key> <value>";
 
 function isSettingsKey(key: string): key is keyof Settings {
   return Object.hasOwn(defaultSettings, key);
@@ -51,10 +52,4 @@ const set = defineCommand(
   },
 );
 
-export async function cmdSettings(argv: string[]): Promise<void> {
-  const [sub, ...rest] = argv;
-  if (sub === "get") return get(rest);
-  if (sub === "set") return set(rest);
-  console.log(SETTINGS_HELP);
-  if (sub && sub !== "--help" && sub !== "-h") process.exitCode = 1;
-}
+export const cmdSettings = defineGroup(SETTINGS_HELP, { get, set });

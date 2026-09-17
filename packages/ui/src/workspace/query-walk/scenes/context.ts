@@ -6,7 +6,7 @@ import type { StatementResult } from "@perch/protocol";
 import type { ParsedSelect, SourceRef } from "../clauses";
 import { sourceTitle, type Station } from "../steps";
 import type { StationResult, WalkData } from "../use-walk";
-import { countAt, inputCount, previousIndex, sampleOf } from "./results";
+import { countAt, inputCount, okResult, previousIndex, sampleOf } from "./results";
 
 export type SceneContext = {
   readonly walk: WalkData;
@@ -17,6 +17,14 @@ export type SceneContext = {
   readonly phase: number;
   readonly station: Station;
   readonly result: StationResult | undefined;
+  /**
+   * The station's own rows, or null when its sample did not come back.
+   *
+   * Nine of the eleven builders opened with `okResult(result, "sample")` and a refusal if it was
+   * missing, which is the same question asked nine times. It is computed once here; the refusal
+   * stays with each builder, because what it returns instead is not always the same thing.
+   */
+  readonly sample: StatementResult | null;
   readonly sources: readonly SourceRef[];
   readonly tableOf: (qualifier: string) => string | null;
   readonly chainTitle: (through: number) => string;
@@ -35,10 +43,12 @@ export function sceneContext(
   parsed: ParsedSelect,
 ): SceneContext {
   const result = walk.results[index];
+  const sample = okResult(result, "sample");
   const sources = [parsed.first, ...parsed.joins.map((join) => join.source)];
   const tableOf = (qualifier: string): string | null =>
-    sources.find((source) => (source.alias ?? source.name).toLowerCase() === qualifier.toLowerCase())
-      ?.name ?? null;
+    sources.find(
+      (source) => (source.alias ?? source.name).toLowerCase() === qualifier.toLowerCase(),
+    )?.name ?? null;
   const chainTitle = (through: number): string =>
     sources
       .slice(0, through + 1)
@@ -63,6 +73,7 @@ export function sceneContext(
     phase,
     station,
     result,
+    sample,
     sources,
     tableOf,
     chainTitle,

@@ -95,7 +95,6 @@ export function useLiveWorkspace(options: LiveWorkspaceOptions = {}): WorkspaceA
   const runs = useRuns(getClient, enabled, {
     connectionId: connections.connectionId,
     database: connections.database,
-    connectionDatabase: connections.connection?.database,
     activeSql: buffers.activeBuffer?.content,
     settings: settingsData,
     onSchemaChanged: reintrospect,

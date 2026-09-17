@@ -21,7 +21,11 @@ function neighbour(panes: readonly PaneId[], removed: PaneId): PaneId | null {
 
 function insertAt(panes: readonly PaneId[], pane: PaneId, index?: number): readonly PaneId[] {
   const next = [...panes];
-  next.splice(index === undefined ? next.length : Math.max(0, Math.min(index, next.length)), 0, pane);
+  next.splice(
+    index === undefined ? next.length : Math.max(0, Math.min(index, next.length)),
+    0,
+    pane,
+  );
   return next;
 }
 
@@ -44,7 +48,7 @@ export function focusGroup(layout: EditorLayout, groupId: string): EditorLayout 
 }
 
 /** Takes a pane out of the grid. Its group goes too if it was the last one in it. */
-export function removePane(layout: EditorLayout, pane: PaneId): EditorLayout {
+function removePane(layout: EditorLayout, pane: PaneId): EditorLayout {
   const owner = groupOf(layout.root, pane);
   if (!owner) return layout;
 
@@ -84,7 +88,8 @@ export function movePane(
     // Within its own strip this is a reorder; dropping a tab where it started writes nothing.
     if (source?.id === targetGroupId) {
       const without = target.panes.filter((id) => id !== pane);
-      const at = index === undefined ? without.length : Math.max(0, Math.min(index, target.panes.length));
+      const at =
+        index === undefined ? without.length : Math.max(0, Math.min(index, target.panes.length));
       const before = target.panes.slice(0, at).filter((id) => id !== pane).length;
       const panes = insertAt(without, pane, before);
       if (panes.every((id, position) => id === target.panes[position])) {
@@ -142,7 +147,8 @@ export function setBranchSizes(
   const branch = findBranch(layout.root, branchId);
   if (!branch || branch.sizes.length !== sizes.length) return layout;
   // Sub-pixel churn from the resize observer would otherwise write to localStorage on every frame.
-  if (branch.sizes.every((size, index) => Math.abs(size - (sizes[index] ?? 0)) < 0.5)) return layout;
+  if (branch.sizes.every((size, index) => Math.abs(size - (sizes[index] ?? 0)) < 0.5))
+    return layout;
 
   const root = replaceNode(layout.root, branchId, { ...branch, sizes: normalizeSizes(sizes) });
   return root ? { ...layout, root } : layout;

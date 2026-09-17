@@ -1,12 +1,4 @@
-import {
-  CORNER,
-  GAP_X,
-  LANE_GAP,
-  LOOP_REACH,
-  type Point,
-  type Rect,
-  rowCentre,
-} from "./geometry";
+import { CORNER, GAP_X, LANE_GAP, LOOP_REACH, type Point, type Rect, rowCentre } from "./geometry";
 import type { Edge, Node } from "./graph";
 
 export type Wire = {

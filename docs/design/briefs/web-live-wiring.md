@@ -6,9 +6,9 @@ extended with `addConnection/updateConnection/removeConnection/testConnection`, 
 `resolveConflict`, and `Buffer.conflict`) using `@perch/client` only. No component in packages/ui
 may import @perch/client; apps/web/lib is the only place that does.
 
-Read first: docs/design/prototype-spec.md, docs/api/http.md, packages/client/src/*, apps/web/lib/
+Read first: docs/design/prototype-spec.md, docs/api/http.md, packages/client/src/_, apps/web/lib/
 mock-workspace.tsx (the reference implementation of the contract, keep its structure and its
-derived-not-stored patterns), apps/web/lib/use-panels.ts, apps/server/src/server/routes/*.ts
+derived-not-stored patterns), apps/web/lib/use-panels.ts, apps/server/src/server/routes/_.ts
 (the truth for shapes), packages/protocol/src/*.
 
 Files you own: apps/web/lib/live-workspace.tsx (new), apps/web/lib/workspace-source.ts (new),
@@ -19,6 +19,7 @@ Do not touch packages/ui except additive helpers in packages/ui/src/workspace/ty
 needed (say so). Do not touch apps/server. No new packages. Do not commit.
 
 ## Client + auth
+
 - `server-client.ts`: one `createClient` instance. Base URL: same origin when served by `perch serve`
   (static export at `/`), else `NEXT_PUBLIC_PERCH_URL` (dev: `next dev` on 3001 vs server on 4600).
   Token: the server sets an HttpOnly cookie when first opened with `?token=`; same-origin fetch
@@ -32,6 +33,7 @@ needed (say so). Do not touch apps/server. No new packages. Do not commit.
   made before the first render via useSyncExternalStore/lazy state — decide and document).
 
 ## Live provider behaviour (`live-workspace.tsx`)
+
 - connections: GET on boot → Async; `connect(id, db)` → POST connect then select db;
   `selectDatabase`; `databases` from the summary or GET /databases; add/update/remove/test map to
   the routes; refresh the list after each mutation.
@@ -64,6 +66,7 @@ needed (say so). Do not touch apps/server. No new packages. Do not commit.
 - `source: "live"`.
 
 ## Verification (do it, then delete anything temporary)
+
 Start the server: `cd apps/server && npm run build && PERCH_HOME=$(mktemp -d) node
 dist/cli/main.js serve --port 4600 --no-open --dir /tmp/perch-ws` (create /tmp/perch-ws with a .sql
 file first; add a connection with `node dist/cli/main.js conn add demo

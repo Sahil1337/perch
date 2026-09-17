@@ -16,12 +16,15 @@ for (const entry of readdirSync(srcDir, { withFileTypes: true, recursive: true }
   const file = path.join(entry.parentPath ?? srcDir, entry.name);
   const source = readFileSync(file, "utf8");
   for (const [i, line] of source.split("\n").entries()) {
-    if (RUNTIME_EXPORT.test(line)) offenders.push(`${path.relative(srcDir, file)}:${i + 1}  ${line.trim()}`);
+    if (RUNTIME_EXPORT.test(line))
+      offenders.push(`${path.relative(srcDir, file)}:${i + 1}  ${line.trim()}`);
   }
 }
 
 if (offenders.length > 0) {
-  console.error("@perch/protocol must export types only. Runtime exports found:\n  " + offenders.join("\n  "));
+  console.error(
+    "@perch/protocol must export types only. Runtime exports found:\n  " + offenders.join("\n  "),
+  );
   console.error("\nMove the value into the package that owns it (apps/server, or @perch/client).");
   process.exit(1);
 }

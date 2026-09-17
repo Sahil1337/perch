@@ -20,8 +20,7 @@ import { EMPTY, type BucketView, type Row, type Scene, type Summary } from "../t
 import { plain, tables } from "../view";
 
 export function groupScene(ctx: SceneContext): Scene {
-  const { parsed, phase, result, tableOf, input, own, prevSample, mainTitle } = ctx;
-  const grouped = okResult(result, "sample");
+  const { parsed, phase, result, sample: grouped, tableOf, input, own, prevSample, mainTitle } = ctx;
   if (!grouped) return EMPTY;
   const pre = okResult(result, "pre");
   const keyIndicesOf = (sample: StatementResult): number[] =>
@@ -29,7 +28,8 @@ export function groupScene(ctx: SceneContext): Scene {
   const groupedVisible = visibleIndices(grouped);
   const groupedTable = (): Scene => tables([plain("main", "groups", grouped, own)], own);
   if (!pre) {
-    if (phase === 0 && prevSample) return tables([plain("main", mainTitle, prevSample, input)], input);
+    if (phase === 0 && prevSample)
+      return tables([plain("main", mainTitle, prevSample, input)], input);
     return groupedTable();
   }
 
@@ -43,7 +43,10 @@ export function groupScene(ctx: SceneContext): Scene {
     }),
   );
   const preCols = withHl(colsOf(pre, preVisible, positional), litKeys);
-  const preRows = rowsOf(pre, preCols, preVisible, "m:").map((row) => ({ ...row, hl: [...litKeys] }));
+  const preRows = rowsOf(pre, preCols, preVisible, "m:").map((row) => ({
+    ...row,
+    hl: [...litKeys],
+  }));
   if (phase === 0) {
     return tables([{ key: "main", title: mainTitle, cols: preCols, rows: preRows }], input);
   }

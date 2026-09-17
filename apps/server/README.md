@@ -33,7 +33,7 @@ the other runtime this CLI has to work on — see CONTRIBUTING.md.
 ## Quick start
 
 ```sh
-perch conn add local postgres://sahil@localhost:5432/postgres   # save a connection
+perch conn add local postgres://postgres@localhost:5432/postgres  # save a connection
 perch conn test local                                             # check it connects
 perch run local -e "select 1"                                     # run SQL, no server needed
 perch schema local                                                 # browse tables
@@ -42,22 +42,22 @@ perch serve                                                        # start the U
 
 ## Commands
 
-| Command | Example |
-|---|---|
-| `perch [serve]` | `perch serve --port 4600 --dir ~/sql --no-open` — starts the local server (default command). Prints `perch v0.1.0 → http://127.0.0.1:4600` and opens it in your browser. If a server is already running (per `server.json`), just prints/opens its URL instead of starting a second one. `--dir` adds a workspace directory the file API may read/write from (repeatable; persisted to settings). `--ui <dir>` serves a prebuilt UI from disk. |
-| `perch stop` | `perch stop` — sends `SIGTERM` to the running server (from `server.json`) and clears the file. |
-| `perch status` | `perch status --json` — prints the running server's info, or `not running`. |
-| `perch conn add` | `perch conn add local postgres://user:pass@host:5432/db --test`, or with explicit flags: `perch conn add prod --dialect mysql --host db.internal --user app --password-stdin --database app` |
-| `perch conn ls` | `perch conn ls --json` — lists saved connections (never prints passwords). |
-| `perch conn rm` | `perch conn rm local` — removes a saved connection. |
-| `perch conn test` | `perch conn test local` — round-trips `select version()` (or equivalent) and prints latency. |
-| `perch conn dbs` | `perch conn dbs local` — lists databases visible to the connection. |
-| `perch schema` | `perch schema local`, or `perch schema local --table public.orders --json` — schema/table tree, or one table's columns. |
-| `perch run` | `perch run local query.sql`, `perch run local -e "select * from orders limit 10"`, `cat q.sql \| perch run local -` — runs SQL **directly through the driver**, no server involved. `--format table\|json\|csv\|ndjson`, `--max-rows`, `--timeout`, `--database`. Exits 1 on SQL error, printing a caret under the error position. |
-| `perch history` | `perch history --limit 20 --conn local [--json]` — recent runs (CLI and UI) from local history. |
-| `perch files ls` | `perch files ls ~/sql --json` — lists `.sql` files and subdirectories in a directory (hidden entries skipped). |
-| `perch settings get` / `set` | `perch settings get maxRows`, `perch settings set autosave false` |
-| `perch --version` | prints the installed version |
+| Command                      | Example                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `perch [serve]`              | `perch serve --port 4600 --dir ~/sql --no-open` — starts the local server (default command). Prints `perch v0.1.0 → http://127.0.0.1:4600` and opens it in your browser. If a server is already running (per `server.json`), just prints/opens its URL instead of starting a second one. `--dir` adds a workspace directory the file API may read/write from (repeatable; persisted to settings). `--ui <dir>` serves a prebuilt UI from disk. |
+| `perch stop`                 | `perch stop` — sends `SIGTERM` to the running server (from `server.json`) and clears the file.                                                                                                                                                                                                                                                                                                                                                 |
+| `perch status`               | `perch status --json` — prints the running server's info, or `not running`.                                                                                                                                                                                                                                                                                                                                                                    |
+| `perch conn add`             | `perch conn add local postgres://user:pass@host:5432/db --test`, or with explicit flags: `perch conn add prod --dialect mysql --host db.internal --user app --password-stdin --database app`                                                                                                                                                                                                                                                   |
+| `perch conn ls`              | `perch conn ls --json` — lists saved connections (never prints passwords).                                                                                                                                                                                                                                                                                                                                                                     |
+| `perch conn rm`              | `perch conn rm local` — removes a saved connection.                                                                                                                                                                                                                                                                                                                                                                                            |
+| `perch conn test`            | `perch conn test local` — round-trips `select version()` (or equivalent) and prints latency.                                                                                                                                                                                                                                                                                                                                                   |
+| `perch conn dbs`             | `perch conn dbs local` — lists databases visible to the connection.                                                                                                                                                                                                                                                                                                                                                                            |
+| `perch schema`               | `perch schema local`, or `perch schema local --table public.orders --json` — schema/table tree, or one table's columns.                                                                                                                                                                                                                                                                                                                        |
+| `perch run`                  | `perch run local query.sql`, `perch run local -e "select * from orders limit 10"`, `cat q.sql \| perch run local -` — runs SQL **directly through the driver**, no server involved. `--format table\|json\|csv\|ndjson`, `--max-rows`, `--timeout`, `--database`. Exits 1 on SQL error, printing a caret under the error position.                                                                                                             |
+| `perch history`              | `perch history --limit 20 --conn local [--json]` — recent runs (CLI and UI) from local history.                                                                                                                                                                                                                                                                                                                                                |
+| `perch files ls`             | `perch files ls ~/sql --json` — lists `.sql` files and subdirectories in a directory (hidden entries skipped).                                                                                                                                                                                                                                                                                                                                 |
+| `perch settings get` / `set` | `perch settings get maxRows`, `perch settings set autosave false`                                                                                                                                                                                                                                                                                                                                                                              |
+| `perch --version`            | prints the installed version                                                                                                                                                                                                                                                                                                                                                                                                                   |
 
 Every command accepts `--help`; commands that print data accept `--json` for machine-readable
 output. Both are handled by the one scaffold every command is built on, which also means a
@@ -68,28 +68,28 @@ command called without a required argument exits 1 with `missing <name>` and its
 There is no authentication: the server binds to `127.0.0.1`, and that loopback binding is the
 only boundary.
 
-| Path | Purpose |
-|---|---|
-| `GET /api/health` | Server identity/version; the liveness probe. |
-| `GET /api/connections` | List saved connections with live status. |
-| `POST /api/connections` | Create a connection (by URL or discrete fields). |
-| `PUT /api/connections/:id` | Update a connection. |
-| `DELETE /api/connections/:id` | Remove a connection. |
-| `POST /api/connections/:id/test` | Round-trip test; returns server version + latency. |
-| `POST /api/connections/:id/connect` \| `.../disconnect` | Open/close the pooled driver. |
-| `GET /api/connections/:id/databases` | List databases. |
-| `GET /api/connections/:id/schema` | Schema tree (cached 30s; `?refresh=1` bypasses). |
-| `POST /api/query` | Run SQL, streaming NDJSON `RunEvent`s as they happen. |
-| `POST /api/query/sync` | Run SQL, return the full `RunRecord` once finished. |
-| `POST /api/runs/:id/cancel` | Cancel an in-flight run. |
-| `GET /api/runs` \| `GET /api/runs/:id` | List/inspect runs kept in memory. |
-| `GET /api/runs/:id/export` | Download a statement's results as CSV or JSON. |
-| `GET /api/history` | Past runs from disk (survives restarts). |
-| `GET /api/settings` \| `PUT /api/settings` | Read/update local settings. |
-| `GET /api/files` \| `.../content` | Browse/read `.sql` files inside configured workspaces. |
-| `PUT /api/files/content` | Save a file (optimistic-concurrency via `ifModifiedAt`). |
-| `POST /api/files` \| `DELETE /api/files` \| `.../rename` | Create/delete/rename `.sql` files. |
-| `GET /` | The UI (if built and present), or an API index page. |
+| Path                                                     | Purpose                                                  |
+| -------------------------------------------------------- | -------------------------------------------------------- |
+| `GET /api/health`                                        | Server identity/version; the liveness probe.             |
+| `GET /api/connections`                                   | List saved connections with live status.                 |
+| `POST /api/connections`                                  | Create a connection (by URL or discrete fields).         |
+| `PUT /api/connections/:id`                               | Update a connection.                                     |
+| `DELETE /api/connections/:id`                            | Remove a connection.                                     |
+| `POST /api/connections/:id/test`                         | Round-trip test; returns server version + latency.       |
+| `POST /api/connections/:id/connect` \| `.../disconnect`  | Open/close the pooled driver.                            |
+| `GET /api/connections/:id/databases`                     | List databases.                                          |
+| `GET /api/connections/:id/schema`                        | Schema tree (cached 30s; `?refresh=1` bypasses).         |
+| `POST /api/query`                                        | Run SQL, streaming NDJSON `RunEvent`s as they happen.    |
+| `POST /api/query/sync`                                   | Run SQL, return the full `RunRecord` once finished.      |
+| `POST /api/runs/:id/cancel`                              | Cancel an in-flight run.                                 |
+| `GET /api/runs` \| `GET /api/runs/:id`                   | List/inspect runs kept in memory.                        |
+| `GET /api/runs/:id/export`                               | Download a statement's results as CSV or JSON.           |
+| `GET /api/history`                                       | Past runs from disk (survives restarts).                 |
+| `GET /api/settings` \| `PUT /api/settings`               | Read/update local settings.                              |
+| `GET /api/files` \| `.../content`                        | Browse/read `.sql` files inside configured workspaces.   |
+| `PUT /api/files/content`                                 | Save a file (optimistic-concurrency via `ifModifiedAt`). |
+| `POST /api/files` \| `DELETE /api/files` \| `.../rename` | Create/delete/rename `.sql` files.                       |
+| `GET /`                                                  | The UI (if built and present), or an API index page.     |
 
 ## Layout
 

@@ -20,6 +20,7 @@
 // last-write-wins, so N missing files cost one line rather than N; this hook writes the line that
 // lands last, naming all of them at once instead of whichever happened to fail late.
 
+import { readJson, writeRaw } from "@perch/ui";
 import * as React from "react";
 import { fileName } from "./helpers";
 import type { BuffersApi } from "./use-buffers";
@@ -35,34 +36,23 @@ type FileSession = {
 
 const EMPTY: FileSession = { files: [], active: null };
 
+/** The static export prerenders this component, where there is no storage: `EMPTY` is the answer. */
 function readSession(): FileSession {
-  // The static export prerenders this component, where there is no storage to read.
-  if (typeof window === "undefined") return EMPTY;
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return EMPTY;
-    const parsed: unknown = JSON.parse(raw);
-    if (typeof parsed !== "object" || parsed === null) return EMPTY;
-    const stored = parsed as Partial<FileSession>;
-    const files = Array.isArray(stored.files)
-      ? stored.files.filter((path): path is string => typeof path === "string")
-      : [];
-    const active = typeof stored.active === "string" ? stored.active : null;
-    // From a store the user can edit and a release can outgrow: a malformed record costs a restore,
-    // not the app.
-    return { files, active: active !== null && files.includes(active) ? active : null };
-  } catch {
-    // Private windows and blocked site data both throw, as does anything that is not JSON.
-    return EMPTY;
-  }
+  return readJson(STORAGE_KEY, validate, EMPTY);
 }
 
-function persist(record: string): void {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, record);
-  } catch {
-    // Storage unavailable — the session still works, it just will not be remembered.
-  }
+/**
+ * From a store the user can edit and a release can outgrow: a malformed record costs a restore, not
+ * the app. A remembered `active` that is not in `files` is dropped rather than trusted.
+ */
+function validate(parsed: unknown): FileSession | undefined {
+  if (typeof parsed !== "object" || parsed === null) return undefined;
+  const stored = parsed as Partial<FileSession>;
+  const files = Array.isArray(stored.files)
+    ? stored.files.filter((path): path is string => typeof path === "string")
+    : [];
+  const active = typeof stored.active === "string" ? stored.active : null;
+  return { files, active: active !== null && files.includes(active) ? active : null };
 }
 
 /** What the restore needs of the buffers: the list to watch, and the two actions that reopen it. */
@@ -159,7 +149,7 @@ export function useFileSession(
     // Writing while the restore is in flight would replace the record with the empty list it is
     // still working through.
     if (restoring) return;
-    persist(record);
+    writeRaw(STORAGE_KEY, record);
   }, [restoring, record]);
 
   return { restoring };

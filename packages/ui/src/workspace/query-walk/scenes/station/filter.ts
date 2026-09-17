@@ -61,8 +61,7 @@ function membershipCols(
 }
 
 export function filterScene(ctx: SceneContext): Scene {
-  const { parsed, phase, station, result, input, own, prevSample, mainTitle } = ctx;
-  const sample = okResult(result, "sample");
+  const { parsed, phase, station, result, sample, input, own, prevSample, mainTitle } = ctx;
   if (!sample) return EMPTY;
   const clause = station.id === "where" ? parsed.where : parsed.having;
   const body = clause ? parsed.text.slice(clause.body.from, clause.body.to) : "";
@@ -94,7 +93,12 @@ export function filterScene(ctx: SceneContext): Scene {
       const extra = Object.fromEntries(
         member.cols.map((col, c) => [col.id, member.cells[c]![i] ?? null]),
       );
-      return { ...row, cells: { ...row.cells, ...extra }, verdict: pass ? "pass" : "fail", testIndex: i };
+      return {
+        ...row,
+        cells: { ...row.cells, ...extra },
+        verdict: pass ? "pass" : "fail",
+        testIndex: i,
+      };
     });
     return tables([{ key: "main", title, cols: [...cols, ...member.cols], rows, note }], input);
   }
@@ -105,7 +109,9 @@ export function filterScene(ctx: SceneContext): Scene {
   // A `NOT IN` list holding a null is never true of any row, whatever is in the table. It is read
   // off the query's own text rather than off a result, so it can be said even here, and it is the
   // one explanation a reader will not arrive at by staring at the rows.
-  const nullTrap = station.inLists.some(({ list, measured }) => measured && list.negated && list.hasNull);
+  const nullTrap = station.inLists.some(
+    ({ list, measured }) => measured && list.negated && list.hasNull,
+  );
   const empty =
     input === null
       ? `No ${noun} passed this test.`

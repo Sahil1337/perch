@@ -4,7 +4,15 @@
 import { VERSION } from "../core/version.js";
 import path from "node:path";
 import { serve, type ServerType } from "@hono/node-server";
-import { clearServerInfo, configDir, defaultQueriesDir, ensureDefaultWorkspace, getSettings, saveSettings, writeServerInfo } from "../storage/index.js";
+import {
+  clearServerInfo,
+  configDir,
+  defaultQueriesDir,
+  ensureDefaultWorkspace,
+  getSettings,
+  saveSettings,
+  writeServerInfo,
+} from "../storage/index.js";
 import type { ServerInfo } from "@perch/protocol";
 import { openBrowser } from "../util/open-browser.js";
 import { errnoCode } from "../util/errno.js";
@@ -49,10 +57,6 @@ export type RunningServer = {
   close: () => Promise<void>;
 };
 
-export function readPackageVersion(): string {
-  return VERSION;
-}
-
 /** Loopback-friendly display host: nobody can browse to 0.0.0.0. */
 function displayHost(host: string): string {
   if (host === "0.0.0.0" || host === "::" || host === "") return "127.0.0.1";
@@ -87,18 +91,9 @@ function isAddressInUse(err: unknown): boolean {
   return code === "EADDRINUSE" || code === "EACCES";
 }
 
-/**
- * Fire-and-forget browser open; a missing opener must never take the server down. The platform
- * details (including Windows' `cmd /c start "" <url>`, which needs no shell) live in
- * util/open-browser.ts, the one leaf both the server and the CLI share.
- */
-export function openInBrowser(url: string): void {
-  openBrowser(url);
-}
-
 export async function startServer(opts: StartServerOptions = {}): Promise<RunningServer> {
   const host = opts.host ?? DEFAULT_HOST;
-  const version = opts.version ?? readPackageVersion();
+  const version = opts.version ?? VERSION;
   const extraDirs = (opts.extraDirs ?? []).map((dir) => path.resolve(dir));
   const startedAt = new Date().toISOString();
   const services = createServices();
@@ -186,7 +181,8 @@ export async function startServer(opts: StartServerOptions = {}): Promise<Runnin
     for (const signal of SHUTDOWN_SIGNALS) process.once(signal, onSignal);
   }
 
-  if (opts.open) openInBrowser(url);
+  // Fire-and-forget: a missing opener must never take the server down.
+  if (opts.open) openBrowser(url);
 
   return { url, host, port, services, close };
 }

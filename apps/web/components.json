@@ -16,12 +16,8 @@
     "components": "@perch/ui",
     "utils": "@perch/ui",
     "ui": "@perch/ui",
-    "lib": "@perch/ui",
-    "hooks": "@/hooks"
+    "lib": "@perch/ui"
   },
   "menuColor": "default",
-  "menuAccent": "subtle",
-  "registries": {
-    "@coss": "https://coss.com/ui/r/{name}.json"
-  }
+  "menuAccent": "subtle"
 }

@@ -160,9 +160,23 @@ export function CellOutcome({
             ),
           }
         : run.status === "cancelled"
-          ? { key: "cancelled", node: <Badge size="sm" variant="secondary">Cancelled</Badge> }
+          ? {
+              key: "cancelled",
+              node: (
+                <Badge size="sm" variant="secondary">
+                  Cancelled
+                </Badge>
+              ),
+            }
           : run.status === "error"
-            ? { key: "error", node: <Badge size="sm" variant="error">Error</Badge> }
+            ? {
+                key: "error",
+                node: (
+                  <Badge size="sm" variant="error">
+                    Error
+                  </Badge>
+                ),
+              }
             : statement === undefined
               ? null
               : {

@@ -29,15 +29,22 @@ function tokenEnd(doc: string, from: number): number {
   return end > from ? end : Math.min(from + 1, doc.length);
 }
 
-/** Offset of the `line`-th 1-based line of the statement starting at `statementOffset`. */
-function lineStart(doc: string, statementOffset: number, line: number): number {
-  let at = statementOffset;
-  for (let seen = 1; seen < line; seen++) {
+/**
+ * A 1-based line/column into a character offset, clamped to the document.
+ *
+ * Two callers with the same arithmetic: the palette turning `cursor` into an offset for
+ * `statementAtCursor`, and `queryErrorDiagnostic` turning a driver's reported line into a document
+ * position. `from` is where line 1 starts — 0 for the document, a statement's offset for an error
+ * reported against that statement.
+ */
+export function offsetOfPosition(doc: string, line: number, col = 1, from = 0): number {
+  let at = from;
+  for (let seen = 1; seen < line && at < doc.length; seen++) {
     const next = doc.indexOf("\n", at);
-    if (next === -1) return at;
+    if (next === -1) break;
     at = next + 1;
   }
-  return at;
+  return Math.min(doc.length, at + Math.max(0, col - 1));
 }
 
 /**
@@ -54,7 +61,7 @@ export function queryErrorDiagnostic(
     error.position !== undefined
       ? statementOffset + error.position
       : error.line !== undefined
-        ? lineStart(doc, statementOffset, error.line)
+        ? offsetOfPosition(doc, error.line, 1, statementOffset)
         : null;
   if (from === null) return null;
 

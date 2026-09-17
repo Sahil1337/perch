@@ -11,23 +11,30 @@
 import type { DiscoveredServer, DiscoveryResult, DiscoverySource } from "@perch/protocol";
 import { RefreshCwIcon, SearchXIcon, TriangleAlertIcon } from "lucide-react";
 import * as React from "react";
+import { messageOf } from "../lib/errors";
 import { cn } from "../lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { Button } from "../ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "../ui/empty";
 import { Skeleton } from "../ui/skeleton";
 import { useWorkspace } from "../workspace/context";
-import type { ConnectionInput } from "../workspace/types";
+import { StatusDot } from "../workspace/status-dot";
+import {
+  asyncData,
+  asyncError,
+  asyncLoading,
+  asyncReady,
+  asyncRefreshing,
+  type Async,
+  type ConnectionInput,
+} from "../workspace/types";
 import { DIALECT_DEFAULTS, DialectMark } from "./dialect-mark";
 
 /**
  * A starting point for the connection form, from a server already there. Named `<dialect>-local`,
  * which is what it is; no password, because none was discovered and inventing one moves the failure.
  */
-export function connectionInputFromServer(
-  server: DiscoveredServer,
-  osUser: string,
-): ConnectionInput {
+function connectionInputFromServer(server: DiscoveredServer, osUser: string): ConnectionInput {
   const fallback = DIALECT_DEFAULTS[server.dialect];
   let user = osUser;
   let database = fallback.database;
@@ -70,7 +77,9 @@ function primarySource(server: DiscoveredServer): DiscoverySource | undefined {
 function order(servers: readonly DiscoveredServer[]): DiscoveredServer[] {
   return [...servers].sort((a, b) => {
     if (a.reachable !== b.reachable) return a.reachable ? -1 : 1;
-    const rank = (SOURCE_RANK[primarySource(a) ?? "port"] ?? 9) - (SOURCE_RANK[primarySource(b) ?? "port"] ?? 9);
+    const rank =
+      (SOURCE_RANK[primarySource(a) ?? "port"] ?? 9) -
+      (SOURCE_RANK[primarySource(b) ?? "port"] ?? 9);
     if (rank !== 0) return rank;
     return `${a.host}:${a.port}`.localeCompare(`${b.host}:${b.port}`);
   });
@@ -102,9 +111,9 @@ export function DiscoveredServers({
 }: DiscoveredServersProps): React.ReactElement {
   const { discoverServers } = useWorkspace();
 
-  const [result, setResult] = React.useState<DiscoveryResult | null>(null);
-  const [error, setError] = React.useState<string | null>(null);
-  const [scanning, setScanning] = React.useState(true);
+  // Starts loading rather than idle: the scan runs on mount, so there is no frame in which
+  // nothing has been asked for.
+  const [scanned, setScanned] = React.useState<Async<DiscoveryResult>>(asyncLoading);
 
   // In a ref, so a provider rebuilding its closures each render cannot restart the scan: it runs
   // on mount and when asked, and at no other time.
@@ -115,22 +124,18 @@ export function DiscoveredServers({
 
   const run = React.useCallback(() => {
     let cancelled = false;
-    setScanning(true);
-    setError(null);
-    scan
-      .current()
-      .then((value) => {
+    setScanned(asyncRefreshing);
+    scan.current().then(
+      (value) => {
         if (cancelled) return;
-        setResult(value);
+        setScanned(asyncReady(value));
         report.current?.(value.servers);
-      })
-      .catch((cause: unknown) => {
+      },
+      (cause: unknown) => {
         if (cancelled) return;
-        setError(cause instanceof Error ? cause.message : String(cause));
-      })
-      .finally(() => {
-        if (!cancelled) setScanning(false);
-      });
+        setScanned((previous) => asyncError(messageOf(cause), previous));
+      },
+    );
     return () => {
       cancelled = true;
     };
@@ -138,8 +143,13 @@ export function DiscoveredServers({
 
   React.useEffect(() => run(), [run]);
 
+  const result = asyncData(scanned);
   const servers = result ? order(result.servers) : [];
-  const first = !result && scanning;
+  const error = scanned.status === "error" ? scanned.error : null;
+  // The two states the header tells apart: a scan with nothing yet behind it fills the panel with
+  // skeletons, while a rescan over a list already on screen is a spinner in the Rescan button.
+  const first = scanned.status === "loading";
+  const scanning = first || (scanned.status === "ready" && scanned.stale);
 
   return (
     <section className={cn("flex flex-col gap-2", className)}>
@@ -181,9 +191,9 @@ export function DiscoveredServers({
             </EmptyMedia>
             <EmptyTitle>No database found here</EmptyTitle>
             <EmptyDescription>
-              Nothing answered on {DIALECT_DEFAULTS.postgres.port} or{" "}
-              {DIALECT_DEFAULTS.mysql.port}, and no service or container turned up. Enter the
-              details below if your server is somewhere else.
+              Nothing answered on {DIALECT_DEFAULTS.postgres.port} or {DIALECT_DEFAULTS.mysql.port},
+              and no service or container turned up. Enter the details below if your server is
+              somewhere else.
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -194,7 +204,9 @@ export function DiscoveredServers({
           {servers.map((server) => (
             <ServerRow
               key={serverKey(server)}
-              onSelect={() => onSelect(connectionInputFromServer(server, result?.osUser ?? ""), server)}
+              onSelect={() =>
+                onSelect(connectionInputFromServer(server, result?.osUser ?? ""), server)
+              }
               pending={pending === serverKey(server)}
               server={server}
             />
@@ -223,13 +235,9 @@ function ServerRow({
       title={server.label ?? undefined}
     >
       <DialectMark className="shrink-0 text-muted-foreground" dialect={server.dialect} />
-      <span
-        aria-label={server.reachable ? "Reachable" : "Not answering"}
-        className={cn(
-          "size-1.5 shrink-0 rounded-full",
-          server.reachable ? "bg-success" : "bg-muted-foreground/40",
-        )}
-        role="img"
+      <StatusDot
+        label={server.reachable ? "Reachable" : "Not answering"}
+        status={server.reachable ? "connected" : "idle"}
       />
       <span className="shrink-0 font-mono text-xs">
         {server.host}:{server.port}
@@ -240,13 +248,7 @@ function ServerRow({
         </span>
       )}
       <span className="ml-auto shrink-0 text-muted-foreground text-xs">{source}</span>
-      <Button
-        className="shrink-0"
-        loading={pending}
-        onClick={onSelect}
-        size="xs"
-        variant="outline"
-      >
+      <Button className="shrink-0" loading={pending} onClick={onSelect} size="xs" variant="outline">
         Connect
       </Button>
     </li>

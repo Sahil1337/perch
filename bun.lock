@@ -85,6 +85,8 @@
       "version": "0.1.0",
       "dependencies": {
         "@perch/protocol": "*",
+        "prettier": "^3.9.7",
+        "prettier-plugin-sql-cst": "^0.22.1",
         "sql-formatter": "^15.8.2",
       },
       "devDependencies": {
@@ -1285,6 +1287,10 @@
 
     "prelude-ls": ["prelude-ls@1.2.1", "", {}, "sha512-vkcDPrRZo1QZLbn5RLGPpg/WmIQ65qoWWhcGKf/b5eplkkarX0m9z8ppCat4mlOqUsWpyNuYgO3VRyrYHSzX5g=="],
 
+    "prettier": ["prettier@3.9.7", "", { "bin": { "prettier": "bin/prettier.cjs" } }, "sha512-T3mF5P7HFzZVLDQuCUNtJj6WK1pcpLMweMNUVwGb01bLNkH9AkKxtZvmInw8K6bnn2O3d6/5RHl6zSHiBAD0Og=="],
+
+    "prettier-plugin-sql-cst": ["prettier-plugin-sql-cst@0.22.1", "", { "dependencies": { "prettier": "^3.0.3", "sql-parser-cst": "^0.42.0" } }, "sha512-QEJnqIZ+KRykv+SzZmjwkQ+6qA5Xen+xyvNsMi9shCVqRVOyzz6t51pANy91ih9bZL9cmXAaBgmXp2bOMtZCpg=="],
+
     "pretty-ms": ["pretty-ms@9.3.1", "", { "dependencies": { "parse-ms": "^4.0.0" } }, "sha512-HzMy3Geq23nVALD/M2LliU+F+M+gVNsvkQWWqeBZ8HDiCgzo6YPJ/Omrmtq24EFrIsk0a3EkQGEd7bDOo+IhGA=="],
 
     "prompts": ["prompts@2.4.2", "", { "dependencies": { "kleur": "^3.0.3", "sisteransi": "^1.0.5" } }, "sha512-NxNv/kLguCA7p3jE8oL2aEBsrJWgAakBpgmgK6lpPWV+WuOmY6r2/zbAVnP+T8bQlA0nzHXSJSJW0Hq7ylaD2Q=="],
@@ -1402,6 +1408,8 @@
     "sql-escaper": ["sql-escaper@1.5.2", "", {}, "sha512-6CKD38c31SENivxOADeMNLdukOnUxUcflKtzVWzace7Riv1v7cAEym5Cx9Q7gYZ3ezIJI7ZpqecQq8cqNeSSFg=="],
 
     "sql-formatter": ["sql-formatter@15.8.2", "", { "dependencies": { "argparse": "^2.0.1", "nearley": "^2.20.1" }, "bin": { "sql-formatter": "bin/sql-formatter-cli.cjs" } }, "sha512-kTYRg5FIcvsDtYUG2Qn9pYT6xKwiLJN5TTIvc5Mur6hIg4pSfdpHu8Yyu5bqESLHnVM3mXzD446cb2+uEaKZXg=="],
+
+    "sql-parser-cst": ["sql-parser-cst@0.42.1", "", {}, "sha512-lfpuhl60s2IRIxWCARthbBvXb2NBLOsVZxzaQLBDDgEZAmT8QYzRWD3qfFX2egZ5y0BYVur7DAQEJSrXxs1WKQ=="],
 
     "stable-hash": ["stable-hash@0.0.5", "", {}, "sha512-+L3ccpzibovGXFK+Ap/f8LOS0ahMrHTf3xu7mMLSpEGU0EO9ucaysSylKo9eRDFNhWve/y275iPmIZ4z39a9iA=="],
 

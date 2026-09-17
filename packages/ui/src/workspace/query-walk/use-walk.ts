@@ -9,10 +9,11 @@
 // `useProgram` runs the same loop once per section of a program, in the program's own order, so a
 // section's dependencies have already been computed by the time it starts.
 
-import type { Dialect, RunRecord, StatementResult } from "@perch/protocol";
+import type { RunRecord } from "@perch/protocol";
 import * as React from "react";
 import { boundPlan } from "./bound";
 import { isSetOp, type ParsedSelect } from "./clauses";
+import { messageOf, type QueryOutcome } from "./probe-outcome";
 import type { Program, ResultOnly, Section } from "./program";
 import {
   buildRecursionStations,
@@ -20,12 +21,11 @@ import {
   buildSetStations,
   buildStations,
   SAMPLE_ROWS,
+  sampleId,
   type Station,
 } from "./steps";
 
-export type QueryOutcome =
-  | { readonly ok: true; readonly result: StatementResult }
-  | { readonly ok: false; readonly error: string; readonly skipped: boolean };
+export type { QueryOutcome };
 
 export type StationResult = {
   readonly status: "pending" | "loading" | "done";
@@ -65,10 +65,6 @@ export type Probe = (sql: string, options?: { maxRows?: number }) => Promise<Run
 
 const PENDING: StationResult = { status: "pending", queries: {} };
 
-function messageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
 /**
  * Walks `stations` in order, reporting each one as its batches land.
  *
@@ -76,7 +72,7 @@ function messageOf(error: unknown): string {
  * the batch bookkeeping above is the subtle part of this file and two copies of it would drift.
  * `cancelled` is read fresh after every await so an unmounted walk stops mid-flight.
  */
-export async function runStations(
+async function runStations(
   stations: readonly Station[],
   probe: Probe,
   report: (index: number, result: StationResult) => void,
@@ -108,39 +104,13 @@ export async function runStations(
       } catch (error) {
         if (cancelled()) return;
         const message = messageOf(error);
-        for (const query of batch) queries[query.id] = { ok: false, error: message, skipped: false };
+        for (const query of batch)
+          queries[query.id] = { ok: false, error: message, skipped: false };
       }
       report(index, { status: "loading", queries: { ...queries } });
     }
     report(index, { status: "done", queries });
   }
-}
-
-export function useWalk(parsed: ParsedSelect, dialect: Dialect, probe: Probe): WalkData {
-  const stations = React.useMemo(() => buildStations(parsed, dialect), [dialect, parsed]);
-  const [results, setResults] = React.useState<readonly StationResult[]>(() =>
-    stations.map(() => PENDING),
-  );
-
-  React.useEffect(() => {
-    let cancelled = false;
-    setResults(stations.map(() => PENDING));
-    void runStations(
-      stations,
-      probe,
-      (index, result) => {
-        if (cancelled) return;
-        setResults((previous) => previous.map((entry, i) => (i === index ? result : entry)));
-      },
-      () => cancelled,
-    );
-
-    return () => {
-      cancelled = true;
-    };
-  }, [stations, probe]);
-
-  return { parsed, text: parsed.text, result: null, stations, results };
 }
 
 /**
@@ -233,7 +203,12 @@ function planSection(program: Program, section: Section): SectionPlan {
     if (section.binding.kind === "bound") {
       return { section, parsed: null, stations: [], status: "held" };
     }
-    return { section, parsed: null, stations: [buildResultStation(section.text)], status: "pending" };
+    return {
+      section,
+      parsed: null,
+      stations: [buildResultStation(section.text)],
+      status: "pending",
+    };
   }
 
   // A recursive CTE whose two halves `program.ts` could prove: START, REPEAT and SETTLE rather than
@@ -281,7 +256,12 @@ function planSection(program: Program, section: Section): SectionPlan {
       : "held";
   const status: SectionStatus =
     parsed === null ? "unwalkable" : section.binding.kind === "bound" ? bound : "pending";
-  return { section, parsed, stations: parsed ? buildStations(parsed, program.dialect) : [], status };
+  return {
+    section,
+    parsed,
+    stations: parsed ? buildStations(parsed, program.dialect) : [],
+    status,
+  };
 }
 
 const initialState = (plan: SectionPlan): SectionState => ({
@@ -378,6 +358,6 @@ export function useProgram(program: Program, probe: Probe): ProgramData {
 export function stationState(station: Station, result: StationResult | undefined): StationState {
   if (!station.present) return "absent";
   if (!result || result.status !== "done") return "loading";
-  const sample = result.queries[station.id === "from" ? "src0.sample" : "sample"];
+  const sample = result.queries[sampleId(station)];
   return sample?.ok ? "ready" : "failed";
 }

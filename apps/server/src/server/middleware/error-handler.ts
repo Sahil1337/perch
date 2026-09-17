@@ -13,12 +13,15 @@ export function httpStatus(status: number): ContentfulStatusCode {
 
 export function registerErrorHandler(app: Hono): void {
   app.onError((err, c) => {
+    // Hono's own type, thrown by its middleware (a malformed body, a bad route) — never by us.
     if (err instanceof HTTPException) {
       const error: ApiError = { message: err.message || "request failed" };
       return c.json({ error }, err.status);
     }
     if (err instanceof HttpError) {
-      return c.json({ error: { message: err.message, code: err.code } }, httpStatus(err.status));
+      const error: ApiError = { message: err.message, code: err.code };
+      // `error` last: a details bag can add fields beside the envelope, never replace it.
+      return c.json({ ...err.details, error }, httpStatus(err.status));
     }
     console.error("[perch]", err);
     return c.json({ error: { message: errorMessage(err) } }, 500);

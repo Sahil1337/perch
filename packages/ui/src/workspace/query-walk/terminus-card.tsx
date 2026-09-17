@@ -80,13 +80,7 @@ function HeadCell({ col }: { readonly col: Col }): React.ReactElement {
   );
 }
 
-function BodyCell({
-  col,
-  value,
-}: {
-  readonly col: Col;
-  readonly value: Cell;
-}): React.ReactElement {
+function BodyCell({ col, value }: { readonly col: Col; readonly value: Cell }): React.ReactElement {
   return (
     <div
       className={cn(

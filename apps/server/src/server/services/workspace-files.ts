@@ -6,15 +6,17 @@ import path from "node:path";
 import type { FileEntry } from "@perch/protocol";
 import { writeFileAtomic } from "../../util/atomic-write.js";
 import { errnoCode } from "../../util/errno.js";
-import { badRequest, notFound, type ApiError } from "../http/errors.js";
+import { badRequest, notFound } from "../http/errors.js";
 import { SKIPPED_DIRS, isHidden, isSqlFile } from "./workspace-paths.js";
 
 /** A 409 carries the file's current text back inline only while it is small enough to be cheap. */
 const CONFLICT_CONTENT_LIMIT = 512 * 1024;
 
-/** The body PUT /api/files/content answers with when the file moved under the client's feet. */
+/**
+ * What the 409 from PUT /api/files/content carries beside its message when the file moved under
+ * the client's feet: the file as it is on disk now.
+ */
 export type StaleWrite = {
-  error: ApiError;
   modifiedAt: string | null;
   size?: number;
   content?: string;
@@ -57,7 +59,9 @@ export async function listDir(dir: string): Promise<FileEntry[]> {
       /* vanished between readdir and stat */
     }
   }
-  out.sort((a, b) => (a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === "dir" ? -1 : 1));
+  out.sort((a, b) =>
+    a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === "dir" ? -1 : 1,
+  );
   return out;
 }
 
@@ -83,8 +87,7 @@ export async function exists(full: string): Promise<boolean> {
 
 /**
  * Guards a write against the file having changed since the client read it. Returns `undefined`
- * when the write may proceed, or the 409 body to answer with — which carries what is on disk now
- * so the UI can show a diff without a second round trip.
+ * when the write may proceed, or what the caller should hang on its 409.
  */
 export async function assertNotStale(
   full: string,
@@ -94,10 +97,7 @@ export async function assertNotStale(
   const modifiedAt = entry?.modifiedAt;
   if (modifiedAt === ifModifiedAt) return undefined;
 
-  const conflict: StaleWrite = {
-    error: { message: "the file changed on disk since it was read", code: "stale_write" },
-    modifiedAt: modifiedAt ?? null,
-  };
+  const conflict: StaleWrite = { modifiedAt: modifiedAt ?? null };
   if (entry) {
     conflict.size = entry.size ?? 0;
     if ((entry.size ?? 0) < CONFLICT_CONTENT_LIMIT) {

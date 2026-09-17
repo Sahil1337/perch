@@ -3,7 +3,11 @@
 
 import type { StatementResult } from "@perch/protocol";
 import type { KeyPair } from "../clauses";
-import type { Station } from "../steps";
+import { countId, sampleId, type Station } from "../steps";
+
+/** Defined in `steps.ts`, beside the builders that spell these ids; re-exported here because this is
+ *  where every reader of a station's results looks for them. */
+export { sampleId };
 import type { StationResult, WalkData } from "../use-walk";
 
 export function okResult(result: StationResult | undefined, id: string): StatementResult | null {
@@ -22,13 +26,6 @@ export function countValue(result: StationResult | undefined, id: string): numbe
   if (value === undefined || value === null) return null;
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
-}
-
-export function sampleId(station: Station): string {
-  return station.id === "from" ? "src0.sample" : "sample";
-}
-function countId(station: Station): string {
-  return station.id === "from" ? "src0.count" : "count";
 }
 
 export function sampleOf(walk: WalkData, index: number): StatementResult | null {

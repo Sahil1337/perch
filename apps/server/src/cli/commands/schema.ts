@@ -1,7 +1,15 @@
 // `perch schema <conn> [--database db] [--table schema.table]`
 
 import type { DatabaseSchema, Table } from "@perch/protocol";
-import { bold, defineCommand, die, dim, printJson, requireConnection, withDriver } from "../util/index.js";
+import {
+  bold,
+  defineCommand,
+  die,
+  dim,
+  printJson,
+  requireConnection,
+  withDriver,
+} from "../util/index.js";
 
 const SCHEMA_HELP = `usage: perch schema <conn> [--database <db>] [--table <schema.table>] [--json]
 
@@ -18,14 +26,20 @@ function findTable(schema: DatabaseSchema, spec: string): Table {
   if (matches.length === 0) die(`table not found: ${spec}`);
   if (matches.length > 1) {
     const qualified = schema.schemas
-      .flatMap((s) => s.tables.filter((t) => t.name === tableName).map((t) => `${s.name}.${t.name}`))
+      .flatMap((s) =>
+        s.tables.filter((t) => t.name === tableName).map((t) => `${s.name}.${t.name}`),
+      )
       .join(", ");
     die(`ambiguous table "${tableName}" — qualify with a schema: ${qualified}`);
   }
   return matches[0]!;
 }
 
-const KIND_MARK: Record<Table["kind"], string> = { table: "", view: " (view)", materialized_view: " (matview)" };
+const KIND_MARK: Record<Table["kind"], string> = {
+  table: "",
+  view: " (view)",
+  materialized_view: " (matview)",
+};
 
 function printTree(schema: DatabaseSchema): void {
   for (const s of schema.schemas) {

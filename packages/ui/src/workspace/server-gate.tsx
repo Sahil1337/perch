@@ -47,12 +47,13 @@ export function ServerGate(): React.ReactElement {
   // Pressing Retry puts the provider back into `connecting`, and swapping the card for the bare
   // mark would read as the screen having given up rather than as the button having worked. So the
   // card stays and the button spins, until the probe settles into something else.
-  const [retrying, setRetrying] = React.useState(false);
-  React.useEffect(() => {
-    if (server.status !== "connecting") setRetrying(false);
-  }, [server.status]);
+  //
+  // The latch is only "has the button been pressed"; whether a retry is *in flight* is that and the
+  // status together, which is why there is nothing here to keep in step with `server.status`.
+  const [retried, setRetried] = React.useState(false);
+  const retrying = retried && server.status === "connecting";
 
-  const showCard = server.status === "unreachable" || (retrying && server.status === "connecting");
+  const showCard = server.status === "unreachable" || retrying;
 
   if (!showCard) {
     return (
@@ -84,7 +85,7 @@ export function ServerGate(): React.ReactElement {
         <PerchBadge />
         <Unreachable
           onRetry={() => {
-            setRetrying(true);
+            setRetried(true);
             server.retry();
           }}
           retrying={retrying}

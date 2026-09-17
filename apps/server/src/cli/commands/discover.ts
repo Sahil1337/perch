@@ -40,6 +40,8 @@ export const cmdDiscover = defineCommand({ usage: DISCOVER_HELP }, async ({ json
     s.suggestedUrl,
   ]);
   console.log(formatTable(COLUMNS, rows));
-  console.log(dim(`${result.servers.length} found in ${result.durationMs} ms · os user ${result.osUser}`));
+  console.log(
+    dim(`${result.servers.length} found in ${result.durationMs} ms · os user ${result.osUser}`),
+  );
   console.log(`connect with: ${bold("perch conn add <name> <url>")}`);
 });

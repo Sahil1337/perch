@@ -12,12 +12,14 @@
 import { AnimatePresence, motion } from "motion/react";
 import * as React from "react";
 import { cn } from "../../lib/utils";
+import { CellFrame } from "./cells";
 import { formatCell } from "../results-grid";
 import { Sentence } from "./narrator";
 import { STAGGER_MS } from "./narration";
 import type { Col, GridCellView, GridRowView, GridView } from "./scenes";
 import { TickNumber } from "./tick-number";
 import { VerdictMark } from "./verdict-mark";
+import { WalkCard, WalkCardHeader } from "./walk-card";
 import { useSpeed, useT } from "./walk-motion";
 
 /** Gap between one cell of a row and the next, which is half a row's stagger: a cell is a smaller
@@ -27,7 +29,7 @@ const CELL_MS = STAGGER_MS / 2;
 const SUM_MS = 160;
 
 /** Picking a cell: which outer row, and which column of the grid. */
-export type GridPicker = (row: number, column: string) => void;
+type GridPicker = (row: number, column: string) => void;
 
 /**
  * How a cell reports a click.
@@ -39,27 +41,18 @@ export type GridPicker = (row: number, column: string) => void;
 export const GridPickContext = React.createContext<GridPicker>(() => undefined);
 
 export function GridCard({ grid }: { readonly grid: GridView }): React.ReactElement {
-  const t = useT();
   const columns = grid.group.columns;
   // One width for every cell column, so the header labels line up with the dots under them and a
   // long course code does not make one column twice the width of its neighbours.
   const width = Math.max(56, ...columns.map((column) => 16 + column.label.length * 7));
   return (
-    <motion.div
-      animate={{ opacity: 1 }}
-      className="shrink-0 overflow-hidden rounded-lg border bg-card shadow-sm/5"
-      exit={{ opacity: 0 }}
-      initial={{ opacity: 0 }}
-      // Position only: see the note on `Table` in `stage.tsx` for why no card animates its size.
-      layout="position"
-      transition={{ layout: t.spring, default: t.fade }}
-    >
-      <div className="flex h-8 items-center gap-2 border-b bg-muted/60 px-2.5 font-medium text-xs">
+    <WalkCard>
+      <WalkCardHeader>
         <span className="whitespace-nowrap">{grid.title}</span>
         <span className="ms-auto whitespace-nowrap font-mono text-muted-foreground text-xs tabular-nums">
           {grid.note}
         </span>
-      </div>
+      </WalkCardHeader>
 
       {/* Above the rows rather than under them: the card is often taller than the stage, and a
           legend at the foot is the first thing to be scrolled out of sight — which is the one part
@@ -89,7 +82,7 @@ export function GridCard({ grid }: { readonly grid: GridView }): React.ReactElem
           <p className="px-3 py-6 text-center text-muted-foreground text-xs">No rows.</p>
         )}
       </div>
-    </motion.div>
+    </WalkCard>
   );
 }
 
@@ -117,25 +110,39 @@ function Header({
   const span = group.columns.length * width;
   return (
     <div className="border-b">
-      {/* The group's own name sits over its columns, because a header of bare course codes says
-          nothing about where the codes came from.
+      <GroupBand cols={cols} group={group} span={span} />
+      <LabelRow cols={cols} countLabel={countLabel} group={group} width={width} />
+    </div>
+  );
+}
 
-          Every line of this card — this one, the labels under it, and each row — is the same list of
-          flex items in the same order, so the three of them cannot drift apart. That takes more care
-          here than anywhere else, because this line is one element standing over many: the band
-          grows by as many shares as it covers columns, which is exactly what those columns take
-          between them, so its edges stay on theirs however much slack there is to share. The two
-          spacers at the end are the fold marker and the count, which this line has nothing to put in
-          but must still leave room for — without them it would have 128px more slack to hand out
-          than the line below, and every column would sit right of its own label. */}
-      <div className="flex h-6 items-stretch">
-        <div className="w-5.5 shrink-0" />
+/**
+ * The driving query's name, spanning its columns.
+ *
+ * A header of bare course codes says nothing about where the codes came from. Every line of this
+ * card — this one, the labels under it, and each row — is the same list of flex items in the same
+ * order, so the three of them cannot drift apart. That takes more care here than anywhere else,
+ * because this line is one element standing over many: the band grows by as many shares as it
+ * covers columns, which is exactly what those columns take between them, so its edges stay on
+ * theirs however much slack there is to share. The two spacers at the end are the fold marker and
+ * the count, which this line has nothing to put in but must still leave room for — without them it
+ * would have 128px more slack to hand out than the line below, and every column would sit right of
+ * its own label.
+ */
+function GroupBand({
+  cols,
+  group,
+  span,
+}: {
+  readonly cols: readonly Col[];
+  readonly group: GridView["group"];
+  readonly span: number;
+}): React.ReactElement {
+  return (
+    <div className="flex h-6 items-stretch">
+      <div className="w-5.5 shrink-0" />
         {cols.map((col) => (
-          <div
-            className="shrink-0 grow basis-(--w)"
-            key={col.id}
-            style={{ "--w": `${col.width}px` } as React.CSSProperties}
-          />
+          <CellFrame grow key={col.id} width={col.width} />
         ))}
         {group.columns.length > 0 && (
           <div
@@ -145,32 +152,51 @@ function Header({
             <span className="truncate">{group.title}</span>
           </div>
         )}
-        {group.hidden > 0 && <div className="w-12 shrink-0" />}
-        <div className="w-20 shrink-0" />
-      </div>
-      <div className="flex h-7 items-stretch">
-        <div className="w-5.5 shrink-0" />
+      {group.hidden > 0 && <div className="w-12 shrink-0" />}
+      <div className="w-20 shrink-0" />
+    </div>
+  );
+}
+
+/** The column labels, in the same order and on the same shares as the band above and the rows
+ *  below. */
+function LabelRow({
+  cols,
+  countLabel,
+  group,
+  width,
+}: {
+  readonly cols: readonly Col[];
+  readonly countLabel: string;
+  readonly group: GridView["group"];
+  readonly width: number;
+}): React.ReactElement {
+  return (
+    <div className="flex h-7 items-stretch">
+      <div className="w-5.5 shrink-0" />
         {cols.map((col) => (
-          <div
+          <CellFrame
             className={cn(
-              "flex h-7 shrink-0 grow basis-(--w) items-center truncate whitespace-nowrap px-2 font-mono text-muted-foreground text-xs",
+              "flex h-7 items-center truncate whitespace-nowrap px-2 font-mono text-muted-foreground text-xs",
               col.num && "justify-end",
             )}
+            grow
             key={col.id}
-            style={{ "--w": `${col.width}px` } as React.CSSProperties}
+            width={col.width}
           >
             {col.label}
-          </div>
+          </CellFrame>
         ))}
         {group.columns.map((column) => (
-          <div
-            className="flex h-7 shrink-0 grow basis-(--w) items-center justify-center truncate whitespace-nowrap px-1 font-mono text-info-foreground text-xs"
+          <CellFrame
+            className="flex h-7 items-center justify-center truncate whitespace-nowrap px-1 font-mono text-info-foreground text-xs"
+            grow
             key={column.id}
-            style={{ "--w": `${width}px` } as React.CSSProperties}
             title={column.label}
+            width={width}
           >
             {column.label}
-          </div>
+          </CellFrame>
         ))}
         {group.hidden > 0 && (
           <div
@@ -180,9 +206,8 @@ function Header({
             +{group.hidden}
           </div>
         )}
-        <div className="flex h-7 w-20 shrink-0 items-center justify-end whitespace-nowrap bg-info/10 px-2 font-mono text-info-foreground text-xs">
-          {countLabel}
-        </div>
+      <div className="flex h-7 w-20 shrink-0 items-center justify-end whitespace-nowrap bg-info/10 px-2 font-mono text-info-foreground text-xs">
+        {countLabel}
       </div>
     </div>
   );
@@ -227,36 +252,29 @@ function GridRow({
       transition={{ layout: t.spring, default: t.fade }}
     >
       <div className="flex w-5.5 shrink-0 items-center justify-center">
-        {!pending && (
-          <motion.span
-            animate={{ opacity: 1, scale: 1 }}
-            className="flex"
-            initial={filling ? { opacity: 0, scale: 0.4 } : false}
-            transition={filling ? { ...t.spring, delay: sumDelay + 0.25 } : t.fade}
-          >
-            <VerdictMark delayMs={0} settled verdict={row.verdict} />
-          </motion.span>
-        )}
+        {!pending && <RowVerdict delay={filling ? sumDelay + 0.25 : null} verdict={row.verdict} />}
       </div>
       {/* Same basis and the same growth as the label above each one: see `Header`. */}
       {cols.map((col) => (
-        <div
+        <CellFrame
           className={cn(
-            "flex h-7 shrink-0 grow basis-(--w) items-center truncate whitespace-nowrap px-2 font-mono text-xs tabular-nums",
+            "flex h-7 items-center truncate whitespace-nowrap px-2 font-mono text-xs tabular-nums",
             col.num && "justify-end",
             row.cells[col.id] === null && "text-muted-foreground italic",
           )}
+          grow
           key={col.id}
-          style={{ "--w": `${col.width}px` } as React.CSSProperties}
+          width={col.width}
         >
           {formatCell(row.cells[col.id] ?? null)}
-        </div>
+        </CellFrame>
       ))}
       {row.grid.map((cell, at) => (
-        <div
-          className="flex h-7 shrink-0 grow basis-(--w) items-center justify-center"
+        <CellFrame
+          className="flex h-7 items-center justify-center"
+          grow
           key={cell.key}
-          style={{ "--w": `${width}px` } as React.CSSProperties}
+          width={width}
         >
           <AnimatePresence initial={false}>
             {!pending && (
@@ -267,7 +285,7 @@ function GridRow({
               />
             )}
           </AnimatePresence>
-        </div>
+        </CellFrame>
       ))}
       {hidden > 0 && (
         <span
@@ -277,22 +295,66 @@ function GridRow({
           ⋯
         </span>
       )}
-      <div className="flex h-7 w-20 shrink-0 items-center justify-end bg-info/10 px-2 font-mono text-info-foreground text-xs tabular-nums">
-        {pending || row.returned === null ? (
-          <span className="text-muted-foreground">{pending ? "" : "—"}</span>
-        ) : (
-          <motion.span
-            animate={{ opacity: 1 }}
-            initial={filling ? { opacity: 0 } : false}
-            transition={{ ...t.fade, delay: filling ? sumDelay : 0 }}
-          >
-            {/* From zero, because the number is a count of the cells that just arrived and watching
-                it climb past them is the whole reason the two sit on the same row. */}
-            <TickNumber from={filling ? 0 : undefined} value={row.returned} />
-          </motion.span>
-        )}
-      </div>
+      <RowSum delay={filling ? sumDelay : null} pending={pending} returned={row.returned} />
     </motion.div>
+  );
+}
+
+/**
+ * The mark that says what the row's cells added up to for the predicate.
+ *
+ * `delay` is null when the row is settled — it arrived with everything already decided, and
+ * springing the mark in would perform a test that did not just happen. When it is a number, it is
+ * how long after the row's own cells the verdict lands, which is the causation the card exists to
+ * show: the sum first, then what it means.
+ */
+function RowVerdict({
+  delay,
+  verdict,
+}: {
+  readonly delay: number | null;
+  readonly verdict: GridRowView["verdict"];
+}): React.ReactElement {
+  const t = useT();
+  return (
+    <motion.span
+      animate={{ opacity: 1, scale: 1 }}
+      className="flex"
+      initial={delay === null ? false : { opacity: 0, scale: 0.4 }}
+      transition={delay === null ? t.fade : { ...t.spring, delay }}
+    >
+      <VerdictMark delayMs={0} settled verdict={verdict} />
+    </motion.span>
+  );
+}
+
+/** What the row's cells came to: the count of the ones the subquery returned. */
+function RowSum({
+  delay,
+  pending,
+  returned,
+}: {
+  readonly delay: number | null;
+  readonly pending: boolean;
+  readonly returned: number | null;
+}): React.ReactElement {
+  const t = useT();
+  return (
+    <div className="flex h-7 w-20 shrink-0 items-center justify-end bg-info/10 px-2 font-mono text-info-foreground text-xs tabular-nums">
+      {pending || returned === null ? (
+        <span className="text-muted-foreground">{pending ? "" : "—"}</span>
+      ) : (
+        <motion.span
+          animate={{ opacity: 1 }}
+          initial={delay === null ? false : { opacity: 0 }}
+          transition={{ ...t.fade, delay: delay ?? 0 }}
+        >
+          {/* From zero, because the number is a count of the cells that just arrived and watching
+              it climb past them is the whole reason the two sit on the same row. */}
+          <TickNumber from={delay === null ? undefined : 0} value={returned} />
+        </motion.span>
+      )}
+    </div>
   );
 }
 

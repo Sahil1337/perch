@@ -5,6 +5,7 @@ import type { Hono } from "hono";
 import { num } from "../http/body.js";
 import { badRequest, notFound } from "../http/errors.js";
 import { toCsv } from "../http/csv.js";
+import { rowsToObjects } from "../http/rows.js";
 import type { RouteDeps } from "../create-server.js";
 
 export function registerRunsRoutes(app: Hono, deps: RouteDeps): void {
@@ -29,12 +30,9 @@ export function registerRunsRoutes(app: Hono, deps: RouteDeps): void {
     const index = num(c.req.query("statement")) ?? 0;
     const result = run.results?.[index];
     if (!result) throw notFound(`run has no statement ${index}`);
-    const names = result.columns.map((column) => column.name);
     const stamp = `${run.id.slice(0, 8)}-${index}`;
     if (format === "json") {
-      const rows = result.rows.map((row) =>
-        Object.fromEntries(names.map((name, i) => [name, row[i] ?? null])),
-      );
+      const rows = rowsToObjects(result.columns, result.rows);
       c.header("Content-Type", "application/json; charset=utf-8");
       c.header("Content-Disposition", `attachment; filename="perch-${stamp}.json"`);
       return c.body(JSON.stringify(rows, null, 2) + "\n");
@@ -42,6 +40,11 @@ export function registerRunsRoutes(app: Hono, deps: RouteDeps): void {
     if (format !== "csv") throw badRequest(`unsupported export format: ${format}`);
     c.header("Content-Type", "text/csv; charset=utf-8");
     c.header("Content-Disposition", `attachment; filename="perch-${stamp}.csv"`);
-    return c.body(toCsv(names, result.rows));
+    return c.body(
+      toCsv(
+        result.columns.map((column) => column.name),
+        result.rows,
+      ),
+    );
   });
 }

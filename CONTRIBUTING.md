@@ -65,18 +65,18 @@ perch/
 Run these from the repo root as `bun run <script>`. The fan-out ones use `--filter '*'`, so a
 workspace that does not define the script is skipped rather than failing the run.
 
-| Script | What it does |
-|---|---|
-| `dev` | both halves: `next dev` on :3000 + `perch serve` on a free port (scripts/dev.mjs) |
-| `dev:server` | just the server (`perch serve --no-open` on :4600, from TypeScript) |
-| `dev:ui` | just the UI (`next dev` on :3000, expects the API on :4600) |
-| `build` | builds every workspace that has a build |
-| `start` | runs the built app: `perch serve` on :4600, serving the built UI and the API |
-| `typecheck` | `tsc --noEmit` across every workspace |
-| `lint` | ESLint over apps/server and packages/ui, then apps/web's own ESLint 9 pass |
-| `smoke` | end-to-end smoke against a local Postgres (apps/server/scripts/smoke.sh) |
-| `perch -- <args>` | runs the `perch` binary from the server workspace (needs a build) |
-| `clean` | removes node_modules and all build output |
+| Script            | What it does                                                                      |
+| ----------------- | --------------------------------------------------------------------------------- |
+| `dev`             | both halves: `next dev` on :3000 + `perch serve` on a free port (scripts/dev.mjs) |
+| `dev:server`      | just the server (`perch serve --no-open` on :4600, from TypeScript)               |
+| `dev:ui`          | just the UI (`next dev` on :3000, expects the API on :4600)                       |
+| `build`           | builds every workspace that has a build                                           |
+| `start`           | runs the built app: `perch serve` on :4600, serving the built UI and the API      |
+| `typecheck`       | `tsc --noEmit` across every workspace                                             |
+| `lint`            | ESLint over apps/server and packages/ui, then apps/web's own ESLint 9 pass        |
+| `smoke`           | end-to-end smoke against a local Postgres (apps/server/scripts/smoke.sh)          |
+| `perch -- <args>` | runs the `perch` binary from the server workspace (needs a build)                 |
+| `clean`           | removes node_modules and all build output                                         |
 
 To target a single workspace, use `--filter`: `bun run --filter perch typecheck`,
 `bun run --filter @perch/web lint`, `bun run --filter @perch/protocol check`.

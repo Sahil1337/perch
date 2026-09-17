@@ -5,29 +5,33 @@ import * as React from "react";
 import { cn } from "../../lib/utils";
 import { DialogBackdrop, DialogPortal } from "../../ui/dialog";
 import { QueryWalk } from "./query-walk";
-import { QUERY_WALK_EVENT, type QueryWalkEventDetail } from "./query-walk-event";
+import {
+  noQueryWalkRequest,
+  queryWalkRequest,
+  subscribeQueryWalk,
+} from "./query-walk-event";
 
 /**
  * The query walk, mounted once in the shell. Opens on `requestQueryWalk(sql)`, over the whole
  * window: the stage wants every pixel a wide join can take.
  */
 export function QueryWalkDialog(): React.ReactElement {
-  const [open, setOpen] = React.useState(false);
-  const [sql, setSql] = React.useState("");
-
-  React.useEffect(() => {
-    const listener = (event: Event): void => {
-      const detail = (event as CustomEvent<QueryWalkEventDetail>).detail;
-      if (!detail?.sql.trim()) return;
-      setSql(detail.sql);
-      setOpen(true);
-    };
-    window.addEventListener(QUERY_WALK_EVENT, listener);
-    return () => window.removeEventListener(QUERY_WALK_EVENT, listener);
-  }, []);
+  const request = React.useSyncExternalStore(
+    subscribeQueryWalk,
+    queryWalkRequest,
+    noQueryWalkRequest,
+  );
+  // Closing is this component's own state; opening is the store's. They are combined rather than
+  // merged, so dismissing the dialog does not have to write back to a store the whole app shares.
+  const [closed, setClosed] = React.useState<number | null>(null);
+  const open = request !== null && closed !== request.nth;
+  const sql = request?.sql ?? "";
 
   return (
-    <DialogPrimitive.Root onOpenChange={setOpen} open={open}>
+    <DialogPrimitive.Root
+      onOpenChange={(next) => setClosed(next ? null : (request?.nth ?? null))}
+      open={open}
+    >
       <DialogPortal>
         <DialogBackdrop />
         <DialogPrimitive.Popup

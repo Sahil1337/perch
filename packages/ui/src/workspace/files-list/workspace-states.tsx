@@ -6,6 +6,7 @@ import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 import { Skeleton } from "../../ui/skeleton";
 import { useWorkspace } from "../context";
+import { ErrorText } from "../error-text";
 import { FolderPicker } from "../folder-picker";
 import { asyncData } from "../types";
 import { useFolders } from "./use-folders";
@@ -94,11 +95,7 @@ export function OpenFolder(): React.ReactElement {
             Open
           </Button>
         </div>
-        {error !== null && (
-          <p className="text-destructive-foreground text-xs" role="alert">
-            {error}
-          </p>
-        )}
+        <ErrorText>{error}</ErrorText>
       </div>
 
       {recent.length > 0 && (

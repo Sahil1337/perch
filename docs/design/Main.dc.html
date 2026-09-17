@@ -1,338 +1,1155 @@
 <!doctype html>
 <html>
-<head>
-  <meta charset="utf-8">
-  <script src="./support.js"></script>
-</head>
-<body>
-<x-dc>
-<helmet>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
-  <style>
-  :root{
-    --page:oklch(20.9% 0.004 264.477);--canvas:oklch(23.1% 0.004 264.487);--surface:oklch(26% 0.006 271.191);
-    --inset:oklch(24.3% 0.004 264.492);--hover:oklch(28.9% 0.006 271.22);--hover2:oklch(31.8% 0.007 274.747);
-    --ink:oklch(96.4% 0.002 247.839);--ink2:oklch(73.1% 0.008 260.731);--ink3:oklch(54.1% 0.01 264.484);
-    --line:oklch(30.8% 0.006 258.354);--line2:oklch(35.6% 0.007 264.474);--field:oklch(29.3% 0.006 271.223);
-    --accent:oklch(68% 0.173 253.301);--accent-ink:oklch(78.8% 0.113 248.33);--accent-tint:oklch(68% 0.173 253.301 / 0.16);
-    --green:oklch(70.5% 0.154 153.814);--green-tint:oklch(70.5% 0.154 153.814 / 0.14);
-    --orange:oklch(74.6% 0.156 55.642);--red:oklch(66.6% 0.18 21.433);--red-tint:oklch(66.6% 0.18 21.433 / 0.14);
-  }
-  body{margin:0;background:var(--page);color:var(--ink);font:14px/1.45 Geist,"Segoe UI",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
-  a{color:var(--accent-ink)} a:hover{color:var(--accent)}
-  .mono{font-family:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,monospace}
-  svg{flex-shrink:0}
-  .btn{height:32px;padding:0 11px;border-radius:8px;border:1px solid var(--line2);background:oklch(35.6% 0.007 264.474 / 0.32);font-weight:500;font-size:14px;display:inline-flex;align-items:center;gap:8px;color:var(--ink);white-space:nowrap}
-  .btn.primary{background:var(--ink);color:var(--canvas);border-color:var(--ink);box-shadow:inset 0 1px oklch(100% 0 0 / 0.16)}
-  .btn.ghost{background:transparent;border-color:transparent;color:var(--ink2)}
-  .btn.icon{width:32px;padding:0;justify-content:center}
-  .btn.xs{height:24px;font-size:12px;padding:0 7px;gap:4px;border-radius:6px}
-  .btn.xs.icon{width:24px}
-  .kbd{height:20px;min-width:20px;padding:0 4px;border-radius:4px;background:var(--hover);font-size:12px;font-weight:500;color:var(--ink2);display:inline-flex;align-items:center;justify-content:center;font-family:Geist,system-ui,sans-serif}
-  .btn.primary .kbd{background:oklch(0% 0 0 / 0.12);color:var(--canvas)}
-  .badge{height:18px;padding:0 5px;border-radius:6px;font-size:12px;font-weight:500;display:inline-flex;align-items:center;gap:4px}
-  .badge.ok{background:var(--green-tint);color:var(--green)}
-  .badge.err{background:var(--red-tint);color:var(--red)}
-  .badge.muted{background:var(--hover);color:var(--ink2)}
-  .input{height:30px;border-radius:8px;border:1px solid var(--line2);background:oklch(35.6% 0.007 264.474 / 0.32);padding:0 10px;color:var(--ink3);display:flex;align-items:center;gap:8px;font-size:14px}
-  .seg{display:flex;gap:2px;background:var(--inset);padding:2px;border-radius:8px;color:oklch(73.1% 0.008 260.731 / 0.72);font-size:13px;font-weight:500}
-  .seg > div{padding:0 10px;height:24px;display:flex;align-items:center;border-radius:6px;gap:6px}
-  .seg > .on{background:var(--field);color:var(--ink);box-shadow:0 1px 2px oklch(0% 0 0 / 0.2)}
-  .dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px var(--green-tint)}
-  .conn{height:32px;padding:0 10px 0 10px;border-radius:8px;border:1px solid var(--line2);background:oklch(35.6% 0.007 264.474 / 0.32);display:inline-flex;align-items:center;gap:8px;font-weight:500;color:var(--ink)}
-  .conn .sub{color:var(--ink3);font-weight:400}
-  .tree-row{height:28px;display:flex;align-items:center;gap:6px;padding:0 8px;border-radius:6px;color:var(--ink2);white-space:nowrap}
-  .tree-row.on{background:var(--hover2);color:var(--ink)}
-  .tree-row .cnt{margin-left:auto;color:var(--ink3);font-size:12px}
-  .group-label{height:28px;display:flex;align-items:center;padding:0 8px;font-size:12px;font-weight:500;color:var(--ink3)}
-  .utab{height:36px;display:flex;align-items:center;gap:6px;padding:0 12px;color:var(--ink2);font-size:13px;position:relative;white-space:nowrap}
-  .utab.on{color:var(--ink)}
-  .utab.on::after{content:"";position:absolute;left:12px;right:12px;bottom:-1px;height:2px;background:var(--ink)}
-  .ftab{height:36px;display:flex;align-items:center;gap:8px;padding:0 14px;color:var(--ink2);font-size:13px;border-right:1px solid var(--line);white-space:nowrap}
-  .ftab.on{color:var(--ink);background:var(--page);box-shadow:inset 0 -2px var(--ink)}
-  .unsaved{width:7px;height:7px;border-radius:50%;background:var(--ink2)}
-  table{border-collapse:collapse;width:100%;font-size:13px}
-  th{height:32px;text-align:left;padding:0 12px;font-weight:500;color:var(--ink2);border-bottom:1px solid var(--line);border-right:1px solid var(--line);background:var(--inset);white-space:nowrap}
-  th .t{color:var(--ink3);font-weight:400;font-size:11px;margin-left:6px}
-  td{height:30px;padding:0 12px;border-bottom:1px solid var(--line);border-right:1px solid var(--line);white-space:nowrap;color:var(--ink)}
-  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
-  td.null{color:var(--ink3);font-style:italic}
-  tr:nth-child(even) td{background:oklch(100% 0 0 / 0.02)}
-  .gutter{color:var(--ink3);text-align:right;padding-right:14px;user-select:none;width:28px}
-  .code{font-family:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;line-height:22px;white-space:pre;color:var(--ink)}
-  .kw{color:var(--accent-ink)} .str{color:var(--green)} .nm{color:var(--orange)} .cm{color:var(--ink3)} .fn{color:var(--ink2)}
-  .status{height:24px;display:flex;align-items:center;gap:16px;padding:0 12px;font-size:12px;color:var(--ink3);border-top:1px solid var(--line);background:var(--canvas)}
-  .status .l{display:flex;align-items:center;gap:6px}
-  </style>
-</helmet>
-<div style="width:1440px;height:900px;display:flex;flex-direction:column;overflow:hidden;background:var(--page);font-family:Geist,'Segoe UI',system-ui,sans-serif">
-
-  <div style="height:48px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 12px;border-bottom:1px solid var(--line);background:var(--canvas)">
-    <div style="display:flex;align-items:center;gap:10px">
-      <div class="btn ghost icon">
-        <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"></rect><line x1="9" y1="4" x2="9" y2="20"></line></svg>
-      </div>
-      <div style="width:1px;height:20px;background:var(--line)"></div>
-      <div class="conn">
-        <span class="dot"></span>
-        <span>prod-replica</span>
-        <span class="sub">postgres</span>
-        <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-      </div>
-      <div class="conn">
-        <span>app_db</span>
-        <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-      </div>
-    </div>
-    <div style="display:flex;align-items:center;gap:10px">
-      <span style="color:var(--ink3);font-size:13px">Saved</span>
-      <div class="btn ghost icon">
-        <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
-      </div>
-      <div class="btn primary">
-        <span>Run</span>
-        <span class="kbd">⌘↵</span>
-      </div>
-      <div class="btn ghost icon">
-        <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-      </div>
-    </div>
-  </div>
-
-  <div style="flex:1;display:flex;overflow:hidden">
-
-    <div style="width:256px;flex-shrink:0;display:flex;flex-direction:column;background:var(--canvas);border-right:1px solid var(--line)">
-      <div style="padding:10px 10px 8px 10px;display:flex;flex-direction:column;gap:8px;flex-shrink:0">
-        <div class="input">
-          <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          <span>Search tables…</span>
-        </div>
-        <div class="seg">
-          <div class="on">Schema</div>
-          <div>Files</div>
-        </div>
-      </div>
-
-      <div style="flex:1;overflow:auto;padding:0 6px 6px 6px;display:flex;flex-direction:column;gap:1px">
-
-        <div class="tree-row">
-          <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-          <span>app_db</span>
-        </div>
-
-        <div class="tree-row" style="padding-left:20px">
-          <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-          <span>public</span>
-        </div>
-
-        <div class="tree-row" style="padding-left:32px">
-          <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-          <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"></rect><line x1="3" y1="10" x2="21" y2="10"></line><line x1="9" y1="10" x2="9" y2="20"></line></svg>
-          <span>Tables</span>
-        </div>
-
-        <div class="tree-row on" style="padding-left:44px">
-          <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-          <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"></rect><line x1="3" y1="10" x2="21" y2="10"></line><line x1="9" y1="10" x2="9" y2="20"></line></svg>
-          <span>orders</span>
-        </div>
-
-        <div class="tree-row" style="padding-left:56px">
-          <span style="width:16px;height:16px;flex-shrink:0"></span>
-          <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle></svg>
-          <span>id</span>
-          <span class="cnt mono">int8</span>
-        </div>
-        <div class="tree-row" style="padding-left:56px">
-          <span style="width:16px;height:16px;flex-shrink:0"></span>
-          <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle></svg>
-          <span>customer_id</span>
-          <span class="cnt mono">int8</span>
-        </div>
-        <div class="tree-row" style="padding-left:56px">
-          <span style="width:16px;height:16px;flex-shrink:0"></span>
-          <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle></svg>
-          <span>status</span>
-          <span class="cnt mono">text</span>
-        </div>
-        <div class="tree-row" style="padding-left:56px">
-          <span style="width:16px;height:16px;flex-shrink:0"></span>
-          <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle></svg>
-          <span>total_cents</span>
-          <span class="cnt mono">int8</span>
-        </div>
-        <div class="tree-row" style="padding-left:56px">
-          <span style="width:16px;height:16px;flex-shrink:0"></span>
-          <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle></svg>
-          <span>created_at</span>
-          <span class="cnt mono">timestamptz</span>
-        </div>
-
-        <div class="tree-row" style="padding-left:44px">
-          <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"></polyline></svg>
-          <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"></rect><line x1="3" y1="10" x2="21" y2="10"></line><line x1="9" y1="10" x2="9" y2="20"></line></svg>
-          <span>customers</span>
-        </div>
-        <div class="tree-row" style="padding-left:44px">
-          <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"></polyline></svg>
-          <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"></rect><line x1="3" y1="10" x2="21" y2="10"></line><line x1="9" y1="10" x2="9" y2="20"></line></svg>
-          <span>products</span>
-        </div>
-        <div class="tree-row" style="padding-left:44px">
-          <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"></polyline></svg>
-          <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"></rect><line x1="3" y1="10" x2="21" y2="10"></line><line x1="9" y1="10" x2="9" y2="20"></line></svg>
-          <span>payments</span>
-        </div>
-
-        <div class="tree-row" style="padding-left:32px">
-          <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-          <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-          <span>Views</span>
-        </div>
-        <div class="tree-row" style="padding-left:44px">
-          <span style="width:16px;height:16px;flex-shrink:0"></span>
-          <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-          <span>daily_revenue</span>
-        </div>
-
-        <div class="group-label" style="margin-top:6px">Files</div>
-
-        <div class="tree-row on">
-          <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-          <span>orders-by-day.sql</span>
-        </div>
-        <div class="tree-row">
-          <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-          <span>customers-churn.sql</span>
-        </div>
-        <div class="tree-row">
-          <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-          <span>cleanup-2026-08.sql</span>
-        </div>
-
-      </div>
-
-      <div style="padding:8px;border-top:1px solid var(--line);flex-shrink:0">
-        <div class="btn ghost xs">
-          <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-          <span>Add connection</span>
-        </div>
-      </div>
-    </div>
-
-    <div style="flex:1;display:flex;flex-direction:column;overflow:hidden">
-
-      <div style="height:36px;flex-shrink:0;display:flex;align-items:center;background:var(--canvas);border-bottom:1px solid var(--line)">
-        <div class="ftab on">
-          <span>orders-by-day.sql</span>
-          <span class="unsaved"></span>
-        </div>
-        <div class="ftab">
-          <span>customers-churn.sql</span>
-        </div>
-        <div class="btn ghost xs icon" style="margin-left:6px;border-radius:6px">
-          <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-        </div>
-      </div>
-
-      <div style="flex-grow:1;background:var(--page);padding:12px 0;overflow:auto">
-        <div style="display:flex;line-height:22px">
-          <div class="gutter mono" style="line-height:22px;font-size:12px">1</div>
-          <div class="code"><span class="kw">select</span></div>
-        </div>
-        <div style="display:flex;line-height:22px">
-          <div class="gutter mono" style="line-height:22px;font-size:12px">2</div>
-          <div class="code">  <span class="fn">date_trunc</span>(<span class="str">'day'</span>, o.created_at) <span class="kw">as</span> day,</div>
-        </div>
-        <div style="display:flex;line-height:22px">
-          <div class="gutter mono" style="line-height:22px;font-size:12px">3</div>
-          <div class="code">  <span class="fn">count</span>(*)                        <span class="kw">as</span> orders,</div>
-        </div>
-        <div style="display:flex;line-height:22px;background:var(--hover)">
-          <div class="gutter mono" style="line-height:22px;font-size:12px">4</div>
-          <div class="code">  <span class="fn">sum</span>(o.total_cents) / <span class="nm">100.0</span>      <span class="kw">as</span> revenue</div>
-        </div>
-        <div style="display:flex;line-height:22px">
-          <div class="gutter mono" style="line-height:22px;font-size:12px">5</div>
-          <div class="code"><span class="kw">from</span> orders o</div>
-        </div>
-        <div style="display:flex;line-height:22px">
-          <div class="gutter mono" style="line-height:22px;font-size:12px">6</div>
-          <div class="code"><span class="kw">where</span> o.status = <span class="str">'paid'</span></div>
-        </div>
-        <div style="display:flex;line-height:22px">
-          <div class="gutter mono" style="line-height:22px;font-size:12px">7</div>
-          <div class="code">  <span class="kw">and</span> o.created_at &gt;= <span class="fn">now</span>() - <span class="kw">interval</span> <span class="str">'30 days'</span></div>
-        </div>
-        <div style="display:flex;line-height:22px">
-          <div class="gutter mono" style="line-height:22px;font-size:12px">8</div>
-          <div class="code"><span class="kw">group by</span> <span class="nm">1</span></div>
-        </div>
-        <div style="display:flex;line-height:22px">
-          <div class="gutter mono" style="line-height:22px;font-size:12px">9</div>
-          <div class="code"><span class="kw">order by</span> <span class="nm">1</span> <span class="kw">desc</span>;</div>
-        </div>
-      </div>
-
-      <div style="height:1px;background:var(--line);position:relative;flex-shrink:0">
-        <div style="position:absolute;left:50%;top:50%;transform:translate(-50%, -50%);width:36px;height:4px;border-radius:2px;background:var(--line2)"></div>
-      </div>
-
-      <div style="height:320px;flex-shrink:0;background:var(--canvas);display:flex;flex-direction:column;overflow:hidden">
-        <div style="height:36px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 6px 0 6px;border-bottom:1px solid var(--line)">
-          <div style="display:flex;align-items:center">
-            <div class="utab on">
-              <span>Results</span>
-              <span class="badge muted">30 rows</span>
+  <head>
+    <meta charset="utf-8" />
+    <script src="./support.js"></script>
+  </head>
+  <body>
+    <x-dc>
+      <helmet>
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap"
+        />
+        <style>
+          :root {
+            --page: oklch(20.9% 0.004 264.477);
+            --canvas: oklch(23.1% 0.004 264.487);
+            --surface: oklch(26% 0.006 271.191);
+            --inset: oklch(24.3% 0.004 264.492);
+            --hover: oklch(28.9% 0.006 271.22);
+            --hover2: oklch(31.8% 0.007 274.747);
+            --ink: oklch(96.4% 0.002 247.839);
+            --ink2: oklch(73.1% 0.008 260.731);
+            --ink3: oklch(54.1% 0.01 264.484);
+            --line: oklch(30.8% 0.006 258.354);
+            --line2: oklch(35.6% 0.007 264.474);
+            --field: oklch(29.3% 0.006 271.223);
+            --accent: oklch(68% 0.173 253.301);
+            --accent-ink: oklch(78.8% 0.113 248.33);
+            --accent-tint: oklch(68% 0.173 253.301 / 0.16);
+            --green: oklch(70.5% 0.154 153.814);
+            --green-tint: oklch(70.5% 0.154 153.814 / 0.14);
+            --orange: oklch(74.6% 0.156 55.642);
+            --red: oklch(66.6% 0.18 21.433);
+            --red-tint: oklch(66.6% 0.18 21.433 / 0.14);
+          }
+          body {
+            margin: 0;
+            background: var(--page);
+            color: var(--ink);
+            font:
+              14px/1.45 Geist,
+              "Segoe UI",
+              system-ui,
+              sans-serif;
+            -webkit-font-smoothing: antialiased;
+          }
+          a {
+            color: var(--accent-ink);
+          }
+          a:hover {
+            color: var(--accent);
+          }
+          .mono {
+            font-family: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+          }
+          svg {
+            flex-shrink: 0;
+          }
+          .btn {
+            height: 32px;
+            padding: 0 11px;
+            border-radius: 8px;
+            border: 1px solid var(--line2);
+            background: oklch(35.6% 0.007 264.474 / 0.32);
+            font-weight: 500;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--ink);
+            white-space: nowrap;
+          }
+          .btn.primary {
+            background: var(--ink);
+            color: var(--canvas);
+            border-color: var(--ink);
+            box-shadow: inset 0 1px oklch(100% 0 0 / 0.16);
+          }
+          .btn.ghost {
+            background: transparent;
+            border-color: transparent;
+            color: var(--ink2);
+          }
+          .btn.icon {
+            width: 32px;
+            padding: 0;
+            justify-content: center;
+          }
+          .btn.xs {
+            height: 24px;
+            font-size: 12px;
+            padding: 0 7px;
+            gap: 4px;
+            border-radius: 6px;
+          }
+          .btn.xs.icon {
+            width: 24px;
+          }
+          .kbd {
+            height: 20px;
+            min-width: 20px;
+            padding: 0 4px;
+            border-radius: 4px;
+            background: var(--hover);
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--ink2);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-family: Geist, system-ui, sans-serif;
+          }
+          .btn.primary .kbd {
+            background: oklch(0% 0 0 / 0.12);
+            color: var(--canvas);
+          }
+          .badge {
+            height: 18px;
+            padding: 0 5px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+          }
+          .badge.ok {
+            background: var(--green-tint);
+            color: var(--green);
+          }
+          .badge.err {
+            background: var(--red-tint);
+            color: var(--red);
+          }
+          .badge.muted {
+            background: var(--hover);
+            color: var(--ink2);
+          }
+          .input {
+            height: 30px;
+            border-radius: 8px;
+            border: 1px solid var(--line2);
+            background: oklch(35.6% 0.007 264.474 / 0.32);
+            padding: 0 10px;
+            color: var(--ink3);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+          }
+          .seg {
+            display: flex;
+            gap: 2px;
+            background: var(--inset);
+            padding: 2px;
+            border-radius: 8px;
+            color: oklch(73.1% 0.008 260.731 / 0.72);
+            font-size: 13px;
+            font-weight: 500;
+          }
+          .seg > div {
+            padding: 0 10px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            border-radius: 6px;
+            gap: 6px;
+          }
+          .seg > .on {
+            background: var(--field);
+            color: var(--ink);
+            box-shadow: 0 1px 2px oklch(0% 0 0 / 0.2);
+          }
+          .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 0 3px var(--green-tint);
+          }
+          .conn {
+            height: 32px;
+            padding: 0 10px 0 10px;
+            border-radius: 8px;
+            border: 1px solid var(--line2);
+            background: oklch(35.6% 0.007 264.474 / 0.32);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+            color: var(--ink);
+          }
+          .conn .sub {
+            color: var(--ink3);
+            font-weight: 400;
+          }
+          .tree-row {
+            height: 28px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 0 8px;
+            border-radius: 6px;
+            color: var(--ink2);
+            white-space: nowrap;
+          }
+          .tree-row.on {
+            background: var(--hover2);
+            color: var(--ink);
+          }
+          .tree-row .cnt {
+            margin-left: auto;
+            color: var(--ink3);
+            font-size: 12px;
+          }
+          .group-label {
+            height: 28px;
+            display: flex;
+            align-items: center;
+            padding: 0 8px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--ink3);
+          }
+          .utab {
+            height: 36px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 0 12px;
+            color: var(--ink2);
+            font-size: 13px;
+            position: relative;
+            white-space: nowrap;
+          }
+          .utab.on {
+            color: var(--ink);
+          }
+          .utab.on::after {
+            content: "";
+            position: absolute;
+            left: 12px;
+            right: 12px;
+            bottom: -1px;
+            height: 2px;
+            background: var(--ink);
+          }
+          .ftab {
+            height: 36px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 14px;
+            color: var(--ink2);
+            font-size: 13px;
+            border-right: 1px solid var(--line);
+            white-space: nowrap;
+          }
+          .ftab.on {
+            color: var(--ink);
+            background: var(--page);
+            box-shadow: inset 0 -2px var(--ink);
+          }
+          .unsaved {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--ink2);
+          }
+          table {
+            border-collapse: collapse;
+            width: 100%;
+            font-size: 13px;
+          }
+          th {
+            height: 32px;
+            text-align: left;
+            padding: 0 12px;
+            font-weight: 500;
+            color: var(--ink2);
+            border-bottom: 1px solid var(--line);
+            border-right: 1px solid var(--line);
+            background: var(--inset);
+            white-space: nowrap;
+          }
+          th .t {
+            color: var(--ink3);
+            font-weight: 400;
+            font-size: 11px;
+            margin-left: 6px;
+          }
+          td {
+            height: 30px;
+            padding: 0 12px;
+            border-bottom: 1px solid var(--line);
+            border-right: 1px solid var(--line);
+            white-space: nowrap;
+            color: var(--ink);
+          }
+          td.num,
+          th.num {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+          }
+          td.null {
+            color: var(--ink3);
+            font-style: italic;
+          }
+          tr:nth-child(even) td {
+            background: oklch(100% 0 0 / 0.02);
+          }
+          .gutter {
+            color: var(--ink3);
+            text-align: right;
+            padding-right: 14px;
+            user-select: none;
+            width: 28px;
+          }
+          .code {
+            font-family: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 13px;
+            line-height: 22px;
+            white-space: pre;
+            color: var(--ink);
+          }
+          .kw {
+            color: var(--accent-ink);
+          }
+          .str {
+            color: var(--green);
+          }
+          .nm {
+            color: var(--orange);
+          }
+          .cm {
+            color: var(--ink3);
+          }
+          .fn {
+            color: var(--ink2);
+          }
+          .status {
+            height: 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 0 12px;
+            font-size: 12px;
+            color: var(--ink3);
+            border-top: 1px solid var(--line);
+            background: var(--canvas);
+          }
+          .status .l {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+          }
+        </style>
+      </helmet>
+      <div
+        style="
+          width: 1440px;
+          height: 900px;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+          background: var(--page);
+          font-family: Geist, &quot;Segoe UI&quot;, system-ui, sans-serif;
+        "
+      >
+        <div
+          style="
+            height: 48px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 12px;
+            border-bottom: 1px solid var(--line);
+            background: var(--canvas);
+          "
+        >
+          <div style="display: flex; align-items: center; gap: 10px">
+            <div class="btn ghost icon">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="1.75"
+                fill="none"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+                <line x1="9" y1="4" x2="9" y2="20"></line>
+              </svg>
             </div>
-            <div class="utab">
-              <span>Messages</span>
+            <div style="width: 1px; height: 20px; background: var(--line)"></div>
+            <div class="conn">
+              <span class="dot"></span>
+              <span>prod-replica</span>
+              <span class="sub">postgres</span>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="1.75"
+                fill="none"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </div>
+            <div class="conn">
+              <span>app_db</span>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="1.75"
+                fill="none"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
             </div>
           </div>
-          <div style="display:flex;align-items:center;gap:10px;padding-right:6px">
-            <span style="color:var(--ink3);font-size:12px">142 ms</span>
-            <div class="btn ghost xs icon">
-              <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          <div style="display: flex; align-items: center; gap: 10px">
+            <span style="color: var(--ink3); font-size: 13px">Saved</span>
+            <div class="btn ghost icon">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="1.75"
+                fill="none"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                <polyline points="7 3 7 8 15 8"></polyline>
+              </svg>
             </div>
-            <div class="btn ghost xs icon">
-              <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M21 8V5a2 2 0 0 0-2-2h-3"></path><path d="M3 16v3a2 2 0 0 0 2 2h3"></path><path d="M16 21h3a2 2 0 0 0 2-2v-3"></path></svg>
+            <div class="btn primary">
+              <span>Run</span>
+              <span class="kbd">⌘↵</span>
+            </div>
+            <div class="btn ghost icon">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="1.75"
+                fill="none"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <circle cx="12" cy="12" r="3"></circle>
+                <path
+                  d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+                ></path>
+              </svg>
             </div>
           </div>
         </div>
-        <div style="flex:1;overflow:auto">
-          <table>
-            <thead>
-              <tr>
-                <th style="position:sticky;top:0">day<span class="t">timestamptz</span></th>
-                <th class="num" style="position:sticky;top:0">orders<span class="t">int8</span></th>
-                <th class="num" style="position:sticky;top:0">revenue<span class="t">numeric</span></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr><td class="mono">2026-09-14</td><td class="num mono">318</td><td class="num mono">24,911.50</td></tr>
-              <tr><td class="mono">2026-09-13</td><td class="num mono">402</td><td class="num mono">31,077.00</td></tr>
-              <tr><td class="mono">2026-09-12</td><td class="num mono">377</td><td class="num mono">29,140.25</td></tr>
-              <tr><td class="mono">2026-09-11</td><td class="num mono">355</td><td class="num mono">27,802.75</td></tr>
-              <tr><td class="mono">2026-09-10</td><td class="num mono">391</td><td class="num mono">30,266.00</td></tr>
-              <tr><td class="mono">2026-09-09</td><td class="num mono">340</td><td class="num mono">26,588.50</td></tr>
-              <tr><td class="mono">2026-09-08</td><td class="num mono">296</td><td class="num mono">22,904.00</td></tr>
-              <tr><td class="mono">2026-09-07</td><td class="num mono">289</td><td class="num mono">22,431.25</td></tr>
-            </tbody>
-          </table>
+
+        <div style="flex: 1; display: flex; overflow: hidden">
+          <div
+            style="
+              width: 256px;
+              flex-shrink: 0;
+              display: flex;
+              flex-direction: column;
+              background: var(--canvas);
+              border-right: 1px solid var(--line);
+            "
+          >
+            <div
+              style="
+                padding: 10px 10px 8px 10px;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                flex-shrink: 0;
+              "
+            >
+              <div class="input">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  fill="none"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <circle cx="11" cy="11" r="7"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <span>Search tables…</span>
+              </div>
+              <div class="seg">
+                <div class="on">Schema</div>
+                <div>Files</div>
+              </div>
+            </div>
+
+            <div
+              style="
+                flex: 1;
+                overflow: auto;
+                padding: 0 6px 6px 6px;
+                display: flex;
+                flex-direction: column;
+                gap: 1px;
+              "
+            >
+              <div class="tree-row">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  fill="none"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+                <span>app_db</span>
+              </div>
+
+              <div class="tree-row" style="padding-left: 20px">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  fill="none"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+                <span>public</span>
+              </div>
+
+              <div class="tree-row" style="padding-left: 32px">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  fill="none"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  fill="none"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
+                  <line x1="9" y1="10" x2="9" y2="20"></line>
+                </svg>
+                <span>Tables</span>
+              </div>
+
+              <div class="tree-row on" style="padding-left: 44px">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  fill="none"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  fill="none"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
+                  <line x1="9" y1="10" x2="9" y2="20"></line>
+                </svg>
+                <span>orders</span>
+              </div>
+
+              <div class="tree-row" style="padding-left: 56px">
+                <span style="width: 16px; height: 16px; flex-shrink: 0"></span>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  fill="none"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+                <span>id</span>
+                <span class="cnt mono">int8</span>
+              </div>
+              <div class="tree-row" style="padding-left: 56px">
+                <span style="width: 16px; height: 16px; flex-shrink: 0"></span>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  fill="none"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+                <span>customer_id</span>
+                <span class="cnt mono">int8</span>
+              </div>
+              <div class="tree-row" style="padding-left: 56px">
+                <span style="width: 16px; height: 16px; flex-shrink: 0"></span>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  fill="none"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+                <span>status</span>
+                <span class="cnt mono">text</span>
+              </div>
+              <div class="tree-row" style="padding-left: 56px">
+                <span style="width: 16px; height: 16px; flex-shrink: 0"></span>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  fill="none"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+                <span>total_cents</span>
+                <span class="cnt mono">int8</span>
+              </div>
+              <div class="tree-row" style="padding-left: 56px">
+                <span style="width: 16px; height: 16px; flex-shrink: 0"></span>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  fill="none"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+                <span>created_at</span>
+                <span class="cnt mono">timestamptz</span>
+              </div>
+
+              <div class="tree-row" style="padding-left: 44px">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  fill="none"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polyline points="9 6 15 12 9 18"></polyline>
+                </svg>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  fill="none"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
+                  <line x1="9" y1="10" x2="9" y2="20"></line>
+                </svg>
+                <span>customers</span>
+              </div>
+              <div class="tree-row" style="padding-left: 44px">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  fill="none"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polyline points="9 6 15 12 9 18"></polyline>
+                </svg>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  fill="none"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
+                  <line x1="9" y1="10" x2="9" y2="20"></line>
+                </svg>
+                <span>products</span>
+              </div>
+              <div class="tree-row" style="padding-left: 44px">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  fill="none"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polyline points="9 6 15 12 9 18"></polyline>
+                </svg>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  fill="none"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
+                  <line x1="9" y1="10" x2="9" y2="20"></line>
+                </svg>
+                <span>payments</span>
+              </div>
+
+              <div class="tree-row" style="padding-left: 32px">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  fill="none"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  fill="none"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+                <span>Views</span>
+              </div>
+              <div class="tree-row" style="padding-left: 44px">
+                <span style="width: 16px; height: 16px; flex-shrink: 0"></span>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  fill="none"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+                <span>daily_revenue</span>
+              </div>
+
+              <div class="group-label" style="margin-top: 6px">Files</div>
+
+              <div class="tree-row on">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  fill="none"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                </svg>
+                <span>orders-by-day.sql</span>
+              </div>
+              <div class="tree-row">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  fill="none"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                </svg>
+                <span>customers-churn.sql</span>
+              </div>
+              <div class="tree-row">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  fill="none"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                </svg>
+                <span>cleanup-2026-08.sql</span>
+              </div>
+            </div>
+
+            <div style="padding: 8px; border-top: 1px solid var(--line); flex-shrink: 0">
+              <div class="btn ghost xs">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  fill="none"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                <span>Add connection</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden">
+            <div
+              style="
+                height: 36px;
+                flex-shrink: 0;
+                display: flex;
+                align-items: center;
+                background: var(--canvas);
+                border-bottom: 1px solid var(--line);
+              "
+            >
+              <div class="ftab on">
+                <span>orders-by-day.sql</span>
+                <span class="unsaved"></span>
+              </div>
+              <div class="ftab">
+                <span>customers-churn.sql</span>
+              </div>
+              <div class="btn ghost xs icon" style="margin-left: 6px; border-radius: 6px">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  fill="none"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+              </div>
+            </div>
+
+            <div style="flex-grow: 1; background: var(--page); padding: 12px 0; overflow: auto">
+              <div style="display: flex; line-height: 22px">
+                <div class="gutter mono" style="line-height: 22px; font-size: 12px">1</div>
+                <div class="code"><span class="kw">select</span></div>
+              </div>
+              <div style="display: flex; line-height: 22px">
+                <div class="gutter mono" style="line-height: 22px; font-size: 12px">2</div>
+                <div class="code">
+                  <span class="fn">date_trunc</span>(<span class="str">'day'</span>, o.created_at)
+                  <span class="kw">as</span> day,
+                </div>
+              </div>
+              <div style="display: flex; line-height: 22px">
+                <div class="gutter mono" style="line-height: 22px; font-size: 12px">3</div>
+                <div class="code">
+                  <span class="fn">count</span>(*) <span class="kw">as</span> orders,
+                </div>
+              </div>
+              <div style="display: flex; line-height: 22px; background: var(--hover)">
+                <div class="gutter mono" style="line-height: 22px; font-size: 12px">4</div>
+                <div class="code">
+                  <span class="fn">sum</span>(o.total_cents) / <span class="nm">100.0</span>
+                  <span class="kw">as</span> revenue
+                </div>
+              </div>
+              <div style="display: flex; line-height: 22px">
+                <div class="gutter mono" style="line-height: 22px; font-size: 12px">5</div>
+                <div class="code"><span class="kw">from</span> orders o</div>
+              </div>
+              <div style="display: flex; line-height: 22px">
+                <div class="gutter mono" style="line-height: 22px; font-size: 12px">6</div>
+                <div class="code">
+                  <span class="kw">where</span> o.status = <span class="str">'paid'</span>
+                </div>
+              </div>
+              <div style="display: flex; line-height: 22px">
+                <div class="gutter mono" style="line-height: 22px; font-size: 12px">7</div>
+                <div class="code">
+                  <span class="kw">and</span> o.created_at &gt;= <span class="fn">now</span>() -
+                  <span class="kw">interval</span> <span class="str">'30 days'</span>
+                </div>
+              </div>
+              <div style="display: flex; line-height: 22px">
+                <div class="gutter mono" style="line-height: 22px; font-size: 12px">8</div>
+                <div class="code"><span class="kw">group by</span> <span class="nm">1</span></div>
+              </div>
+              <div style="display: flex; line-height: 22px">
+                <div class="gutter mono" style="line-height: 22px; font-size: 12px">9</div>
+                <div class="code">
+                  <span class="kw">order by</span> <span class="nm">1</span>
+                  <span class="kw">desc</span>;
+                </div>
+              </div>
+            </div>
+
+            <div style="height: 1px; background: var(--line); position: relative; flex-shrink: 0">
+              <div
+                style="
+                  position: absolute;
+                  left: 50%;
+                  top: 50%;
+                  transform: translate(-50%, -50%);
+                  width: 36px;
+                  height: 4px;
+                  border-radius: 2px;
+                  background: var(--line2);
+                "
+              ></div>
+            </div>
+
+            <div
+              style="
+                height: 320px;
+                flex-shrink: 0;
+                background: var(--canvas);
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+              "
+            >
+              <div
+                style="
+                  height: 36px;
+                  flex-shrink: 0;
+                  display: flex;
+                  align-items: center;
+                  justify-content: space-between;
+                  padding: 0 6px 0 6px;
+                  border-bottom: 1px solid var(--line);
+                "
+              >
+                <div style="display: flex; align-items: center">
+                  <div class="utab on">
+                    <span>Results</span>
+                    <span class="badge muted">30 rows</span>
+                  </div>
+                  <div class="utab">
+                    <span>Messages</span>
+                  </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px; padding-right: 6px">
+                  <span style="color: var(--ink3); font-size: 12px">142 ms</span>
+                  <div class="btn ghost xs icon">
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      stroke-width="1.75"
+                      fill="none"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                      <polyline points="7 10 12 15 17 10"></polyline>
+                      <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                  </div>
+                  <div class="btn ghost xs icon">
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      stroke-width="1.75"
+                      fill="none"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="M8 3H5a2 2 0 0 0-2 2v3"></path>
+                      <path d="M21 8V5a2 2 0 0 0-2-2h-3"></path>
+                      <path d="M3 16v3a2 2 0 0 0 2 2h3"></path>
+                      <path d="M16 21h3a2 2 0 0 0 2-2v-3"></path>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+              <div style="flex: 1; overflow: auto">
+                <table>
+                  <thead>
+                    <tr>
+                      <th style="position: sticky; top: 0">
+                        day<span class="t">timestamptz</span>
+                      </th>
+                      <th class="num" style="position: sticky; top: 0">
+                        orders<span class="t">int8</span>
+                      </th>
+                      <th class="num" style="position: sticky; top: 0">
+                        revenue<span class="t">numeric</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td class="mono">2026-09-14</td>
+                      <td class="num mono">318</td>
+                      <td class="num mono">24,911.50</td>
+                    </tr>
+                    <tr>
+                      <td class="mono">2026-09-13</td>
+                      <td class="num mono">402</td>
+                      <td class="num mono">31,077.00</td>
+                    </tr>
+                    <tr>
+                      <td class="mono">2026-09-12</td>
+                      <td class="num mono">377</td>
+                      <td class="num mono">29,140.25</td>
+                    </tr>
+                    <tr>
+                      <td class="mono">2026-09-11</td>
+                      <td class="num mono">355</td>
+                      <td class="num mono">27,802.75</td>
+                    </tr>
+                    <tr>
+                      <td class="mono">2026-09-10</td>
+                      <td class="num mono">391</td>
+                      <td class="num mono">30,266.00</td>
+                    </tr>
+                    <tr>
+                      <td class="mono">2026-09-09</td>
+                      <td class="num mono">340</td>
+                      <td class="num mono">26,588.50</td>
+                    </tr>
+                    <tr>
+                      <td class="mono">2026-09-08</td>
+                      <td class="num mono">296</td>
+                      <td class="num mono">22,904.00</td>
+                    </tr>
+                    <tr>
+                      <td class="mono">2026-09-07</td>
+                      <td class="num mono">289</td>
+                      <td class="num mono">22,431.25</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="status">
+          <div class="l"><span class="dot"></span><span>prod-replica · app_db</span></div>
+          <div class="l"><span>Ln 4, Col 18</span></div>
+          <div class="l"><span>Autosave on</span></div>
+          <div class="l"><span>UTF-8</span></div>
         </div>
       </div>
-
-    </div>
-  </div>
-
-  <div class="status">
-    <div class="l"><span class="dot"></span><span>prod-replica · app_db</span></div>
-    <div class="l"><span>Ln 4, Col 18</span></div>
-    <div class="l"><span>Autosave on</span></div>
-    <div class="l"><span>UTF-8</span></div>
-  </div>
-
-</div>
-</x-dc>
-</body>
+    </x-dc>
+  </body>
 </html>

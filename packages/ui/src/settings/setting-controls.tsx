@@ -12,7 +12,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "..
  * control's box is what the eye follows, and sizing each to its content reads as a list that failed
  * to line up. Units go inside the field for the same reason.
  */
-export const CONTROL_W = "w-28";
+const CONTROL_W = "w-28";
 
 export function SettingRow({
   title,

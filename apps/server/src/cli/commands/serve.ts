@@ -2,7 +2,8 @@
 
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { startServer } from "../../server/start.js";
+import { VERSION } from "../../core/version.js";
+import { DEFAULT_HOST, DEFAULT_PORT, startServer } from "../../server/start.js";
 import { clearServerInfo, getSettings, readServerInfo, saveSettings } from "../../storage/index.js";
 import { openBrowser } from "../../util/open-browser.js";
 import { bold, defineCommand, dim, printJson } from "../util/index.js";
@@ -63,8 +64,8 @@ export const cmdServe = defineCommand(
     },
   },
   async ({ values }) => {
-    const port = values.port ? Number(values.port) : 4600;
-    const host = values.host ?? "127.0.0.1";
+    const port = values.port ? Number(values.port) : DEFAULT_PORT;
+    const host = values.host ?? DEFAULT_HOST;
     const open = !values["no-open"];
     const dirs = (values.dir ?? []).map((d) => path.resolve(d));
 
@@ -89,7 +90,7 @@ export const cmdServe = defineCommand(
       uiDir: values.ui ?? bundledUiDir(),
       allowOrigins: values["allow-origin"],
     });
-    console.log(`${bold("perch")} v0.1.0 → ${url}`);
+    console.log(`${bold("perch")} v${VERSION} → ${url}`);
     // There is no auth: binding past loopback publishes the API to whoever can route to it.
     if (!isLoopback(host)) {
       console.log(`listening on ${host}: anyone who can reach this address can run queries`);
@@ -103,7 +104,10 @@ export const cmdServe = defineCommand(
 );
 
 export const cmdStop = defineCommand(
-  { usage: "usage: perch stop\n\nSends SIGTERM to the running server (per server.json) and clears it." },
+  {
+    usage:
+      "usage: perch stop\n\nSends SIGTERM to the running server (per server.json) and clears it.",
+  },
   async () => {
     const info = await readServerInfo();
     if (!info) {

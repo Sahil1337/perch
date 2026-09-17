@@ -123,7 +123,6 @@ export function ConnectingScreen({
   );
 }
 
-/* ----------------------------------------------------------------- stage */
 
 function Stage({
   label,
@@ -162,7 +161,12 @@ function Stage({
           )}
         </AnimatePresence>
       </span>
-      <span className={cn("transition-colors", done || live ? "text-foreground" : "text-muted-foreground/60")}>
+      <span
+        className={cn(
+          "transition-colors",
+          done || live ? "text-foreground" : "text-muted-foreground/60",
+        )}
+      >
         {label}
       </span>
     </li>

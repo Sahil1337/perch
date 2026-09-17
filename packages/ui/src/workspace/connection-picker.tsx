@@ -1,9 +1,7 @@
 "use client";
 
 import { CheckIcon, ChevronDownIcon, PlusIcon } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
-import * as React from "react";
-import { useSpring } from "../lib/motion";
+import type * as React from "react";
 import { cn } from "../lib/utils";
 import { Button } from "../ui/button";
 import {
@@ -21,6 +19,8 @@ import { CONNECT_MS, CONNECT_STAGES } from "../onboarding/connecting-screen";
 import { useResetOnboarded } from "../onboarding/use-onboarding";
 import { useConnecting } from "./connecting-overlay";
 import { useWorkspace } from "./context";
+import { ErrorText } from "./error-text";
+import { StatusDot, dotStatusOf } from "./status-dot";
 
 /**
  * Which server, and which database on it — the one control that changes the meaning of every other
@@ -31,21 +31,13 @@ import { useWorkspace } from "./context";
  * list renders its own loading and error state, so a schema that will not introspect never blanks
  * the connection you are on.
  */
-export function ConnectionPicker({
-  compact = false,
-  className,
-}: {
-  /** Renders `name · database` on one line, for bars too tight for the dialect. */
-  compact?: boolean;
-  className?: string;
-}): React.ReactElement {
+export function ConnectionPicker({ className }: { className?: string }): React.ReactElement {
   const { connections, connection, database, databases, connect, selectDatabase } = useWorkspace();
   // Both picks invalidate every pane behind this menu, so both go behind the handover screen.
   const { cover } = useConnecting();
   // The way back to the setup screen, after "Skip for now" or to add another server.
   const showSetup = useResetOnboarded();
 
-  const connected = connection?.status === "connected";
   const currentDatabase = database ?? connection?.database ?? null;
   const pending = connections.status === "loading" || connections.status === "idle";
 
@@ -54,19 +46,15 @@ export function ConnectionPicker({
       <DropdownMenuTrigger
         render={<Button className={cn("max-w-64", className)} size="sm" variant="outline" />}
       >
-        <StatusDot animate connected={connected} />
+        <StatusDot animate status={dotStatusOf(connection?.status)} />
         {connection ? (
-          <span className="min-w-0 truncate">
-            {compact && currentDatabase ? `${connection.name} · ${currentDatabase}` : connection.name}
-          </span>
+          <span className="min-w-0 truncate">{connection.name}</span>
         ) : pending ? (
           <Skeleton className="h-3.5 w-24" />
         ) : (
           <span className="text-muted-foreground">No connection</span>
         )}
-        {!compact && connection && (
-          <span className="text-muted-foreground">{connection.dialect}</span>
-        )}
+        {connection && <span className="text-muted-foreground">{connection.dialect}</span>}
         <ChevronDownIcon />
       </DropdownMenuTrigger>
 
@@ -84,7 +72,9 @@ export function ConnectionPicker({
 
           {(connections.status === "loading" || connections.status === "idle") && <RowSkeletons />}
 
-          {connections.status === "error" && <ErrorRow message={connections.error} />}
+          {connections.status === "error" && (
+            <ErrorText className="px-2 py-1">{connections.error}</ErrorText>
+          )}
 
           {(connections.status === "ready" || connections.status === "error") &&
             connections.data !== undefined &&
@@ -111,7 +101,7 @@ export function ConnectionPicker({
                     ).catch(() => {});
                   }}
                 >
-                  <StatusDot connected={item.status === "connected"} />
+                  <StatusDot status={dotStatusOf(item.status)} />
                   <span className="truncate">{item.name}</span>
                   <span className="ml-auto truncate text-muted-foreground">{item.host}</span>
                 </DropdownMenuItem>
@@ -140,7 +130,9 @@ export function ConnectionPicker({
 
           {(databases.status === "loading" || databases.status === "idle") && <RowSkeletons />}
 
-          {databases.status === "error" && <ErrorRow message={databases.error} />}
+          {databases.status === "error" && (
+            <ErrorText className="px-2 py-1">{databases.error}</ErrorText>
+          )}
 
           {(databases.status === "ready" || databases.status === "error") &&
             databases.data !== undefined &&
@@ -173,48 +165,6 @@ export function ConnectionPicker({
   );
 }
 
-function StatusDot({
-  connected,
-  animate = false,
-}: {
-  connected: boolean;
-  /** Pops the dot on a status change. Only the trigger: the same dot repeats down the list. */
-  animate?: boolean;
-}): React.ReactElement {
-  const spring = useSpring();
-
-  const dot = (
-    <span
-      aria-hidden
-      className={cn(
-        "size-1.5 shrink-0 rounded-full",
-        connected ? "bg-success" : "bg-muted-foreground/40",
-      )}
-    />
-  );
-
-  if (!animate) return dot;
-
-  // Connecting is slow and invisible, and a dot that simply *is* green throws away the only
-  // feedback the topbar can give for work that just landed.
-  return (
-    <span className="relative inline-flex size-1.5 shrink-0 items-center justify-center">
-      <AnimatePresence initial={false} mode="wait">
-        <motion.span
-          animate={{ scale: 1, opacity: 1 }}
-          className="absolute inset-0 inline-flex items-center justify-center"
-          exit={{ scale: 0.4, opacity: 0 }}
-          initial={{ scale: 0.4, opacity: 0 }}
-          key={connected ? "connected" : "disconnected"}
-          transition={spring}
-        >
-          {dot}
-        </motion.span>
-      </AnimatePresence>
-    </span>
-  );
-}
-
 /** A refetch is in flight over data already on screen — quiet on purpose. */
 function RefreshingHint(): React.ReactElement {
   return <Spinner aria-label="Refreshing" className="size-3" />;
@@ -226,14 +176,6 @@ function RowSkeletons(): React.ReactElement {
       <Skeleton className="h-5 w-full" />
       <Skeleton className="h-5 w-4/5" />
     </div>
-  );
-}
-
-function ErrorRow({ message }: { message: string }): React.ReactElement {
-  return (
-    <p className="px-2 py-1 text-destructive-foreground text-xs" role="alert">
-      {message}
-    </p>
   );
 }
 

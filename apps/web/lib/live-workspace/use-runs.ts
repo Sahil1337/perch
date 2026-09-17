@@ -5,6 +5,7 @@ import type { RunRecord, Settings } from "@perch/protocol";
 import type { Run } from "@perch/ui";
 import * as React from "react";
 import { messageOf } from "./helpers";
+import { useAbortable } from "./use-async-resource";
 
 /** In-memory runs. History on disk is the long tail; this is what the History tab scrolls. */
 const RUN_CAP = 100;
@@ -15,9 +16,8 @@ const DDL = /^(CREATE|ALTER|DROP|TRUNCATE|RENAME|COMMENT|GRANT|REVOKE|REFRESH)\b
 
 export type RunsOptions = {
   connectionId: string | null;
+  /** Already resolved: the user's pick, or what the connection itself says. See `useConnections`. */
   database: string | null;
-  /** What the connection summary says, when no database has been picked. */
-  connectionDatabase: string | undefined;
   /** The text to run when the caller does not pass any: whatever is in the active buffer. */
   activeSql: string | undefined;
   settings: Settings | undefined;
@@ -26,7 +26,7 @@ export type RunsOptions = {
   openOutput: () => void;
 };
 
-export type RunsApi = {
+export type RunsState = {
   runs: readonly Run[];
   activeRun: Run | undefined;
   run: (sql?: string) => Promise<string | undefined>;
@@ -43,25 +43,14 @@ export function useRuns(
   getClient: () => PerchClient,
   enabled: boolean,
   options: RunsOptions,
-): RunsApi {
-  const {
-    connectionId,
-    database,
-    connectionDatabase,
-    activeSql,
-    settings,
-    onSchemaChanged,
-    openOutput,
-  } = options;
+): RunsState {
+  const { connectionId, database, activeSql, settings, onSchemaChanged, openOutput } = options;
 
   const [runs, setRuns] = React.useState<readonly Run[]>([]);
   const [selectedRunId, setSelectedRunId] = React.useState<string | null>(null);
 
-  React.useEffect(() => {
-    if (!enabled) return;
-    const controller = new AbortController();
-    const { signal } = controller;
-    void (async () => {
+  const loadHistory = React.useCallback(
+    async (signal: AbortSignal): Promise<void> => {
       try {
         const history = await getClient().history.list({ limit: HISTORY_LIMIT, signal });
         // Rows are not kept on disk, so these records are headers only.
@@ -69,9 +58,11 @@ export function useRuns(
       } catch {
         /* history is a nicety; an empty list is a fine outcome */
       }
-    })();
-    return () => controller.abort();
-  }, [enabled, getClient]);
+    },
+    [getClient],
+  );
+
+  useAbortable(enabled, loadHistory);
 
   const run = React.useCallback(
     async (sql?: string): Promise<string | undefined> => {
@@ -83,7 +74,7 @@ export function useRuns(
       const pending: RunRecord = {
         id: runId,
         connectionId,
-        database: database ?? connectionDatabase ?? "",
+        database: database ?? "",
         sql: text,
         status: "running",
         startedAt: new Date().toISOString(),
@@ -119,16 +110,7 @@ export function useRuns(
       }
       return runId;
     },
-    [
-      activeSql,
-      connectionDatabase,
-      connectionId,
-      database,
-      getClient,
-      onSchemaChanged,
-      openOutput,
-      settings,
-    ],
+    [activeSql, connectionId, database, getClient, onSchemaChanged, openOutput, settings],
   );
 
   /**
@@ -160,7 +142,10 @@ export function useRuns(
   );
 
   const exportUrl = React.useCallback(
-    (runId: string, exportOptions?: { statement?: number; format?: "csv" | "json" }): string | null => {
+    (
+      runId: string,
+      exportOptions?: { statement?: number; format?: "csv" | "json" },
+    ): string | null => {
       // Runs age out of server memory, so a link is only offered while the rows are still held.
       const held = runs.find((r) => r.id === runId);
       if (!held || held.status !== "done") return null;

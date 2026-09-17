@@ -19,22 +19,23 @@
 // Either way the scrubber is the row cursor and taking hold of it pauses playback, because a reader
 // who has found the row they care about should not be dragged off it.
 
-import { motion } from "motion/react";
 import * as React from "react";
-import { highlightSql } from "../sql-editor/highlight-sql";
-import { boundGrid, boundPlan, type BoundPlan, type BoundRow } from "./bound";
+import { bindKeyOf, boundGrid, boundPlan, type BoundPlan, type BoundRow } from "./bound";
 import { useReportEvidence } from "./bound-evidence";
 import { BoundPanel } from "./bound-panel";
 import { BoundScrubber } from "./bound-scrubber";
+import type { GridBuild } from "./grid";
 import { GridPickContext } from "./grid-card";
+import { HeldSection } from "./held-section";
 import { BEAT, boundInnerTitle, boundPhases, ROW_HOLD_MS } from "./narration";
-import type { Program, Section, SectionId } from "./program";
+import type { Section, SectionId } from "./program";
 import { answerView, boundScene, gridScene, innerCard, type Scene, type TableView } from "./scenes";
 import { Stage } from "./stage";
 import type { BoundEvidence } from "./terminus";
 import { useBoundRun } from "./use-bound";
-import { bindKey, useGridRun } from "./use-grid";
-import type { Probe, StationState } from "./use-walk";
+import { useGridRun, type GridColumn } from "./use-grid";
+import { useWalk } from "./walk-context";
+import type { QueryOutcome, StationState } from "./use-walk";
 import { RowsMoveContext, useSpeed, useT } from "./walk-motion";
 
 /** What the grid measured for one cell, or null when its probe never reached that pair. */
@@ -44,7 +45,7 @@ function answerFor(
   column: string,
 ): boolean | null {
   if (!row) return null;
-  return cells.get(bindKey([...row.literals.values()]))?.get(column) ?? null;
+  return cells.get(bindKeyOf(row))?.get(column) ?? null;
 }
 
 /** A bound section has no FROM cards, so nothing on its stage can offer to walk into a source. */
@@ -54,17 +55,13 @@ const NO_LINK = (): null => null;
 const NOTHING_YET: Scene = { kind: "tables", tables: [], tight: false, count: null };
 
 export function BoundSection({
-  program,
   section,
-  probe,
   playing,
   onPause,
   onDone,
   onOpenSection,
 }: {
-  readonly program: Program;
   readonly section: Section;
-  readonly probe: Probe;
   /** Playback is running, so the view steps through outer rows on its own. */
   readonly playing: boolean;
   /** The reader took the scrubber; playback stops where it is. */
@@ -73,6 +70,7 @@ export function BoundSection({
   readonly onDone: () => void;
   readonly onOpenSection: (id: SectionId) => void;
 }): React.ReactElement {
+  const { program } = useWalk();
   const plan = React.useMemo(() => boundPlan(program, section), [program, section]);
   return plan.kind === "plan" ? (
     <BoundWalk
@@ -81,7 +79,6 @@ export function BoundSection({
       onPause={onPause}
       plan={plan}
       playing={playing}
-      probe={probe}
     />
   ) : (
     <BoundHold reason={plan.reason} section={section} />
@@ -90,19 +87,18 @@ export function BoundSection({
 
 function BoundWalk({
   plan,
-  probe,
   playing,
   onPause,
   onDone,
   onOpenSection,
 }: {
   readonly plan: BoundPlan;
-  readonly probe: Probe;
   readonly playing: boolean;
   readonly onPause: () => void;
   readonly onDone: () => void;
   readonly onOpenSection: (id: SectionId) => void;
 }): React.ReactElement {
+  const { probe } = useWalk();
   const run = useBoundRun(plan, probe);
   const outcome = React.useMemo(() => boundGrid(plan), [plan]);
   // The grid, and — when there is none — the sentence saying which clause ruled it out. The ledger
@@ -121,29 +117,20 @@ function BoundWalk({
   // in the air says the subquery answered nothing, which is the opposite of what is happening.
   const showGrid = build !== null && !grid.failed && !grid.loading && grid.columns.length > 0;
 
-  // One beat per outer row, on the same clock as every other schedule in the walk. It holds while
-  // the row's probe is still out: advancing on a timer the database has not caught up with would
-  // show the next row's title over the last row's answer, which is the one thing worse than waiting.
-  React.useEffect(() => {
-    if (!playing || rows.length === 0 || waiting) return;
-    const lastRow = current >= rows.length - 1;
-    const id = setTimeout(
-      () => (lastRow ? onDone() : bind(current + 1)),
-      (ROW_HOLD_MS * BEAT) / speed,
-    );
-    return () => clearTimeout(id);
-  }, [bind, current, onDone, playing, rows.length, speed, waiting]);
+  useRowClock({ bind, current, onDone, playing, rowCount: rows.length, speed, waiting });
 
   // Whether the rows are ARRIVING or already here, decided once, when the chapter opens. Playback
   // walking in is a first pass and every row it reaches is a test the reader watches happen; a
   // reader clicking the chapter is not a test, and the grid they land on has to be settled — marks
   // present, nothing staggering, nothing flashing. Under reduced motion it is always the latter.
-  const [filling] = React.useState(() => playing && !t.reduced);
+  const filling = React.useRef(playing && !t.reduced).current;
+  // A high-water mark, so a reader who scrubs BACK does not watch the rows below them un-arrive:
+  // once a row has been reached it stays revealed. Raised during render rather than in an effect —
+  // the same shape `useEvidenceStore` and `useGridRun` use — because an effect runs after the paint,
+  // which is one frame of the grid showing one row fewer than playback has already bound.
   const [reached, setReached] = React.useState(1);
-  React.useEffect(() => {
-    setReached((seen) => Math.max(seen, current + 1));
-  }, [current]);
-  const reveal = filling ? reached : null;
+  if (current + 1 > reached) setReached(current + 1);
+  const reveal = filling ? Math.max(reached, current + 1) : null;
 
   const phases = React.useMemo(() => boundPhases(rows), [rows]);
   const title = row ? boundInnerTitle(plan, row) : plan.section.label;
@@ -174,7 +161,9 @@ function BoundWalk({
     (at: number, column: string) => {
       onPause();
       bind(at);
-      grid.pick(grid.picked?.row === at && grid.picked.column === column ? null : { row: at, column });
+      grid.pick(
+        grid.picked?.row === at && grid.picked.column === column ? null : { row: at, column },
+      );
     },
     [bind, grid, onPause],
   );
@@ -182,7 +171,13 @@ function BoundWalk({
   // The same card the scene builds, so the panel's sentences and the card on stage are written from
   // one set of values rather than two that could drift.
   const answer = React.useMemo(
-    () => answerView({ plan, row, inner: inner?.ok ? inner.result : null, error: inner && !inner.ok ? inner.error : null }),
+    () =>
+      answerView({
+        plan,
+        row,
+        inner: inner?.ok ? inner.result : null,
+        error: inner && !inner.ok ? inner.error : null,
+      }),
     [inner, plan, row],
   );
 
@@ -190,19 +185,10 @@ function BoundWalk({
   const cell = grid.cell;
   // The subquery's own rows for the bound outer row, and — once a cell is picked — the rows behind
   // that one cell. Both are cards beside the grid, and the second only exists when it was asked for.
-  const tables = React.useMemo((): TableView[] => {
-    const own = innerCard(title, inner?.ok ? inner.result : null, inner && !inner.ok ? inner.error : null);
-    if (!column || !build) return [own];
-    return [
-      own,
-      innerCard(
-        `${build.innerSource} · ${column.label}`,
-        cell?.ok ? cell.result : null,
-        cell && !cell.ok ? cell.error : null,
-        "cell",
-      ),
-    ];
-  }, [build, cell, column, inner, title]);
+  const tables = React.useMemo(
+    (): TableView[] => innerCards({ build, cell, column, inner, title }),
+    [build, cell, column, inner, title],
+  );
 
   const scene = React.useMemo(
     () =>
@@ -350,20 +336,67 @@ function BoundHold({
   readonly section: Section;
   readonly reason: string;
 }): React.ReactElement {
-  const t = useT();
   return (
-    <motion.section
-      animate={{ opacity: 1 }}
-      aria-label="Section"
-      className="flex min-h-96 min-w-0 flex-1 flex-col items-center justify-center gap-3 overflow-auto rounded-xl border border-dashed bg-muted/40 p-6 text-center"
-      initial={{ opacity: 0 }}
-      transition={t.fade}
+    <HeldSection
+      sql={section.text}
+      title="This subquery runs once per row, and cannot be bound here"
     >
-      <h2 className="font-medium text-sm">This subquery runs once per row, and cannot be bound here</h2>
-      <p className="max-w-prose text-muted-foreground text-sm leading-relaxed">{reason}</p>
-      <pre className="max-w-full overflow-x-auto whitespace-pre-wrap rounded-md bg-card p-3 text-start font-mono text-xs leading-5">
-        {highlightSql(section.text)}
-      </pre>
-    </motion.section>
+      {reason}
+    </HeldSection>
   );
+}
+
+/**
+ * One beat per outer row, on the same clock as every other schedule in the walk.
+ *
+ * It holds while the row's probe is still out: advancing on a timer the database has not caught up
+ * with would show the next row's title over the last row's answer, which is the one thing worse
+ * than waiting.
+ */
+function useRowClock(args: {
+  readonly bind: (row: number) => void;
+  readonly current: number;
+  readonly onDone: () => void;
+  readonly playing: boolean;
+  readonly rowCount: number;
+  readonly speed: number;
+  readonly waiting: boolean;
+}): void {
+  const { bind, current, onDone, playing, rowCount, speed, waiting } = args;
+  React.useEffect(() => {
+    if (!playing || rowCount === 0 || waiting) return;
+    const lastRow = current >= rowCount - 1;
+    const id = setTimeout(
+      () => (lastRow ? onDone() : bind(current + 1)),
+      (ROW_HOLD_MS * BEAT) / speed,
+    );
+    return () => clearTimeout(id);
+  }, [bind, current, onDone, playing, rowCount, speed, waiting]);
+}
+
+/**
+ * The subquery's own rows for the bound outer row, and — once a cell is picked — the rows behind
+ * that one cell.
+ *
+ * Both are cards beside the grid, and the second only exists when it was asked for.
+ */
+function innerCards(args: {
+  readonly build: GridBuild | null;
+  readonly cell: QueryOutcome | undefined;
+  readonly column: GridColumn | null;
+  readonly inner: QueryOutcome | undefined;
+  readonly title: string;
+}): TableView[] {
+  const { build, cell, column, inner, title } = args;
+  const own = innerCard(title, inner?.ok ? inner.result : null, inner && !inner.ok ? inner.error : null);
+  if (!column || !build) return [own];
+  return [
+    own,
+    innerCard(
+      `${build.innerSource} · ${column.label}`,
+      cell?.ok ? cell.result : null,
+      cell && !cell.ok ? cell.error : null,
+      "cell",
+    ),
+  ];
 }

@@ -21,9 +21,10 @@
 
 import type { Cell, Dialect, StatementResult } from "@perch/protocol";
 import { formatCell } from "../results-grid";
-import { sqlLiteral, type BoundPlan, type BoundRow } from "./bound";
+import { bindKeyOf, sqlLiteral, type BoundPlan, type BoundRow } from "./bound";
 import { conjuncts, spliceRanges, type Range, type SubqueryPredicateKind } from "./clauses";
 import type { GridBuild } from "./grid";
+import { clip, oneLine } from "./narration/prose";
 import {
   bindingText,
   closestSentence,
@@ -34,10 +35,11 @@ import {
 } from "./narration";
 import type { SectionId } from "./program";
 import { colsOf, positional, truthy, visibleIndices, widthFor } from "./scenes/columns";
+import { okResult } from "./scenes/results";
 import type { Col, NearRow, TerminusView } from "./scenes/types";
 import { conjunctColumn, PASS_COLUMN, sourceTitle } from "./steps";
 import type { GridColumn } from "./use-grid";
-import type { StationResult, WalkData } from "./use-walk";
+import type { WalkData } from "./use-walk";
 
 /**
  * Everything a bound chapter's probes learned, kept so a later chapter can read it.
@@ -85,13 +87,15 @@ export function buildTerminus(args: {
   if (!isLastStation(walk, index)) return null;
   // Zero rows, measured rather than assumed: a sample that is merely empty could be a station still
   // loading, and a card explaining an emptiness that is about to fill would be worse than none.
-  const sample = okOf(walk.results[index], "sample");
+  const sample = okResult(walk.results[index], "sample");
   if (sample === null || sample.rows.length > 0 || sample.rowCount !== 0) return null;
 
   const body = parsed.text.slice(parsed.where.body.from, parsed.where.body.to);
   const parts = conjuncts(parsed.text, parsed.where.body, dialect);
   const bound = boundConjunct(parts, evidence);
-  return bound === null ? generic(walk, parsed.text, parts, body) : nearest(bound, parsed.text, body);
+  return bound === null
+    ? generic(walk, parsed.text, parts, body)
+    : nearest(bound, parsed.text, body);
 }
 
 /** The last station of the walk that actually runs: where an empty result is the query's answer
@@ -101,11 +105,6 @@ function isLastStation(walk: WalkData, index: number): boolean {
     if (walk.stations[i]!.present) return false;
   }
   return walk.stations[index]?.present === true;
-}
-
-function okOf(result: StationResult | undefined, id: string): StatementResult | null {
-  const outcome = result?.queries[id];
-  return outcome?.ok ? outcome.result : null;
 }
 
 /**
@@ -134,7 +133,7 @@ function nearest(found: BoundEvidence, text: string, body: string): TerminusView
   const { plan, rows, outer } = found;
   const kind = plan.predicate.kind;
   const predicate = oneLine(text.slice(plan.predicate.range.from, plan.predicate.range.to));
-  const why = `no row survived ${clip(predicate)}`;
+  const why = `no row survived ${clip(predicate, TITLE_CHARS)}`;
   const failing = rows.flatMap((row, index) => (row.pass ? [] : [{ row, index }]));
   if (failing.length === 0) return null;
 
@@ -162,7 +161,9 @@ function nearest(found: BoundEvidence, text: string, body: string): TerminusView
     const first = shown[0]!;
     const innerParsed = plan.section.parsed;
     const innerSource =
-      innerParsed !== null && innerParsed.kind === "select" ? innerParsed.first.name : "the subquery";
+      innerParsed !== null && innerParsed.kind === "select"
+        ? innerParsed.first.name
+        : "the subquery";
     const gaps = shown.map(({ row }) => needed(found, row));
     return {
       key: "terminus",
@@ -170,7 +171,11 @@ function nearest(found: BoundEvidence, text: string, body: string): TerminusView
       why,
       cols: [...cols, gapCol("what it needed", gaps)],
       gapLabel: "what it needed",
-      rows: shown.map(({ row, index }, at) => ({ key: row.key, cells: cells(index), gap: gaps[at]! })),
+      rows: shown.map(({ row, index }, at) => ({
+        key: row.key,
+        cells: cells(index),
+        gap: gaps[at]!,
+      })),
       sentence: noGradientSentence({
         outerSource,
         kind,
@@ -191,7 +196,13 @@ function nearest(found: BoundEvidence, text: string, body: string): TerminusView
     key: "terminus",
     title: NEAREST_TITLE,
     why,
-    cols: [...cols, gapCol(label, shown.map((entry) => entry.gap))],
+    cols: [
+      ...cols,
+      gapCol(
+        label,
+        shown.map((entry) => entry.gap),
+      ),
+    ],
     gapLabel: label,
     rows: shown.map((entry): NearRow => ({
       key: entry.row.key,
@@ -220,7 +231,12 @@ function nearest(found: BoundEvidence, text: string, body: string): TerminusView
   };
 }
 
-type Scored = { readonly row: BoundRow; readonly index: number; readonly distance: number; readonly gap: string };
+type Scored = {
+  readonly row: BoundRow;
+  readonly index: number;
+  readonly distance: number;
+  readonly gap: string;
+};
 
 /** What "near" is measured in, per kind. It is a column header, so it names the measure and not the
  *  verdict: a reader who disagrees with the ranking should be able to see what it ranked by. */
@@ -298,7 +314,8 @@ function score(
  */
 function shortBy(found: BoundEvidence, row: BoundRow, count: number): string {
   const missing = missingValues(found, row);
-  if (missing === null || missing.length === 0 || missing.length > MAX_NAMED) return `short by ${count}`;
+  if (missing === null || missing.length === 0 || missing.length > MAX_NAMED)
+    return `short by ${count}`;
   return `short by ${count}: ${missing.join(", ")}`;
 }
 
@@ -311,11 +328,6 @@ function missingValues(found: BoundEvidence, row: BoundRow): string[] | null {
   const answers = cells.get(bindKeyOf(row));
   if (!answers || answers.size < columns.length) return null;
   return columns.filter((column) => answers.get(column.key) === true).map((column) => column.label);
-}
-
-/** The same key `useGridRun` files its cells under: the outer row's bound values, spelled as SQL. */
-function bindKeyOf(row: BoundRow): string {
-  return JSON.stringify([...row.literals.values()]);
 }
 
 /**
@@ -348,7 +360,7 @@ function sought(found: BoundEvidence, row: BoundRow): string | null {
   const edits = found.plan.refs
     .filter((ref) => ref.range.from >= body.from && ref.range.to <= body.to)
     .map((ref) => ({ range: ref.range, with: row.literals.get(ref.ref) ?? "null" }));
-  return clip(oneLine(spliceRanges(parsed.text, body, edits)));
+  return clip(oneLine(spliceRanges(parsed.text, body, edits)), TITLE_CHARS);
 }
 
 /* ── The generic card ──────────────────────────────────────────────────────────────────────── */
@@ -369,9 +381,9 @@ function generic(
 ): TerminusView | null {
   const at = walk.stations.findIndex((station) => station.id === "where" && station.present);
   if (at < 0) return null;
-  const verdict = okOf(walk.results[at], "verdict");
+  const verdict = okResult(walk.results[at], "verdict");
   if (verdict === null || verdict.rows.length === 0) return null;
-  const why = `no row survived ${clip(oneLine(body))}`;
+  const why = `no row survived ${clip(oneLine(body), TITLE_CHARS)}`;
 
   const indices = visibleIndices(verdict);
   const cols = colsOf(verdict, indices, positional);
@@ -412,9 +424,15 @@ function generic(
   const near = shown.slice(0, MAX_NEAR).map((entry) => entry.entry);
   return {
     key: "terminus",
-    title: measured ? "nearest to passing" : "the rows it threw away",
+    title: measured ? NEAREST_TITLE : "the rows it threw away",
     why,
-    cols: [...cols, gapCol(label, near.map((entry) => entry.gap))],
+    cols: [
+      ...cols,
+      gapCol(
+        label,
+        near.map((entry) => entry.gap),
+      ),
+    ],
     gapLabel: label,
     rows: near,
     sentence: genericTerminusSentence(oneLine(body), measured),
@@ -445,10 +463,6 @@ function trim(value: number): string {
   return Number.isInteger(value) ? String(value) : String(Number(value.toPrecision(6)));
 }
 
-const oneLine = (text: string): string => text.replace(/\s+/g, " ").trim();
-
 /** The predicate quoted on the empty card, cut where it stops being readable. The card is one line
  *  tall and a fifty-character WHERE would push the row count off the end of it. */
-function clip(text: string): string {
-  return text.length <= 54 ? text : `${text.slice(0, 53)}…`;
-}
+const TITLE_CHARS = 54;

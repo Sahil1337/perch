@@ -4,6 +4,7 @@ import type { PerchClient } from "@perch/client";
 import type { ServerEvent } from "@perch/protocol";
 import * as React from "react";
 import { RECONNECT_MAX_MS, RECONNECT_MIN_MS, sleep } from "./helpers";
+import { useAbortable } from "./use-async-resource";
 
 export function useServerEvents(
   getClient: () => PerchClient,
@@ -16,11 +17,8 @@ export function useServerEvents(
     handler.current = onEvent;
   }, [onEvent]);
 
-  React.useEffect(() => {
-    if (!enabled) return;
-    const controller = new AbortController();
-    const { signal } = controller;
-    void (async () => {
+  const subscribe = React.useCallback(
+    async (signal: AbortSignal): Promise<void> => {
       let delay = RECONNECT_MIN_MS;
       while (!signal.aborted) {
         try {
@@ -35,7 +33,9 @@ export function useServerEvents(
         await sleep(delay, signal);
         delay = Math.min(delay * 2, RECONNECT_MAX_MS);
       }
-    })();
-    return () => controller.abort();
-  }, [enabled, getClient]);
+    },
+    [getClient],
+  );
+
+  useAbortable(enabled, subscribe);
 }

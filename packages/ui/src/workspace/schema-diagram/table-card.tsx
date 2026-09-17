@@ -151,7 +151,10 @@ function ColumnRow({
       <span className="flex size-3.5 shrink-0 items-center justify-center">
         {column.pk ? (
           <KeyRoundIcon
-            className={cn("size-3", referenced ? "text-warning-foreground" : "text-warning-foreground/70")}
+            className={cn(
+              "size-3",
+              referenced ? "text-warning-foreground" : "text-warning-foreground/70",
+            )}
           />
         ) : reference ? (
           <Link2Icon className="size-3 text-info-foreground" />
@@ -159,7 +162,12 @@ function ColumnRow({
           <span className="size-1 rounded-full bg-muted-foreground/40" />
         )}
       </span>
-      <span className={cn("min-w-0 truncate", column.pk || reference ? "text-foreground" : "text-foreground/80")}>
+      <span
+        className={cn(
+          "min-w-0 truncate",
+          column.pk || reference ? "text-foreground" : "text-foreground/80",
+        )}
+      >
         {column.name}
       </span>
       <span className="ms-auto shrink-0 truncate font-mono text-muted-foreground tabular-nums">

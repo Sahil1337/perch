@@ -3,42 +3,19 @@
 
 import type { Hono } from "hono";
 import type { ConnectionConfig, Dialect } from "@perch/protocol";
+import { defaultPort, parseConnectionUrl } from "../../db/url.js";
 import { listConnections, removeConnection, upsertConnection } from "../../storage/index.js";
 import { bool, num, readJsonBody, str, type JsonBody } from "../http/body.js";
-import { badRequest, conflict } from "../http/errors.js";
+import { badRequest, conflict, errorMessage } from "../http/errors.js";
 import type { RouteDeps } from "../create-server.js";
 
-/**
- * Minimal connection-URL parsing for the `url` shorthand. The CLI uses the driver package's
- * `parseConnectionUrl`; this copy keeps the server independent of src/db.
- */
-function parseConnectionUrl(raw: string): Partial<ConnectionConfig> {
-  let url: URL;
+/** `db/url.ts` throws plain Errors; the API has to answer them in its own envelope. */
+function configFromUrl(raw: string): Partial<ConnectionConfig> {
   try {
-    url = new URL(raw);
-  } catch {
-    throw badRequest(`invalid connection url: ${raw}`);
+    return parseConnectionUrl(raw);
+  } catch (err) {
+    throw badRequest(errorMessage(err));
   }
-  const protocol = url.protocol.replace(/:$/, "").toLowerCase();
-  const dialect: Dialect | undefined =
-    protocol === "mysql"
-      ? "mysql"
-      : protocol === "postgres" || protocol === "postgresql"
-        ? "postgres"
-        : undefined;
-  if (!dialect) throw badRequest(`unsupported connection url scheme: ${protocol}`);
-  const sslmode = url.searchParams.get("sslmode");
-  const ssl = sslmode === "require" || url.searchParams.get("ssl") === "true";
-  const config: Partial<ConnectionConfig> = {
-    dialect,
-    host: url.hostname ? decodeURIComponent(url.hostname) : "localhost",
-    port: url.port ? Number(url.port) : dialect === "mysql" ? 3306 : 5432,
-    user: decodeURIComponent(url.username),
-    database: decodeURIComponent(url.pathname.replace(/^\//, "")),
-  };
-  if (url.password) config.password = decodeURIComponent(url.password);
-  if (ssl) config.ssl = true;
-  return config;
 }
 
 /** Builds the stored config from a create/update body, merging over `existing` for PUT. */
@@ -46,7 +23,7 @@ function connectionFromBody(
   body: JsonBody,
   existing?: ConnectionConfig,
 ): Omit<ConnectionConfig, "id" | "createdAt"> {
-  const fromUrl = str(body.url) ? parseConnectionUrl(String(body.url)) : {};
+  const fromUrl = str(body.url) ? configFromUrl(String(body.url)) : {};
   const merged: Partial<ConnectionConfig> = { ...existing, ...fromUrl };
 
   const name = str(body.name) ?? merged.name;
@@ -61,7 +38,7 @@ function connectionFromBody(
     name,
     dialect,
     host: str(body.host) ?? merged.host ?? "localhost",
-    port: num(body.port) ?? merged.port ?? (dialect === "mysql" ? 3306 : 5432),
+    port: num(body.port) ?? merged.port ?? defaultPort(dialect),
     user: str(body.user) ?? merged.user ?? "",
     database: str(body.database) ?? merged.database ?? (dialect === "mysql" ? "" : "postgres"),
   };

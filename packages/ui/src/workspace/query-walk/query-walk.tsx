@@ -18,6 +18,7 @@ import { useWorkspace } from "../context";
 import { WalkPlayer } from "./player";
 import { buildProgram, isUnsupportedProgram, type Program } from "./program";
 import { useProgram, type Probe } from "./use-walk";
+import { WalkProvider } from "./walk-context";
 
 export function QueryWalk({ sql }: { sql: string }): React.ReactElement {
   const { connection, probe } = useWorkspace();
@@ -28,10 +29,7 @@ export function QueryWalk({ sql }: { sql: string }): React.ReactElement {
   // taken out here, each range, probe, highlight and "SQL that ran" is comment-free without any of
   // them knowing comments exist. They are carried down to the narrator, which has a tab for them.
   const stripped = React.useMemo(() => stripComments(sql), [sql]);
-  const program = React.useMemo(
-    () => buildProgram(stripped.sql, dialect),
-    [stripped.sql, dialect],
-  );
+  const program = React.useMemo(() => buildProgram(stripped.sql, dialect), [stripped.sql, dialect]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border bg-popover text-popover-foreground shadow-lg/5">
@@ -77,5 +75,10 @@ function Walk({
   probe: Probe;
   comments: readonly SqlComment[];
 }): React.ReactElement {
-  return <WalkPlayer comments={comments} data={useProgram(program, probe)} probe={probe} />;
+  const data = useProgram(program, probe);
+  return (
+    <WalkProvider probe={probe} program={program}>
+      <WalkPlayer comments={comments} data={data} />
+    </WalkProvider>
+  );
 }

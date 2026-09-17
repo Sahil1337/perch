@@ -1,8 +1,13 @@
 "use client";
 
+// The tabs open in the editor, and everything that can be true about whether their contents are on
+// disk. The rules themselves are in `buffers-reducer.ts`; this file is the I/O around them — every
+// action here is "call the server, then say what came back".
+
 import { isPerchError, staleWrite, type PerchClient } from "@perch/client";
 import type { Buffer, CursorPosition, SaveState } from "@perch/ui";
 import * as React from "react";
+import { buffersReducer, initialBuffersState, saveStateOf } from "./buffers-reducer";
 import { dirName, fileName, messageOf } from "./helpers";
 
 /** Keyed by path so `openFile` on an already-open file is a focus, not a second tab. */
@@ -19,10 +24,6 @@ function fileBuffer(path: string, content: string): Buffer {
     dirty: false,
     view: "script",
   };
-}
-
-function withoutConflict({ conflict: _resolved, ...rest }: Buffer): Buffer {
-  return rest;
 }
 
 export type BuffersOptions = {
@@ -60,18 +61,16 @@ export function useBuffers(
 ): BuffersApi {
   const { autosave, autosaveDelayMs, reportFileError, refreshWorkspace } = options;
 
-  const [buffers, setBuffers] = React.useState<readonly Buffer[]>([]);
-  const [activeBufferId, setActiveBufferId] = React.useState<string | null>(null);
-  const [saveState, setSaveState] = React.useState<SaveState>("saved");
+  const [state, dispatch] = React.useReducer(buffersReducer, initialBuffersState);
+  const { buffers, activeBufferId } = state;
   const [cursor, setCursor] = React.useState<CursorPosition>({ line: 1, col: 1 });
 
   const scratchCount = React.useRef(0);
   /** What each file buffer was read at, for `ifModifiedAt`. Bookkeeping, not renderable state. */
   const readAt = React.useRef(new Map<string, string>());
-  /** Bumped on every edit, so a save that finishes after a keystroke does not claim "saved". */
-  const editSeq = React.useRef(0);
 
   const activeBuffer = buffers.find((b) => b.id === activeBufferId);
+  const saveState = saveStateOf(state);
 
   /**
    * Writes every dirty file buffer, not just the active one: the save indicator and autosave are
@@ -80,11 +79,10 @@ export function useBuffers(
   const commitSave = React.useCallback(async (): Promise<void> => {
     const dirty = buffers.filter((b) => b.path !== null && b.dirty);
     if (dirty.length === 0) {
-      setSaveState((prev) => (prev === "error" ? prev : "saved"));
+      dispatch({ type: "saveSkipped" });
       return;
     }
-    const seq = editSeq.current;
-    setSaveState("saving");
+    dispatch({ type: "saveStarted" });
     let failed = false;
 
     await Promise.all(
@@ -99,45 +97,46 @@ export function useBuffers(
             ...(ifModifiedAt ? { ifModifiedAt } : {}),
           });
           readAt.current.set(buffer.id, written.modifiedAt);
-          setBuffers((prev) =>
-            prev.map((b) =>
-              b.id === buffer.id
-                // Keystrokes that landed during the write stay dirty, for the next save.
-                ? withoutConflict({ ...b, dirty: b.content !== buffer.content })
-                : b,
-            ),
-          );
+          dispatch({ type: "saveWritten", id: buffer.id, written: buffer.content });
         } catch (error) {
           failed = true;
           const stale = staleWrite(error);
           if (!stale) return;
           // The 409 carries the file as it is on disk now, so the UI can offer reload-or-keep
           // without a second round trip.
-          setBuffers((prev) =>
-            prev.map((b) =>
-              b.id === buffer.id
-                ? {
-                    ...b,
-                    conflict: {
-                      modifiedAt: stale.modifiedAt ?? "",
-                      content: stale.content ?? "",
-                    },
-                  }
-                : b,
-            ),
-          );
+          dispatch({
+            type: "conflict",
+            id: buffer.id,
+            disk: { modifiedAt: stale.modifiedAt ?? "", content: stale.content ?? "" },
+          });
         }
       }),
     );
 
-    setSaveState(failed ? "error" : editSeq.current === seq ? "saved" : "unsaved");
+    dispatch({ type: "saveFinished", failed });
   }, [buffers, getClient]);
+
+  /**
+   * Autosave, and the reason it debounces.
+   *
+   * `revision` changes on every buffers write, so a keystroke tears this effect down and starts the
+   * delay over: the write lands once you stop typing, not `autosaveDelayMs` after the first
+   * character. That debounce used to be a side effect of `commitSave` being rebuilt on every
+   * keystroke and appearing in this dependency list — which meant a routine "stabilise this
+   * callback" refactor would have silently turned autosave into fire-once-per-dirty-transition.
+   * `commitSave` is now read through a ref precisely so its identity plays no part, and `revision`
+   * is the thing this is keyed on, on purpose.
+   */
+  const latestSave = React.useRef(commitSave);
+  React.useEffect(() => {
+    latestSave.current = commitSave;
+  }, [commitSave]);
 
   React.useEffect(() => {
     if (!enabled || !autosave || saveState !== "unsaved") return;
-    const timer = setTimeout(() => void commitSave(), autosaveDelayMs);
+    const timer = setTimeout(() => void latestSave.current(), autosaveDelayMs);
     return () => clearTimeout(timer);
-  }, [enabled, autosave, autosaveDelayMs, saveState, commitSave]);
+  }, [enabled, autosave, autosaveDelayMs, saveState, state.revision]);
 
   const newScratch = React.useCallback((): string => {
     const n = ++scratchCount.current;
@@ -150,8 +149,7 @@ export function useBuffers(
       dirty: false,
       view: "script",
     };
-    setBuffers((prev) => [...prev, buffer]);
-    setActiveBufferId(buffer.id);
+    dispatch({ type: "newScratch", buffer });
     return buffer.id;
   }, []);
 
@@ -159,7 +157,7 @@ export function useBuffers(
     async (path: string): Promise<string> => {
       const id = bufferIdFor(path);
       if (buffers.some((b) => b.id === id)) {
-        setActiveBufferId(id);
+        dispatch({ type: "focus", id });
         return id;
       }
       try {
@@ -167,10 +165,7 @@ export function useBuffers(
         // The server answers with the resolved path, which is the one writes have to use.
         const openedId = bufferIdFor(file.path);
         readAt.current.set(openedId, file.modifiedAt);
-        setBuffers((prev) =>
-          prev.some((b) => b.id === openedId) ? prev : [...prev, fileBuffer(file.path, file.content)],
-        );
-        setActiveBufferId(openedId);
+        dispatch({ type: "opened", buffer: fileBuffer(file.path, file.content) });
         return openedId;
       } catch (error) {
         reportFileError(messageOf(error));
@@ -182,36 +177,26 @@ export function useBuffers(
 
   const closeBuffer = React.useCallback((id: string): void => {
     readAt.current.delete(id);
-    setBuffers((prev) => {
-      const next = prev.filter((b) => b.id !== id);
-      setActiveBufferId((current) => (current === id ? (next.at(-1)?.id ?? null) : current));
-      return next;
-    });
+    dispatch({ type: "close", id });
   }, []);
 
-  const editBuffer = React.useCallback(
-    (id: string, content: string): void => {
-      const target = buffers.find((b) => b.id === id);
-      if (!target) return;
-      // Only a file can be unsaved: a dirty scratch would nag forever with nowhere to be written.
-      const isFile = target.path !== null;
-      setBuffers((prev) => prev.map((b) => (b.id === id ? { ...b, content, dirty: isFile } : b)));
-      if (!isFile) return;
-      editSeq.current += 1;
-      setSaveState("unsaved");
-    },
-    [buffers],
-  );
+  const focusBuffer = React.useCallback((id: string | null): void => {
+    dispatch({ type: "focus", id });
+  }, []);
+
+  const editBuffer = React.useCallback((id: string, content: string): void => {
+    dispatch({ type: "edit", id, content });
+  }, []);
 
   const setBufferView = React.useCallback((id: string, view: Buffer["view"]): void => {
-    setBuffers((prev) => prev.map((b) => (b.id === id ? { ...b, view } : b)));
+    dispatch({ type: "setView", id, view });
   }, []);
 
   const saveAs = React.useCallback(
     async (id: string, path: string): Promise<void> => {
       const buffer = buffers.find((b) => b.id === id);
       if (!buffer) return;
-      setSaveState("saving");
+      dispatch({ type: "saveStarted" });
       try {
         const files = getClient().files;
         let target = path;
@@ -225,24 +210,10 @@ export function useBuffers(
         const nextId = bufferIdFor(target);
         readAt.current.delete(id);
         readAt.current.set(nextId, written.modifiedAt);
-        setBuffers((prev) =>
-          prev.map((b) =>
-            b.id === id
-              ? withoutConflict({
-                  ...b,
-                  id: nextId,
-                  path: target,
-                  name: fileName(target),
-                  dirty: false,
-                })
-              : b,
-          ),
-        );
-        setActiveBufferId((current) => (current === id ? nextId : current));
-        setSaveState("saved");
+        dispatch({ type: "savedAs", id, nextId, path: target, name: fileName(target) });
         refreshWorkspace();
       } catch {
-        setSaveState("error");
+        dispatch({ type: "saveFailed" });
       }
     },
     [buffers, getClient, refreshWorkspace],
@@ -256,30 +227,22 @@ export function useBuffers(
 
       if (choice === "reload") {
         readAt.current.set(id, conflict.modifiedAt);
-        setBuffers((prev) =>
-          prev.map((b) =>
-            b.id === id ? withoutConflict({ ...b, content: conflict.content, dirty: false }) : b,
-          ),
-        );
-        setSaveState("saved");
+        dispatch({ type: "conflictResolved", id, choice });
         return;
       }
 
       // "keep" writes without `ifModifiedAt`: guarding against the version just discarded would
       // refuse the write forever.
-      setSaveState("saving");
+      dispatch({ type: "saveStarted" });
       try {
         const written = await getClient().files.write({
           path: buffer.path,
           content: buffer.content,
         });
         readAt.current.set(id, written.modifiedAt);
-        setBuffers((prev) =>
-          prev.map((b) => (b.id === id ? withoutConflict({ ...b, dirty: false }) : b)),
-        );
-        setSaveState("saved");
+        dispatch({ type: "conflictResolved", id, choice });
       } catch {
-        setSaveState("error");
+        dispatch({ type: "saveFailed" });
       }
     },
     [buffers, getClient],
@@ -297,19 +260,15 @@ export function useBuffers(
           const file = await getClient().files.read(path);
           if (buffer.dirty) {
             // Someone else edited the file while there were unsaved changes here. Offer both.
-            setBuffers((prev) =>
-              prev.map((b) =>
-                b.id === buffer.id
-                  ? { ...b, conflict: { modifiedAt: file.modifiedAt, content: file.content } }
-                  : b,
-              ),
-            );
+            dispatch({
+              type: "conflict",
+              id: buffer.id,
+              disk: { modifiedAt: file.modifiedAt, content: file.content },
+            });
             return;
           }
           readAt.current.set(buffer.id, file.modifiedAt);
-          setBuffers((prev) =>
-            prev.map((b) => (b.id === buffer.id && !b.dirty ? { ...b, content: file.content } : b)),
-          );
+          dispatch({ type: "externalUpdate", id: buffer.id, content: file.content });
         } catch {
           /* the file moved again between the event and the read; the next event will say so */
         }
@@ -328,7 +287,7 @@ export function useBuffers(
     newScratch,
     openFile,
     closeBuffer,
-    focusBuffer: setActiveBufferId,
+    focusBuffer,
     editBuffer,
     setBufferView,
     save: commitSave,

@@ -47,15 +47,17 @@ export function SchemaTree({
 
   const groups = React.useMemo(() => {
     const all = data?.schemas ?? [];
-    return all
-      .map((entry) => ({
-        name: entry.name,
-        tables: entry.tables.filter(
-          (table) => needle === "" || table.name.toLowerCase().includes(needle),
-        ),
-      }))
-      // An empty schema is noise, but the level stays, so depth does not shift while typing.
-      .filter((entry) => entry.tables.length > 0);
+    return (
+      all
+        .map((entry) => ({
+          name: entry.name,
+          tables: entry.tables.filter(
+            (table) => needle === "" || table.name.toLowerCase().includes(needle),
+          ),
+        }))
+        // An empty schema is noise, but the level stays, so depth does not shift while typing.
+        .filter((entry) => entry.tables.length > 0)
+    );
   }, [data, needle]);
 
   const matchCount = groups.reduce((total, entry) => total + entry.tables.length, 0);

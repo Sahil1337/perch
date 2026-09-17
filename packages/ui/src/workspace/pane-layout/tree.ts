@@ -12,7 +12,6 @@ function newId(prefix: string): string {
   return `${prefix}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-/* ----------------------------------------------------------------- build */
 
 export function paneGroup(panes: readonly PaneId[], id = newId("group")): PaneGroup {
   return { kind: "group", id, panes, activePane: panes[panes.length - 1] ?? null };
@@ -24,7 +23,6 @@ export function singleGroup(panes: readonly PaneId[] = []): EditorLayout {
   return { root, focusedGroup: root.id };
 }
 
-/* ------------------------------------------------------------- traversal */
 
 export function isGroup(node: PaneNode): node is PaneGroup {
   return node.kind === "group";
@@ -58,7 +56,6 @@ export function panesOf(node: PaneNode): readonly PaneId[] {
   return groups(node).flatMap((group) => group.panes);
 }
 
-/* -------------------------------------------------------------- rewrites */
 
 /** Scaled to sum to 100, because that is what a `PanelGroup` expects of its `defaultSize`s. */
 export function normalizeSizes(sizes: readonly number[]): readonly number[] {

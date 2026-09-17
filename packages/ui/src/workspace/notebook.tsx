@@ -18,6 +18,7 @@
 import { PlayIcon, PlusIcon, XIcon } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import * as React from "react";
+import { plural } from "../lib/format";
 import { useSpring } from "../lib/motion";
 import { cn } from "../lib/utils";
 import { Button } from "../ui/button";
@@ -44,8 +45,6 @@ export function Notebook({
   const [editing, setEditing] = React.useState<Editing | null>(null);
   /** Cell id → run id. Keyed by `Cell.id`, so an edited cell loses its output by construction. */
   const [outputs, setOutputs] = React.useState<Record<string, string>>({});
-
-  // Read after an `await`, where the value closed over at call time is already stale.
 
   /**
    * The empty card at the end, if asked for. `parseCells` cannot return an empty cell, so the card
@@ -228,15 +227,19 @@ function NotebookCard({
 }
 
 /** The notebook's footer: "Run all" instead of the topbar's per-file Run. */
-function RunAllBar({ count, onRunAll }: { count: number; onRunAll: () => void }): React.ReactElement {
+function RunAllBar({
+  count,
+  onRunAll,
+}: {
+  count: number;
+  onRunAll: () => void;
+}): React.ReactElement {
   const { activeRun, cancelRun } = useWorkspace();
   const running = activeRun?.status === "running";
 
   return (
     <div className="flex h-10 shrink-0 items-center gap-2 border-border border-t px-3">
-      <span className="text-muted-foreground text-xs tabular-nums">
-        {count} {count === 1 ? "cell" : "cells"}
-      </span>
+      <span className="text-muted-foreground text-xs tabular-nums">{plural(count, "cell")}</span>
       <div className="ml-auto">
         {running && activeRun ? (
           <Button onClick={() => void cancelRun(activeRun.id)} size="sm" variant="destructive">

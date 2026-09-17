@@ -14,12 +14,15 @@ import { Spinner } from "../../ui/spinner";
 import { formatCell } from "../results-grid";
 import { AnswerCard } from "./answer-card";
 import { BucketsScene } from "./buckets";
+import { CellFrame } from "./cells";
+import { Crossfade } from "./crossfade";
 import type { SourceRef } from "./clauses";
 import { GridCard } from "./grid-card";
 import { STAGGER_MS } from "./narration";
 import type { Col, Row as RowView, Scene, TableView } from "./scenes";
 import { TerminusCard } from "./terminus-card";
 import { TickNumber } from "./tick-number";
+import { WalkCard, WalkCardHeader } from "./walk-card";
 import type { StationState } from "./use-walk";
 import { VerdictMark } from "./verdict-mark";
 import { collapseAfter, staggerDelay, useRowsMove, useSpeed, useT } from "./walk-motion";
@@ -28,7 +31,7 @@ import { collapseAfter, staggerDelay, useRowsMove, useSpeed, useT } from "./walk
  * Where a FROM source came from, when it became a section of its own: the section's name, and a way
  * to open it. Null for a plain table, and for a subquery the slicer never sliced.
  */
-export type SourceLink = {
+type SourceLink = {
   readonly label: string;
   readonly onJump: () => void;
 };
@@ -195,11 +198,11 @@ function Table({
   view: TableView;
   sourceLink: (source: SourceRef) => SourceLink | null;
 }): React.ReactElement {
-  const t = useT();
   const items: Item[] = [];
   view.rows.forEach((row, index) => {
     items.push({ kind: "row", row, index });
-    if (view.cut && view.cut.after === index + 1) items.push({ kind: "cut", label: view.cut.label });
+    if (view.cut && view.cut.after === index + 1)
+      items.push({ kind: "cut", label: view.cut.label });
   });
   const shown = view.rows.length;
   const total = view.total ?? null;
@@ -209,18 +212,12 @@ function Table({
   // plain table, or a subquery the slicer refused — offers nothing here; there is nowhere to go,
   // and an unsliced subquery is already accounted for in the skipped note under the strip.
   const link = view.source ? sourceLink(view.source) : null;
-  /** The reference already says what the title says, so the title is the one to drop. */
-  const named = link !== null && link.label === view.title;
   // The gutter down the left edge belongs to the verdict marks. A card that never stamps one — a
   // result, a plain source — would otherwise carry 22px of dead space that reads as the first
   // column being indented, against the `px-2` its last column gets on the other edge.
   const marks = view.rows.some((row) => row.verdict !== undefined);
   return (
-    <motion.div
-      animate={{ opacity: 1 }}
-      className="shrink-0 overflow-hidden rounded-lg border bg-card shadow-sm/5"
-      exit={{ opacity: 0 }}
-      initial={{ opacity: 0 }}
+    <WalkCard
       // The two spacers a row carries besides its columns, as widths rather than as props, because
       // the rows centre their content: a row is placed by how wide it is, so any row that disagrees
       // about a spacer is drawn out of line with the rest. `AnimatePresence` renders a LEAVING row
@@ -234,113 +231,138 @@ function Table({
           "--fold": hidden.length > 0 ? "3rem" : "0rem",
         } as React.CSSProperties
       }
-      // POSITION, not size. A bare `layout` animates a card's width and height by SCALING it and
-      // then un-scaling every projection node inside, which is both the most expensive thing on this
-      // stage — a correction written to every child, every frame — and a second animation of a
-      // height that is already moving, because the rows inside are collapsing out on their own clock.
-      // Two springs on one height is exactly the stutter this looked like. The card now follows its
-      // content the way any other element does, and only its POSITION, when a neighbour resizes, is
-      // animated. Nothing inside it is scaled, so nothing inside it has to be corrected.
-      layout="position"
-      transition={{ layout: t.spring, default: t.fade }}
     >
-      <div className="flex h-8 items-center gap-2 border-b bg-muted/60 px-2.5 font-medium text-xs">
-        {/* A source read under its section's own name says that name twice — a title reading
-            `advisor_teaches` beside a button reading `advisor_teaches`. The repetition is not just
-            noise: a card is as wide as its header and its columns are laid out at fixed pixel
-            widths, so the doubled name stretches the card well past its own table and leaves a
-            band of empty space down the right of the rows. The button carries the name in that
-            case, because it is the half that also goes somewhere. */}
-        {!named && (
-          <span className="relative">
-            <AnimatePresence initial={false} mode="popLayout">
-              <motion.span
-                animate={{ opacity: 1, y: 0 }}
-                className="block whitespace-nowrap"
-                exit={{ opacity: 0, y: -4 }}
-                initial={{ opacity: 0, y: 4 }}
-                key={view.title}
-                transition={t.fade}
-              >
-                {view.title}
-              </motion.span>
-            </AnimatePresence>
-          </span>
-        )}
-        {link && (
-          <Button
-            aria-label={`Computed in ${link.label}, go to it`}
-            className={cn(!named && "ms-1")}
-            onClick={link.onJump}
-            size="xs"
-            variant="outline"
-          >
-            <CornerUpRightIcon /> {link.label}
-          </Button>
-        )}
-        <span className="ms-auto whitespace-nowrap font-mono text-muted-foreground text-xs tabular-nums">
-          {total !== null && total !== shown ? (
-            <>
-              <TickNumber value={total} /> rows · showing {shown}
-            </>
-          ) : (
-            <>
-              <TickNumber value={shown} /> {shown === 1 ? "row" : "rows"}
-            </>
-          )}
-        </span>
-      </div>
+      <TableHeaderBar link={link} shown={shown} title={view.title} total={total} />
       {view.error ? (
         <p className="max-w-xs p-3 font-mono text-destructive-foreground text-xs">{view.error}</p>
       ) : (
         <>
-          <div className="flex h-7 items-stretch justify-center border-b">
-            <div className="w-(--gutter) shrink-0" />
-            {view.cols.map((col) => (
-              <HeaderCell col={col} key={col.id} />
-            ))}
-            {hidden.length > 0 && (
-              <div
-                className="flex h-7 w-(--fold) shrink-0 items-center justify-center font-mono text-muted-foreground text-xs"
-                title={`${hidden.length} more columns: ${hidden.join(", ")}`}
-              >
-                +{hidden.length}
-              </div>
-            )}
-          </div>
+          <TableColumns cols={view.cols} hidden={hidden} />
           {view.note && (
             <p className="border-b bg-muted/40 px-3 py-1.5 text-muted-foreground text-xs leading-5">
               {view.note}
             </p>
           )}
-          {/* The rows scroll under the header rather than growing the card past the stage: a
-              25-row sample is three screens tall, and the card's title has to stay in sight. The
-              cap is 16 rows: `h-7` plus each row's own bottom border, so no row is cut in half. */}
-          <motion.div className="max-h-116 overflow-y-auto" layoutScroll>
-            {items.length === 0 && (
-              <p className="px-3 py-6 text-center text-muted-foreground text-xs">
-                {view.empty ?? "No rows."}
-              </p>
-            )}
-            <AnimatePresence initial={false}>
-              {items.map((item) =>
-                item.kind === "cut" ? (
-                  <CutLine key="cut" label={item.label} />
-                ) : (
-                  <Row
-                    cols={view.cols}
-                    count={view.rows.length}
-                    index={item.index}
-                    key={item.row.key}
-                    row={item.row}
-                    settled={view.settled === true}
-                  />
-                ),
-              )}
-            </AnimatePresence>
-          </motion.div>
+          <TableRows items={items} view={view} />
         </>
       )}
+    </WalkCard>
+  );
+}
+
+/** The card's title, where its rows were computed when that was somewhere else, and the count. */
+function TableHeaderBar({
+  link,
+  shown,
+  title,
+  total,
+}: {
+  link: SourceLink | null;
+  shown: number;
+  title: string;
+  total: number | null;
+}): React.ReactElement {
+  /** The reference already says what the title says, so the title is the one to drop. */
+  const named = link !== null && link.label === title;
+  return (
+    <WalkCardHeader>
+      {/* A source read under its section's own name says that name twice — a title reading
+          `advisor_teaches` beside a button reading `advisor_teaches`. The repetition is not just
+          noise: a card is as wide as its header and its columns are laid out at fixed pixel
+          widths, so the doubled name stretches the card well past its own table and leaves a
+          band of empty space down the right of the rows. The button carries the name in that
+          case, because it is the half that also goes somewhere. */}
+      {!named && (
+        <Crossfade className="relative" textClassName="block whitespace-nowrap" value={title} />
+      )}
+      {link && (
+        <Button
+          aria-label={`Computed in ${link.label}, go to it`}
+          className={cn(!named && "ms-1")}
+          onClick={link.onJump}
+          size="xs"
+          variant="outline"
+        >
+          <CornerUpRightIcon /> {link.label}
+        </Button>
+      )}
+      <span className="ms-auto whitespace-nowrap font-mono text-muted-foreground text-xs tabular-nums">
+        {total !== null && total !== shown ? (
+          <>
+            <TickNumber value={total} /> rows · showing {shown}
+          </>
+        ) : (
+          <>
+            <TickNumber value={shown} /> {shown === 1 ? "row" : "rows"}
+          </>
+        )}
+      </span>
+    </WalkCardHeader>
+  );
+}
+
+/** The column header row, and the `+n` marker for the columns the width cap folded away. */
+function TableColumns({
+  cols,
+  hidden,
+}: {
+  cols: readonly Col[];
+  hidden: readonly string[];
+}): React.ReactElement {
+  return (
+    <div className="flex h-7 items-stretch justify-center border-b">
+      <div className="w-(--gutter) shrink-0" />
+      {cols.map((col) => (
+        <HeaderCell col={col} key={col.id} />
+      ))}
+      {hidden.length > 0 && (
+        <div
+          className="flex h-7 w-(--fold) shrink-0 items-center justify-center font-mono text-muted-foreground text-xs"
+          title={`${hidden.length} more columns: ${hidden.join(", ")}`}
+        >
+          +{hidden.length}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The rows, which scroll under the header rather than growing the card past the stage.
+ *
+ * A 25-row sample is three screens tall, and the card's title has to stay in sight. The cap is 16
+ * rows: `h-7` plus each row's own bottom border, so no row is cut in half.
+ */
+function TableRows({
+  items,
+  view,
+}: {
+  items: readonly Item[];
+  view: TableView;
+}): React.ReactElement {
+  return (
+    <motion.div className="max-h-116 overflow-y-auto" layoutScroll>
+      {items.length === 0 && (
+        <p className="px-3 py-6 text-center text-muted-foreground text-xs">
+          {view.empty ?? "No rows."}
+        </p>
+      )}
+      <AnimatePresence initial={false}>
+        {items.map((item) =>
+          item.kind === "cut" ? (
+            <CutLine key="cut" label={item.label} />
+          ) : (
+            <Row
+              cols={view.cols}
+              count={view.rows.length}
+              index={item.index}
+              key={item.row.key}
+              row={item.row}
+              settled={view.settled === true}
+            />
+          ),
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
@@ -361,7 +383,7 @@ function HeaderCell({ col }: { col: Col }): React.ReactElement {
     // right-aligned number ends up on the card's edge, a lone digit an inch from the label it
     // belongs to. The header and the rows centre their columns instead, and carry the same width
     // and the same centring, which is what keeps a label over its own values.
-    <div className="w-(--w) shrink-0 overflow-hidden" style={{ "--w": `${col.width}px` } as React.CSSProperties}>
+    <CellFrame className="overflow-hidden" width={col.width}>
       <div
         className={cn(
           "flex h-7 w-full items-center gap-1 whitespace-nowrap px-2 font-mono text-xs transition-colors duration-200",
@@ -373,20 +395,7 @@ function HeaderCell({ col }: { col: Col }): React.ReactElement {
               : "text-muted-foreground",
         )}
       >
-        <span className="relative inline-grid">
-          <AnimatePresence initial={false} mode="popLayout">
-            <motion.span
-              animate={{ opacity: 1, y: 0 }}
-              className="block truncate"
-              exit={{ opacity: 0, y: -5 }}
-              initial={{ opacity: 0, y: 5 }}
-              key={col.label}
-              transition={t.fade}
-            >
-              {col.label}
-            </motion.span>
-          </AnimatePresence>
-        </span>
+        <Crossfade textClassName="block truncate" value={col.label} />
         <AnimatePresence initial={false}>
           {col.sort && (
             <motion.span
@@ -407,7 +416,7 @@ function HeaderCell({ col }: { col: Col }): React.ReactElement {
           )}
         </AnimatePresence>
       </div>
-    </div>
+    </CellFrame>
   );
 }
 
@@ -537,7 +546,7 @@ function Cell({
 }): React.ReactElement {
   return (
     // Same width as the header above it: see `HeaderCell`.
-    <div className="w-(--w) shrink-0 overflow-hidden" style={{ "--w": `${col.width}px` } as React.CSSProperties}>
+    <CellFrame className="overflow-hidden" width={col.width}>
       <div
         className={cn(
           "flex h-7 w-full items-center truncate whitespace-nowrap px-2 font-mono text-xs tabular-nums line-through decoration-transparent transition-colors delay-(--d) duration-200",
@@ -553,7 +562,7 @@ function Cell({
       >
         {formatCell(value)}
       </div>
-    </div>
+    </CellFrame>
   );
 }
 

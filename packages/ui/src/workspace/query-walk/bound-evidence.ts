@@ -15,7 +15,7 @@ import * as React from "react";
 import type { SectionId } from "./program";
 import type { BoundEvidence } from "./terminus";
 
-export type EvidenceStore = {
+type EvidenceStore = {
   readonly evidence: ReadonlyMap<SectionId, BoundEvidence>;
   readonly report: (id: SectionId, found: BoundEvidence) => void;
 };

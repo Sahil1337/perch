@@ -64,6 +64,11 @@ export function WirePath({
         <path
           className={cn(
             "animate-wire-pulse transition-colors",
+            // `paused` sets `animation-play-state: paused` and comes from tw-animate-css, which
+            // styles.css imports; the linter cannot see it because this package has no Tailwind
+            // entry point of its own. Same false positive as `transition-width` in
+            // `resizable-sidebar.tsx`.
+            // eslint-disable-next-line shadcn/no-unknown-classes
             paused && "paused",
             lit ? "stroke-info" : "stroke-info/70",
           )}

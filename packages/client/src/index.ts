@@ -25,7 +25,13 @@ export {
 } from "./http";
 export { readLines, readNdjson } from "./ndjson";
 export { readSse } from "./sse";
-export type { ConnectionInput, ConnectionsApi, ConnectionTest, NewConnection, SchemaOptions } from "./connections";
+export type {
+  ConnectionInput,
+  ConnectionsApi,
+  ConnectionTest,
+  NewConnection,
+  SchemaOptions,
+} from "./connections";
 export { browseApi, type BrowseApi, type BrowseOptions } from "./browse";
 export type { DiscoverApi, DiscoverOptions } from "./discover";
 export type { QueryApi, RunInput } from "./query";

@@ -26,7 +26,9 @@ export const cmdHistory = defineCommand(
     for (const r of records) {
       const rows = r.results?.reduce((n, res) => n + res.rowCount, 0) ?? 0;
       const dur = r.durationMs !== undefined ? `${r.durationMs} ms` : "?";
-      console.log(`${r.startedAt}  ${r.status.padEnd(9)}  ${dur.padStart(8)}  ${String(rows).padStart(6)} rows  ${dim(oneLine(r.sql))}`);
+      console.log(
+        `${r.startedAt}  ${r.status.padEnd(9)}  ${dur.padStart(8)}  ${String(rows).padStart(6)} rows  ${dim(oneLine(r.sql))}`,
+      );
     }
   },
 );

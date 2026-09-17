@@ -19,7 +19,8 @@ import { Skeleton } from "../ui/skeleton";
 import { Spinner } from "../ui/spinner";
 import { requestSaveQuery } from "./save-query-dialog";
 import { useWorkspace } from "./context";
-import { isScratch } from "./types";
+import { ErrorText } from "./error-text";
+import { SAVE_LABEL, isScratch } from "./types";
 
 /**
  * Whether the buffer is on disk yet.
@@ -80,9 +81,7 @@ export function SaveIndicator({
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger
-        render={<Button className={className} size="xs" variant="ghost" />}
-      >
+      <DropdownMenuTrigger render={<Button className={className} size="xs" variant="ghost" />}>
         {label}
       </DropdownMenuTrigger>
 
@@ -94,17 +93,13 @@ export function SaveIndicator({
         )}
 
         {settings.status === "error" && settings.data === undefined && (
-          <p className="px-2 py-1 text-destructive-foreground text-xs" role="alert">
-            {settings.error}
-          </p>
+          <ErrorText className="px-2 py-1">{settings.error}</ErrorText>
         )}
 
         {autosave !== undefined && (
           <>
             {settings.status === "error" && (
-              <p className="px-2 py-1 text-destructive-foreground text-xs" role="alert">
-                {settings.error}
-              </p>
+              <ErrorText className="px-2 py-1">{settings.error}</ErrorText>
             )}
             <DropdownMenuCheckboxItem
               checked={autosave}
@@ -132,10 +127,3 @@ export function SaveIndicator({
     </DropdownMenu>
   );
 }
-
-const SAVE_LABEL = {
-  saved: "Saved",
-  saving: "Saving…",
-  unsaved: "Unsaved changes",
-  error: "Save failed",
-} as const;

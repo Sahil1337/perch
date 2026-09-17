@@ -48,7 +48,12 @@ export class ColumnSourceCache {
 
 const keyOf = (field: pg.FieldDef): Key => `${field.tableID}:${field.columnID}`;
 
-type Named = { attrelid: number | string; attnum: number | string; relname: string; attname: string };
+type Named = {
+  attrelid: number | string;
+  attnum: number | string;
+  relname: string;
+  attname: string;
+};
 
 async function lookup(keys: Key[], query: Querier, into: Map<Key, ColumnSource>): Promise<void> {
   const values: number[] = [];

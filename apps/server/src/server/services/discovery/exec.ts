@@ -17,7 +17,11 @@ export function delay(ms: number): Promise<void> {
 }
 
 /** Runs a child process, returning its output — or "" for anything that went wrong. */
-export async function run(cmd: string, args: string[], timeoutMs = PROBE_TIMEOUT_MS): Promise<string> {
+export async function run(
+  cmd: string,
+  args: string[],
+  timeoutMs = PROBE_TIMEOUT_MS,
+): Promise<string> {
   try {
     const { stdout, stderr } = await execFileAsync(cmd, args, {
       timeout: timeoutMs,

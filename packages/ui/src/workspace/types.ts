@@ -15,7 +15,6 @@ import type {
   StatementResult,
 } from "@perch/protocol";
 
-/* ------------------------------------------------------------------ async */
 
 /**
  * Server-backed data. `ready` carries `stale` and `error` keeps the last good data, so refetching
@@ -32,7 +31,11 @@ export type Async<T> =
 
 export const asyncIdle: Async<never> = { status: "idle" };
 export const asyncLoading: Async<never> = { status: "loading" };
-export const asyncReady = <T>(data: T, stale = false): Async<T> => ({ status: "ready", data, stale });
+export const asyncReady = <T>(data: T, stale = false): Async<T> => ({
+  status: "ready",
+  data,
+  stale,
+});
 
 /** Failure that keeps whatever was already loaded, so the UI degrades instead of emptying. */
 export const asyncError = <T>(error: string, previous?: Async<T>): Async<T> => {
@@ -54,7 +57,6 @@ export function asyncData<T>(value: Async<T> | undefined): T | undefined {
   return undefined;
 }
 
-/* ------------------------------------------------------------------ files */
 
 /**
  * A buffer open in the editor. `path` tells the two kinds apart: `null` is a scratch query, never
@@ -84,10 +86,19 @@ export function isScratch(buffer: Buffer): boolean {
   return buffer.path === null;
 }
 
-
 export type SaveState = "saved" | "saving" | "unsaved" | "error";
 
-/* ------------------------------------------------------------------- runs */
+/**
+ * What each save state is called, next to the type so the two places a user reads it — the status
+ * bar and the save indicator — cannot drift apart.
+ */
+export const SAVE_LABEL: Record<SaveState, string> = {
+  saved: "Saved",
+  saving: "Saving…",
+  unsaved: "Unsaved changes",
+  error: "Save failed",
+};
+
 
 /**
  * A run, `RunRecord` verbatim. Runs go through `POST /api/query/sync`; the NDJSON route streams the
@@ -101,7 +112,6 @@ export function runStatements(run: Run): readonly StatementResult[] {
   return run.results ?? [];
 }
 
-/* ---------------------------------------------------------------- panels */
 
 export type SidebarTab = "schema" | "files" | "history";
 export type ResultsView = "results" | "messages";
@@ -120,7 +130,6 @@ export type PanelState = {
   readonly paletteOpen: boolean;
 };
 
-/* ------------------------------------------------------------ connections */
 
 /**
  * What it takes to create or edit a connection. Either a URL (`postgres://user:pass@host/db`,
@@ -141,7 +150,6 @@ export type ConnectionInput = {
 
 export type ConnectionTest = { readonly serverVersion: string; readonly latencyMs: number };
 
-/* ----------------------------------------------------------------- server */
 
 /**
  * Whether the server is there. `connecting` is the first paint; `unreachable` keeps probing so it
@@ -160,7 +168,6 @@ export type ServerState = {
   readonly queriesDir: string | null;
 };
 
-/* ------------------------------------------------------------------- api */
 
 export type CursorPosition = { readonly line: number; readonly col: number };
 
@@ -179,7 +186,10 @@ export type WorkspaceApi = {
   selectDatabase(database: string): Promise<void>;
   /** Saves a new connection and returns it. Does not connect; call `testConnection` or `connect`. */
   addConnection(input: ConnectionInput): Promise<ConnectionSummary>;
-  updateConnection(connectionId: string, patch: Partial<ConnectionInput>): Promise<ConnectionSummary>;
+  updateConnection(
+    connectionId: string,
+    patch: Partial<ConnectionInput>,
+  ): Promise<ConnectionSummary>;
   removeConnection(connectionId: string): Promise<void>;
   /** A round trip to the server behind a saved connection; rejects with a readable message. */
   testConnection(connectionId: string): Promise<ConnectionTest>;
@@ -233,7 +243,10 @@ export type WorkspaceApi = {
    * A URL that downloads one statement's rows, or null when the run has aged out of server memory.
    * Rendered as a link so the browser handles the download.
    */
-  exportUrl(runId: string, options?: { statement?: number; format?: "csv" | "json" }): string | null;
+  exportUrl(
+    runId: string,
+    options?: { statement?: number; format?: "csv" | "json" },
+  ): string | null;
   /**
    * Runs `sql` against the current connection and database with `record: false` and
    * `readOnly: true`, outside the runs list and outside History. The query walk's step queries go

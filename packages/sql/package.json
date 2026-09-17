@@ -20,6 +20,8 @@
   },
   "dependencies": {
     "@perch/protocol": "*",
+    "prettier": "^3.9.7",
+    "prettier-plugin-sql-cst": "^0.22.1",
     "sql-formatter": "^15.8.2"
   },
   "devDependencies": {

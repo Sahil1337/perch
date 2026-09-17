@@ -47,7 +47,7 @@ Tabs: **Schema | Files | History**. Below them, an **Open SQL Notebook** action.
 Flattened from the mockup's five levels to two:
 
 - **No database root.** The selected database is already in the topbar and the status bar. The
-  tree *is* the current database's contents and swaps when the picker changes — which also fixes
+  tree _is_ the current database's contents and swaps when the picker changes — which also fixes
   the mockup bug where `state.database` was only the root row's label.
 - **No Tables/Views folders.** `Table["kind"]` is an icon, not a folder.
 - **Schema level only when it carries information**: a Postgres database with more than one
@@ -64,14 +64,14 @@ Flattened from the mockup's five levels to two:
 
 **CodeMirror 6.** Replaces the mockup's 248-line textarea + regex overlay.
 
-| Need | How |
-|---|---|
-| Highlighting | `@codemirror/lang-sql`, `PostgreSQL` / `MySQL` dialect per connection |
-| `table.column` completion | same package's `schema` option, fed from `DatabaseSchema` |
-| Alias resolution (`from orders o` → `o.`) | built in |
-| Format document | `sql-formatter`, `⇧⌥F`, `keywordCase: "lower"` |
-| Error squiggle | `@codemirror/lint`, at `statement.offset + error.position` |
-| Settings at runtime | compartments — no remount, no lost cursor |
+| Need                                      | How                                                                   |
+| ----------------------------------------- | --------------------------------------------------------------------- |
+| Highlighting                              | `@codemirror/lang-sql`, `PostgreSQL` / `MySQL` dialect per connection |
+| `table.column` completion                 | same package's `schema` option, fed from `DatabaseSchema`             |
+| Alias resolution (`from orders o` → `o.`) | built in                                                              |
+| Format document                           | `sql-formatter`, `⇧⌥F`, `keywordCase: "lower"`                        |
+| Error squiggle                            | `@codemirror/lint`, at `statement.offset + error.position`            |
+| Settings at runtime                       | compartments — no remount, no lost cursor                             |
 
 **No pre-run validation.** Errors surface after Run, where `toQueryError` already gives an exact
 0-based offset into the statement (`postgres/types.ts:81`, and MySQL via `at line N`). Treating
@@ -166,7 +166,7 @@ alone would pull in 9.1MB of recharts the day someone imports it.
 
 - **ER / relational schema view** — built, not parked any more, and not with Mermaid: foreign keys
   are introspected on both dialects (`Table.foreignKeys`) and `packages/ui/src/workspace/
-  schema-diagram.tsx` draws the cards and wires itself, because a text-to-SVG renderer cannot
+schema-diagram.tsx` draws the cards and wires itself, because a text-to-SVG renderer cannot
   anchor a wire to a column row or animate a pulse along it.
 - **Connections CRUD screen.** Eight routes exist; the UI has a picker over the configured list
   and no way to add, edit or test one. Topbar picker stubs it in v1.

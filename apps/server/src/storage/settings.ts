@@ -1,10 +1,11 @@
 // settings.json — user preferences, merged over `defaultSettings` on every read.
 
 import { promises as fs } from "node:fs";
-import path from "node:path";
 import { type Settings } from "@perch/protocol";
-import { SETTINGS_FILE, defaultQueriesDir, ensureDir } from "./paths.js";
-import { readJson, writeJsonAtomic } from "./json-file.js";
+import { SETTINGS_FILE, defaultQueriesDir } from "./paths.js";
+import { JsonStore } from "./json-file.js";
+
+const store = new JsonStore<Partial<Settings>>(SETTINGS_FILE, () => ({}));
 
 export const defaultSettings: Settings = {
   autosave: true,
@@ -19,8 +20,7 @@ export const defaultSettings: Settings = {
 };
 
 export async function getSettings(): Promise<Settings> {
-  const dir = await ensureDir();
-  const stored = await readJson<Partial<Settings>>(path.join(dir, SETTINGS_FILE), {});
+  const stored = await store.read();
   // `system` was a third theme once. A settings.json written by that build is still on disk
   // somewhere, and nothing downstream knows what to paint for it, so anything that is not
   // `light` reads as the default rather than as a value the type says cannot exist.
@@ -29,9 +29,8 @@ export async function getSettings(): Promise<Settings> {
 }
 
 export async function saveSettings(patch: Partial<Settings>): Promise<Settings> {
-  const dir = await ensureDir();
   const next = { ...(await getSettings()), ...patch };
-  await writeJsonAtomic(path.join(dir, SETTINGS_FILE), next);
+  await store.write(next);
   return next;
 }
 

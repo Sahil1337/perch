@@ -1,8 +1,17 @@
 // On-disk state under ~/.perch (PERCH_HOME overrides). One import site for the CLI and
 // the server; the individual modules own one file each.
 
-export { CONNECTIONS_FILE, HISTORY_FILE, SERVER_INFO_FILE, SETTINGS_FILE, configDir, configFile, defaultQueriesDir, ensureDir } from "./paths.js";
-export { readJson, writeJsonAtomic } from "./json-file.js";
+export {
+  CONNECTIONS_FILE,
+  HISTORY_FILE,
+  SERVER_INFO_FILE,
+  SETTINGS_FILE,
+  configDir,
+  configFile,
+  defaultQueriesDir,
+  ensureDir,
+} from "./paths.js";
+export { JsonStore } from "./json-file.js";
 export {
   getConnection,
   listConnections,

@@ -8,14 +8,12 @@
 // while the literal itself cross-fades in a grid cell of its own — the same trick the stage's column
 // headers use to swap a label without the header jumping.
 
-import { AnimatePresence, motion } from "motion/react";
 import type * as React from "react";
 import type { SqlPart } from "./clauses";
 import { highlightSql } from "../sql-editor/highlight-sql";
-import { useT } from "./walk-motion";
+import { Crossfade } from "./crossfade";
 
 export function SqlParts({ parts }: { readonly parts: readonly SqlPart[] }): React.ReactElement {
-  const t = useT();
   return (
     <pre className="whitespace-pre-wrap rounded-md bg-muted p-2 font-mono text-sm leading-5">
       {parts.map((part, index) =>
@@ -24,21 +22,13 @@ export function SqlParts({ parts }: { readonly parts: readonly SqlPart[] }): Rea
           // the list IS its identity, and what changes about it is only its text.
           <span key={index}>{highlightSql(part.text)}</span>
         ) : (
-          <span className="relative inline-grid align-bottom" key={`${index}:${part.over}`}>
-            <AnimatePresence initial={false} mode="popLayout">
-              <motion.span
-                animate={{ opacity: 1, y: 0 }}
-                className="col-start-1 row-start-1 rounded-sm bg-info/15 px-0.5 text-info-foreground"
-                exit={{ opacity: 0, y: -5 }}
-                initial={{ opacity: 0, y: 5 }}
-                key={part.text}
-                title={`in place of ${part.over}`}
-                transition={t.fade}
-              >
-                {part.text}
-              </motion.span>
-            </AnimatePresence>
-          </span>
+          <Crossfade
+            className="relative inline-grid align-bottom"
+            key={`${index}:${part.over}`}
+            textClassName="col-start-1 row-start-1 rounded-sm bg-info/15 px-0.5 text-info-foreground"
+            title={`in place of ${part.over}`}
+            value={part.text}
+          />
         ),
       )}
     </pre>

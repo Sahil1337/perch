@@ -18,6 +18,8 @@
 
 import type { Dialect } from "@perch/protocol";
 import {
+  canWidenSelectList,
+  normalizeRef,
   refRanges,
   spliceRanges,
   splitRef,
@@ -30,7 +32,7 @@ import {
 import { bindColumn, CELL_COLUMN, driveColumn, PASS_COLUMN } from "./steps";
 
 /** A correlated reference, and the column the probe puts its value in. */
-export type GridBind = { readonly ref: string; readonly column: string };
+type GridBind = { readonly ref: string; readonly column: string };
 
 export type GridBuild = {
   /** The predicate the grid absorbs: it gets no chapter, and appears as the cells instead. */
@@ -68,7 +70,7 @@ export type GridBuild = {
 export const MAX_DRIVE_COLS = 12;
 
 /** Outer rows the grid shows, which is the sample size every other card here uses. */
-export const MAX_GRID_ROWS = 25;
+const MAX_GRID_ROWS = 25;
 
 /**
  * Cells one probe may ask for.
@@ -87,8 +89,7 @@ const COUNTING_KINDS = new Set<SubqueryPredicateKind>(["exists", "not exists"]);
 /** The kinds that are true when the subquery found NOTHING, which is what flips a cell's glyph. */
 const NEGATIVE_KINDS = new Set<SubqueryPredicateKind>(["not exists", "not in"]);
 
-export const isNegativeKind = (kind: SubqueryPredicateKind): boolean =>
-  NEGATIVE_KINDS.has(kind);
+export const isNegativeKind = (kind: SubqueryPredicateKind): boolean => NEGATIVE_KINDS.has(kind);
 
 /**
  * How one cell bears on the OUTER row's verdict.
@@ -104,20 +105,14 @@ export const isNegativeKind = (kind: SubqueryPredicateKind): boolean =>
  */
 export type CellTone = "gap" | "save" | "quiet";
 
-export function cellTone(
-  returned: boolean,
-  middleKind: SubqueryPredicateKind,
-): CellTone {
+export function cellTone(returned: boolean, middleKind: SubqueryPredicateKind): CellTone {
   if (!returned) return "quiet";
   return isNegativeKind(middleKind) ? "gap" : "save";
 }
 
 /** Whether the inner subquery FOUND rows, which is what the filled dot means. A negative predicate
  *  is true when it found none, so the cell's boolean is the opposite of what the reader sees. */
-export function cellFound(
-  returned: boolean,
-  innerKind: SubqueryPredicateKind,
-): boolean {
+export function cellFound(returned: boolean, innerKind: SubqueryPredicateKind): boolean {
   return isNegativeKind(innerKind) ? !returned : returned;
 }
 
@@ -146,8 +141,7 @@ export type GridRefusal = {
 };
 
 /** A grid, or the stated reason there is none. */
-export type GridOutcome =
-  { readonly kind: "grid"; readonly grid: GridBuild } | GridRefusal;
+export type GridOutcome = { readonly kind: "grid"; readonly grid: GridBuild } | GridRefusal;
 
 /** For the callers that only want to know whether a grid exists. */
 export function gridOf(outcome: GridOutcome): GridBuild | null {
@@ -258,15 +252,10 @@ export function gridBuild(args: {
     );
   }
   if (outer.where === null) {
-    return no(
-      "The outer query has no WHERE for the grid probe to splice the predicate out of.",
-    );
+    return no("The outer query has no WHERE for the grid probe to splice the predicate out of.");
   }
   // The predicate is spliced to `true` where it sits, so it has to sit in the WHERE we are splicing.
-  if (
-    predicate.range.from < outer.where.body.from ||
-    predicate.range.to > outer.where.body.to
-  ) {
+  if (predicate.range.from < outer.where.body.from || predicate.range.to > outer.where.body.to) {
     return no(
       "The subquery is nested inside a larger expression in the outer WHERE, and the grid probe can only neutralise a predicate it can find whole.",
     );
@@ -296,24 +285,20 @@ export function gridBuild(args: {
 
   // The correlated references, split by who defines them: the middle's own source drives the
   // columns, and everything else must be one of the values the outer row already binds.
-  const own = new Set(
-    [middle.first.alias ?? middle.first.name].map((name) => name.toLowerCase()),
-  );
-  const bound = new Map(
-    correlated.map((ref, index) => [normalize(ref), bindColumn(index)]),
-  );
+  const own = new Set([middle.first.alias ?? middle.first.name].map((name) => name.toLowerCase()));
+  const bound = new Map(correlated.map((ref, index) => [normalizeRef(ref), bindColumn(index)]));
   const drives: GridBind[] = [];
   for (const ref of inner.correlated) {
     const qualifier = splitRef(ref).qualifier?.toLowerCase() ?? null;
     if (qualifier !== null && own.has(qualifier)) {
-      if (!drives.some((drive) => normalize(drive.ref) === normalize(ref))) {
+      if (!drives.some((drive) => normalizeRef(drive.ref) === normalizeRef(ref))) {
         drives.push({ ref, column: driveColumn(drives.length) });
       }
       continue;
     }
     // A reference to neither the driving row nor the outer row points further out still — three
     // levels of correlation, which this grid has no axis for.
-    if (!bound.has(normalize(ref))) {
+    if (!bound.has(normalizeRef(ref))) {
       return no(
         `\`${ref}\` points past both the driving row and the outer row — three levels of correlation, and a grid has two axes.`,
       );
@@ -341,9 +326,7 @@ export function gridBuild(args: {
     (found) =>
       found.range.from >= middle.where!.body.from &&
       found.range.to <= middle.where!.body.to &&
-      !(
-        found.range.from >= inner.range.from && found.range.to <= inner.range.to
-      ),
+      !(found.range.from >= inner.range.from && found.range.to <= inner.range.to),
   );
   if (outward.length > 0) {
     return no(
@@ -351,8 +334,7 @@ export function gridBuild(args: {
     );
   }
 
-  const cut = (text: string, range: Range): string =>
-    text.slice(range.from, range.to);
+  const cut = (text: string, range: Range): string => text.slice(range.from, range.to);
 
   const innerText = cut(middle.text, inner.range);
   const driveRange = cut(middle.text, middle.first.range);
@@ -396,9 +378,7 @@ export function gridBuild(args: {
     grid: {
       inner,
       innerText,
-      innerCondition: inner.parsed.where
-        ? cut(middle.text, inner.parsed.where.body)
-        : null,
+      innerCondition: inner.parsed.where ? cut(middle.text, inner.parsed.where.body) : null,
       innerSource: inner.parsed.first.name,
       columns,
       drives,
@@ -411,7 +391,7 @@ export function gridBuild(args: {
       dialect,
       innerStatement: { text: middle.text, range: inner.parsed.statement },
       prefix,
-      innerList: canWidenInner(inner) ? inner.parsed.selectList : null,
+      innerList: canWidenSelectList(inner.parsed, inner.kind) ? inner.parsed.selectList : null,
     },
   };
 }
@@ -423,10 +403,7 @@ export function gridBuild(args: {
  * cells held two answers — and a WHERE with a correlated predicate beside an uncorrelated one is
  * still two different questions about the same driving row.
  */
-function onlyInner(
-  middle: ParsedSelect,
-  dialect: Dialect,
-): SubqueryPredicate | null {
+function onlyInner(middle: ParsedSelect, dialect: Dialect): SubqueryPredicate | null {
   if (middle.where === null) return null;
   const found = subqueryPredicates(middle.text, middle.where.body, dialect);
   if (found.length !== 1) return null;
@@ -434,33 +411,9 @@ function onlyInner(
   return inner.correlated.length > 0 ? inner : null;
 }
 
-/**
- * Whether the inner's select list can be widened to `*` on the cell card.
- *
- * The same rule `boundRowSql` follows: EXISTS throws the select list away, so `select 1` and
- * `select *` are the same question to it, and showing the columns is the difference between "a row
- * came back" and "CS-319 came back". For IN the list is the value being compared, so it stays.
- */
-function canWidenInner(inner: SubqueryPredicate): boolean {
-  if (inner.kind !== "exists" && inner.kind !== "not exists") return false;
-  const parsed = inner.parsed;
-  if (parsed.kind !== "select") return false;
-  return (
-    parsed.groupBy === null &&
-    parsed.having === null &&
-    parsed.distinct === null &&
-    parsed.window === null
-  );
-}
-
 /** `rc.course_id` → `course`, `rc.dept_name` → `dept name`, and the source's own name when the key
  *  says nothing useful. It is only ever used as a noun in a sentence, never as SQL. */
 function nounFor(ref: string, fallback: string): string {
   const column = splitRef(ref).column.replace(/_?id$/i, "");
   return column === "" ? fallback : column.replace(/_/g, " ");
-}
-
-function normalize(ref: string): string {
-  const { qualifier, column } = splitRef(ref);
-  return `${(qualifier ?? "").toLowerCase()}.${column.toLowerCase()}`;
 }

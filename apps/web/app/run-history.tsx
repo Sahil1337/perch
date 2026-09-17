@@ -9,13 +9,9 @@
 // days first — and the count stays visible on a collapsed day, which is the only thing you can
 // still learn about it without opening it.
 
-import { Badge, useWorkspace, type Run } from "@perch/ui";
+import { Badge, clockOf, useWorkspace, type Run } from "@perch/ui";
 import { ChevronRightIcon } from "lucide-react";
 import * as React from "react";
-
-function clockOf(iso: string): string {
-  return new Date(iso).toLocaleTimeString("en-GB", { hour12: false });
-}
 
 /** Local midnight for the day `iso` falls in — the key runs are bucketed by. */
 function dayKey(iso: string): string {

@@ -10,9 +10,10 @@ Save conflicts keep using the existing `ifModifiedAt` → 409 check; the watcher
 mtime check stays authoritative. No timers/polling for change detection.
 
 ## 1. src/server/watcher.ts — `class FileWatcher`
+
 - `constructor(opts: { onEvent: (e: FileEvent) => void })`.
 - `setRoots(roots: string[])`: diff against current roots; start `fs.watch(root, { recursive: true,
-  persistent: false })` (node:fs) for new roots, close watchers for removed ones. Roots are already
+persistent: false })` (node:fs) for new roots, close watchers for removed ones. Roots are already
   realpath'd by files.ts helpers; reuse `resolveRoots`. `persistent: false` so the watcher never
   keeps the process alive. If `fs.watch` throws (unsupported FS, EMFILE), log once to stderr and
   continue without that root (never crash the server).
@@ -36,7 +37,14 @@ mtime check stays authoritative. No timers/polling for change detection.
 - Add to src/types.ts (additive):
   ```ts
   export type FileEvent =
-    | { type: "change"; path: string; name: string; modifiedAt: string; size: number; created?: boolean }
+    | {
+        type: "change";
+        path: string;
+        name: string;
+        modifiedAt: string;
+        size: number;
+        created?: boolean;
+      }
     | { type: "delete"; path: string; name: string }
     | { type: "dir"; path: string; name: string; deleted?: boolean };
   export type ServerEvent =
@@ -52,6 +60,7 @@ mtime check stays authoritative. No timers/polling for change detection.
   1.5s timeout) — no sleeps longer than needed. macOS FSEvents can be ~100ms late; allow that.
 
 ## 2. Events stream in app.ts
+
 - `GET /api/events` (auth like other /api routes): SSE via `hono/streaming` `streamSSE`.
   On connect send `hello`, then `roots` (current roots). Then forward every ServerEvent as
   `event: <type>` + `data: <json>`, and a `: ping` comment every 25s to keep proxies/browsers from
@@ -71,7 +80,7 @@ mtime check stays authoritative. No timers/polling for change detection.
   `app.__close = async () => …`? No: instead export `createApp` returning `{ app, close, bus }`?
   That would break existing callers (start.ts, tests). Keep `createApp(opts): Hono` and add a
   second export `createServer(opts): { app: Hono; bus: EventBus; watcher: FileWatcher | null;
-  close(): Promise<void> }` that `createApp` delegates to; update start.ts to use `createServer`
+close(): Promise<void> }` that `createApp` delegates to; update start.ts to use `createServer`
   and close the watcher on shutdown.
 - `GET /api/files/content` response: unchanged. `PUT` 409 body: make sure it includes the current
   `modifiedAt` and, if small (< 512 KB), the current `content`, so the UI can show a diff without
@@ -82,6 +91,7 @@ mtime check stays authoritative. No timers/polling for change detection.
   suppression in watcher.test.ts and here only test bus → SSE plumbing).
 
 ## 3. README.md
+
 Add a short "Live file sync" section: how it works (OS watchers via fs.watch, SSE at
 /api/events, mtime check on save), the event shapes, a curl example
 (`curl -N -H "Authorization: Bearer $T" http://127.0.0.1:4600/api/events`), and the caveats

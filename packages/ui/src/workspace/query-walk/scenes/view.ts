@@ -3,7 +3,7 @@
 
 import type { StatementResult } from "@perch/protocol";
 import { colsOf, positional, rowsOf, visibleIndices } from "./columns";
-import type { Col, Scene, TableView } from "./types";
+import type { Col, Row, Scene, TableView } from "./types";
 
 export const tables = (list: TableView[], count: number | null, tight = true): Scene => ({
   kind: "tables",
@@ -30,6 +30,24 @@ export const plain = (
     truncated: sample.truncated,
   };
 };
+
+/**
+ * A sample as the three things a card is built from: which columns are visible, what they are, and
+ * the rows under them.
+ *
+ * `plain` is the same three lines plus a `TableView` round them, and is what a SETTLED card wants.
+ * This one is for the card a station shows BEFORE its own rows land — the rows it is about to test,
+ * sort or cut — which needs the pieces rather than the finished view, because the verdicts and the
+ * highlights are then written onto them one row at a time.
+ */
+export function snapshot(
+  sample: StatementResult,
+  prefix = "m:",
+): { indices: readonly number[]; cols: Col[]; rows: Row[] } {
+  const indices = visibleIndices(sample);
+  const cols = colsOf(sample, indices, positional);
+  return { indices, cols, rows: rowsOf(sample, cols, indices, prefix) };
+}
 
 /** Columns one card shows before the rest fold into a single `+n` marker. */
 const MAX_COLS = 8;

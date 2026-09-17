@@ -13,16 +13,16 @@ Files are plain `.sql` on disk under folders the user chooses.
 
 ## Decisions, in the order they were made
 
-| Decision | Choice | Why |
-| --- | --- | --- |
-| Design first or code first | Four layout mockups before any app code | Choose by clicking, not arguing; `apps/mockups` was deleted once the merge shipped, and `docs/design/prototype-spec.md` is what survives of it |
-| Desktop shell | Local CLI + web UI, not Electron/Tauri | No signing/packaging on three OSes; one artifact; Tauri wrapper still possible later because the UI is a pure HTTP client |
-| Layout | A merge: classic three-pane chrome, resizable pane grid for editors and results, notebook as a view of a plain `.sql` file | Each region taken from whichever mockup did it best (`docs/design/prototype-spec.md`) |
-| Auth | None | No auth: loopback binding is the boundary, by the user's decision |
-| File sync | OS watchers + one Server-Sent Events stream + mtime check on save | VS Code's model; no polling, no WebSocket needed |
-| Formatting | Explicit only: ⇧⌥F, right-click menu, command palette | Never rewrite SQL on save |
-| Tests | None kept in the repo | Verification is done at build time with throwaway checks and the asserting smoke script |
-| Package manager | bun workspaces | One lockfile, one install; server still runs and ships on Node |
+| Decision                   | Choice                                                                                                                     | Why                                                                                                                                            |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Design first or code first | Four layout mockups before any app code                                                                                    | Choose by clicking, not arguing; `apps/mockups` was deleted once the merge shipped, and `docs/design/prototype-spec.md` is what survives of it |
+| Desktop shell              | Local CLI + web UI, not Electron/Tauri                                                                                     | No signing/packaging on three OSes; one artifact; Tauri wrapper still possible later because the UI is a pure HTTP client                      |
+| Layout                     | A merge: classic three-pane chrome, resizable pane grid for editors and results, notebook as a view of a plain `.sql` file | Each region taken from whichever mockup did it best (`docs/design/prototype-spec.md`)                                                          |
+| Auth                       | None                                                                                                                       | No auth: loopback binding is the boundary, by the user's decision                                                                              |
+| File sync                  | OS watchers + one Server-Sent Events stream + mtime check on save                                                          | VS Code's model; no polling, no WebSocket needed                                                                                               |
+| Formatting                 | Explicit only: ⇧⌥F, right-click menu, command palette                                                                      | Never rewrite SQL on save                                                                                                                      |
+| Tests                      | None kept in the repo                                                                                                      | Verification is done at build time with throwaway checks and the asserting smoke script                                                        |
+| Package manager            | bun workspaces                                                                                                             | One lockfile, one install; server still runs and ships on Node                                                                                 |
 
 ## Repository layout
 

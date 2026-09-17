@@ -62,7 +62,12 @@ function within(range: Range | null, from: number, to: number): boolean {
  * Only offsets strictly inside the text are cut points; an out-of-bounds end is simply not a
  * boundary, which leaves its layer running to the edge rather than dropping it.
  */
-function runs(text: string, source: Range | null, mark: Range | null, uses: readonly Range[]): Run[] {
+function runs(
+  text: string,
+  source: Range | null,
+  mark: Range | null,
+  uses: readonly Range[],
+): Run[] {
   const edges = new Set<number>([0, text.length]);
   for (const range of [source, mark, ...uses]) {
     if (range === null) continue;
@@ -105,7 +110,8 @@ export function QueryPane({
   // runs below would be recut and the scroll effect refired on every frame the player renders,
   // rather than on the station changes that are the only thing either one is about.
   const pinned = React.useMemo(() => stationRange(section, station), [section, station]);
-  const placed = section !== null && section.source !== null && (section.rootMap !== null || pinned !== null);
+  const placed =
+    section !== null && section.source !== null && (section.rootMap !== null || pinned !== null);
 
   const text = placed ? root : fallback;
   const source = placed ? section.source : null;

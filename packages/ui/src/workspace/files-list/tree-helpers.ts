@@ -3,6 +3,7 @@
 // paths are threaded onto a node map keyed by full path and missing directories are synthesised.
 
 import type { FileEntry } from "@perch/protocol";
+import { baseName, isUnder } from "../../lib/paths";
 
 export type TreeNode = {
   readonly path: string;
@@ -21,7 +22,10 @@ export type Group = { readonly root: string; readonly children: readonly TreeNod
  * Grouping is by `roots`, in configured order. An entry no root claims still gets a group keyed by
  * its parent, rather than being silently dropped.
  */
-export function buildForest(entries: readonly FileEntry[], roots: readonly string[]): readonly Group[] {
+export function buildForest(
+  entries: readonly FileEntry[],
+  roots: readonly string[],
+): readonly Group[] {
   const buckets = new Map<string, TreeNode[]>();
   const nodes = new Map<string, TreeNode>();
 
@@ -76,41 +80,13 @@ function sortNodes(nodes: TreeNode[]): readonly TreeNode[] {
 }
 
 /**
- * Paths arrive in the server's native form, and the server runs on Windows too, so a path may use
- * either separator. The path is never rewritten — it goes back to the server verbatim — only split
- * for display.
+ * The containing folder, for the node map. Unlike `dirName`, a path whose only separator is the
+ * leading one parents to the root itself rather than to the whole path, which is what keeps
+ * `/foo` from becoming its own parent and looping `ensure`.
  */
-function lastSeparator(path: string): number {
-  return Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
-}
-
 function parentOf(path: string): string {
-  const cut = lastSeparator(path);
+  const cut = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
   return cut <= 0 ? path.slice(0, cut + 1) || "/" : path.slice(0, cut);
 }
 
-function baseName(path: string): string {
-  const cut = lastSeparator(path);
-  return cut === -1 ? path : path.slice(cut + 1);
-}
-
-function isUnder(path: string, root: string): boolean {
-  if (path === root) return true;
-  const trimmed = /[/\\]$/.test(root) ? root.slice(0, -1) : root;
-  return path.startsWith(`${trimmed}/`) || path.startsWith(`${trimmed}\\`);
-}
-
-/** Pixels. Indentation is the one row value that depends on data, so it is the one inline value. */
-const INDENT_BASE = 8;
-const INDENT_STEP = 12;
-
-/** Depth-based indent, fed to `--tree-indent` so the padding stays a utility class. */
-export function indent(depth: number): string {
-  return `${INDENT_BASE + depth * INDENT_STEP}px`;
-}
-
-export function toggle(set: ReadonlySet<string>, key: string): ReadonlySet<string> {
-  const next = new Set(set);
-  if (!next.delete(key)) next.add(key);
-  return next;
-}
+export { indent, toggle } from "../../lib/tree";

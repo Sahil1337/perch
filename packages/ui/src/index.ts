@@ -2,6 +2,14 @@
 // primitives is a bug in the primitive, not a reason to namespace here.
 
 export { cn } from "./lib/utils";
+
+// Cross-feature helpers. Named rather than starred: these are small, generic words
+// (`remove`, `indent`, `toggle`) and a flat barrel is the wrong place to spend them.
+export { messageOf } from "./lib/errors";
+export { clockOf, plural } from "./lib/format";
+export { baseName, dirName, isUnder, joinPath, tilde } from "./lib/paths";
+export { readJson, readRaw, writeJson, writeRaw } from "./lib/storage";
+export { createExternalStore, type ExternalStore } from "./lib/external-store";
 export * from "./ui/segmented-control";
 
 export * from "./ui/autocomplete";
@@ -9,7 +17,6 @@ export * from "./ui/alert";
 export * from "./ui/badge";
 export * from "./ui/collapsible";
 export * from "./ui/empty";
-export * from "./ui/fieldset";
 export * from "./ui/button";
 export * from "./ui/command";
 export * from "./ui/context-menu";
@@ -31,6 +38,8 @@ export * from "./workspace/context";
 export * from "./workspace/cells";
 export * from "./workspace/app-topbar";
 export * from "./workspace/status-bar";
+export * from "./workspace/status-dot";
+export * from "./workspace/error-text";
 export * from "./workspace/resizable-sidebar";
 export * from "./workspace/command-palette";
 export * from "./workspace/connecting-overlay";
@@ -54,7 +63,6 @@ export * from "./workspace/use-hotkey";
 
 export * from "./ui/dialog";
 export * from "./ui/field";
-export * from "./ui/label";
 export * from "./ui/radio-group";
 export * from "./ui/select";
 export * from "./ui/switch";

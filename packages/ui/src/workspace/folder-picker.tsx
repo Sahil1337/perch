@@ -14,6 +14,7 @@
 import type { BrowseResult } from "@perch/protocol";
 import { ChevronRightIcon, CornerLeftUpIcon, FolderIcon, HouseIcon } from "lucide-react";
 import * as React from "react";
+import { messageOf } from "../lib/errors";
 import { Button } from "../ui/button";
 import {
   Dialog,
@@ -26,6 +27,8 @@ import {
 } from "../ui/dialog";
 import { Skeleton } from "../ui/skeleton";
 import { useWorkspace } from "./context";
+import { ErrorText } from "./error-text";
+import { asyncData, asyncError, asyncIdle, asyncReady, asyncRefreshing, type Async } from "./types";
 
 export type FolderPickerProps = {
   open: boolean;
@@ -34,12 +37,20 @@ export type FolderPickerProps = {
   onPick: (path: string) => void | Promise<void>;
 };
 
-export function FolderPicker({ open, onOpenChange, onPick }: FolderPickerProps): React.ReactElement {
+export function FolderPicker({
+  open,
+  onOpenChange,
+  onPick,
+}: FolderPickerProps): React.ReactElement {
   const { browse } = useWorkspace();
-  const [result, setResult] = React.useState<BrowseResult | null>(null);
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
+  const [listing, setListing] = React.useState<Async<BrowseResult>>(asyncIdle);
   const [opening, setOpening] = React.useState(false);
+
+  const result = asyncData(listing);
+  // Skeletons for a navigation too, not only the first read: you asked to go somewhere else, so
+  // the folder you left is no longer the answer to what is on screen.
+  const loading = listing.status === "loading" || (listing.status === "ready" && listing.stale);
+  const error = listing.status === "error" ? listing.error : null;
 
   // Held in a ref so a provider that rebuilds its action closures each render cannot re-trigger
   // the listing; it runs when the dialog opens and when the user navigates, and at no other time.
@@ -47,15 +58,11 @@ export function FolderPicker({ open, onOpenChange, onPick }: FolderPickerProps):
   list.current = browse;
 
   const go = React.useCallback((path?: string) => {
-    setLoading(true);
-    setError(null);
-    list
-      .current(path)
-      .then(setResult)
-      .catch((cause: unknown) => {
-        setError(cause instanceof Error ? cause.message : String(cause));
-      })
-      .finally(() => setLoading(false));
+    setListing(asyncRefreshing);
+    list.current(path).then(
+      (value) => setListing(asyncReady(value)),
+      (cause: unknown) => setListing((previous) => asyncError(messageOf(cause), previous)),
+    );
   }, []);
 
   React.useEffect(() => {
@@ -66,12 +73,11 @@ export function FolderPicker({ open, onOpenChange, onPick }: FolderPickerProps):
   async function pick(): Promise<void> {
     if (!result || opening) return;
     setOpening(true);
-    setError(null);
     try {
       await onPick(result.path);
       onOpenChange(false);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
+      setListing((previous) => asyncError(messageOf(cause), previous));
     } finally {
       setOpening(false);
     }
@@ -124,9 +130,7 @@ export function FolderPicker({ open, onOpenChange, onPick }: FolderPickerProps):
                 ))}
               </div>
             ) : error !== null ? (
-              <p className="p-3 text-destructive-foreground text-xs" role="alert">
-                {error}
-              </p>
+              <ErrorText className="p-3">{error}</ErrorText>
             ) : (result?.entries.length ?? 0) === 0 ? (
               <p className="p-3 text-muted-foreground text-xs">
                 No sub-folders here. Open this one, or go up.
@@ -153,7 +157,11 @@ export function FolderPicker({ open, onOpenChange, onPick }: FolderPickerProps):
 
         <DialogFooter>
           <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
-          <Button disabled={result === null || loading} loading={opening} onClick={() => void pick()}>
+          <Button
+            disabled={result === null || loading}
+            loading={opening}
+            onClick={() => void pick()}
+          >
             Open this folder
           </Button>
         </DialogFooter>

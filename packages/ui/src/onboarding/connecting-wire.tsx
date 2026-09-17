@@ -22,7 +22,13 @@ const WIRE = "M 58 60 C 110 60, 110 24, 160 24 C 210 24, 210 60, 262 60";
 const PACKET_S = 1.8;
 const PACKET_DELAYS = [0.9, 1.5, 2.1] as const;
 
-export function Wire({ dialect, reduced }: { dialect: Dialect; reduced: boolean }): React.ReactElement {
+export function Wire({
+  dialect,
+  reduced,
+}: {
+  dialect: Dialect;
+  reduced: boolean;
+}): React.ReactElement {
   return (
     <div className="relative">
       <svg

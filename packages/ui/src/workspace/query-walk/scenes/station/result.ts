@@ -13,6 +13,8 @@ import type { Scene } from "../types";
 import { plain, tables } from "../view";
 
 export function resultScene(result: StationResult | undefined): Scene {
+  // Not a `SceneContext` builder: a result-only section has no parse to build one from, so this one
+  // reads its sample itself.
   const sample = okResult(result, "sample");
   const total = countValue(result, "count");
   if (!sample) {

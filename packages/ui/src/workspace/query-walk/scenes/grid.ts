@@ -8,10 +8,9 @@
 
 import type { Cell, StatementResult } from "@perch/protocol";
 import { formatCell } from "../../results-grid";
-import type { BoundPlan, BoundRow } from "../bound";
+import { bindKeyOf, type BoundPlan, type BoundRow } from "../bound";
 import { cellFound, cellTone, MAX_DRIVE_COLS, type GridBuild } from "../grid";
 import type { GridColumn, GridPick } from "../use-grid";
-import { bindKey } from "../use-grid";
 import { colsOf, positional, visibleIndices } from "./columns";
 import type { Col, GridCellView, GridRowView, Scene, TableView } from "./types";
 
@@ -49,7 +48,7 @@ export function gridScene(args: {
     indices.forEach((column, position) => {
       values[cols[position]!.id] = outer.rows[index]?.[column] ?? null;
     });
-    const answers = cells.get(bindKey([...row.literals.values()]));
+    const answers = cells.get(bindKeyOf(row));
     const name = formatCell(outer.rows[index]?.[indices[0] ?? -1] ?? null);
     const state: GridRowView["state"] =
       reveal === null || index < reveal - 1 ? "done" : index === reveal - 1 ? "filling" : "pending";

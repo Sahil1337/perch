@@ -101,11 +101,9 @@ export function createServer(opts: CreateAppOptions): ServerHandle {
       : new FileWatcher({ onEvent: (event) => bus.emit({ type: "file", event }) });
 
   // A finished run is interesting to every connected UI, not just the one that started it.
-  const priorRunFinished = services.runner.onRunFinished;
-  services.runner.onRunFinished = (record) => {
-    priorRunFinished?.(record);
+  services.runner.addRunFinishedListener((record) => {
     bus.emit({ type: "run", runId: record.id, status: record.status });
-  };
+  });
 
   // Realpath'd, like the paths under them: a root reported as `/tmp/x` whose files come back under
   // `/private/tmp/x` reads as two workspaces. `settings.workspaces` is the whole answer — `--dir` is

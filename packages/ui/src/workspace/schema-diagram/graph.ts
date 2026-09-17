@@ -29,7 +29,7 @@ export type Graph = { nodes: Node[]; edges: Edge[] };
 
 export const NO_TABLES: ReadonlySet<string> = new Set();
 
-export function tableKey(table: Pick<Table, "schema" | "name">): string {
+function tableKey(table: Pick<Table, "schema" | "name">): string {
   return `${table.schema}.${table.name}`;
 }
 
@@ -53,7 +53,15 @@ export function buildNode(table: Table, keysOnly: boolean, expanded: ReadonlySet
   const hidden = table.columns.length - rows.length;
   const footer: Node["footer"] =
     keys === null ? null : hidden > 0 ? "more" : table.columns.length > keys.size ? "fewer" : null;
-  return { key, table, w: CARD_W, h: cardHeight(rows.length, footer !== null), rows, footer, hidden };
+  return {
+    key,
+    table,
+    w: CARD_W,
+    h: cardHeight(rows.length, footer !== null),
+    rows,
+    footer,
+    hidden,
+  };
 }
 
 /** Whether any table is wide enough that the view should open in keys-only mode. */
