@@ -10,16 +10,18 @@
 // `addConnection`/`updateConnection`, and `discoverServers`.
 //
 // Each concern below is its own hook; this file is where they are wired to each other — the server
-// gate that enables them all, and the three seams between them: a run's DDL re-introspects the
-// schema, a save-as relists the workspace, and a file event reaches whichever buffer holds it.
+// gate that enables them all, and the four seams between them: a run's DDL re-introspects the
+// schema, a save-as relists the workspace, a file event reaches whichever buffer holds it, and the
+// files a previous session left open are reopened once the server can answer for them.
 
 import type { PerchClient } from "@perch/client";
 import type { BrowseResult, ServerEvent } from "@perch/protocol";
-import { asyncData, type WorkspaceApi } from "@perch/ui";
+import { asyncData, type PanelState, type WorkspaceApi } from "@perch/ui";
 import * as React from "react";
 import { serverClient } from "../server-client";
 import { usePanels } from "../use-panels";
 import { useBuffers } from "./use-buffers";
+import { useFileSession } from "./use-file-session";
 import { useConnections } from "./use-connections";
 import { useRuns } from "./use-runs";
 import { useSchema } from "./use-schema";
@@ -67,7 +69,27 @@ export function useLiveWorkspace(options: LiveWorkspaceOptions = {}): WorkspaceA
     refreshWorkspace: refreshFiles,
   });
 
-  const { panels, setPanel, togglePanel } = usePanels();
+  // The fourth seam: which files were open last time, reopened through the same `openFile` the
+  // Files tab uses. See `use-file-session.ts` for why it is remembered apart from the layout.
+  const { restoring } = useFileSession(enabled, buffers, reportFileError);
+
+  const { panels, setPanel: setPanelState, togglePanel } = usePanels();
+
+  /**
+   * The grid reconciles its tree against the buffers that exist and writes the result back, so
+   * until the restore has opened them that write is a pruned layout — it would erase the very
+   * arrangement the restored files are about to re-materialise, pane ids being path-derived.
+   * Holding back that one write for those few hundred milliseconds is what brings the splits back
+   * with the files. Every other panel write, and every layout write afterwards, goes through.
+   */
+  const setPanel = React.useCallback(
+    <K extends keyof PanelState>(key: K, value: PanelState[K]): void => {
+      if (key === "layout" && restoring) return;
+      setPanelState(key, value);
+    },
+    [restoring, setPanelState],
+  );
+
   const openOutput = React.useCallback((): void => setPanel("outputOpen", true), [setPanel]);
 
   const runs = useRuns(getClient, enabled, {

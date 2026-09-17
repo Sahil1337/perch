@@ -338,10 +338,16 @@ function Table({
 function HeaderCell({ col }: { col: Col }): React.ReactElement {
   const t = useT();
   return (
-    <div className="shrink-0 overflow-hidden">
+    // `--w` is a floor, not a width. A card is as wide as the WIDEST thing in it, which is regularly
+    // its own title bar rather than its table — `result · 12 rows` over one eight-character column —
+    // and a table that only ever measured its columns left the difference as dead space down the
+    // right of every row, so the column floated in the middle of a card it did not fill. The columns
+    // share that slack instead. Header and cell carry the same basis and the same growth, which is
+    // what keeps a label over its own values.
+    <div className="shrink-0 grow basis-(--w) overflow-hidden" style={{ "--w": `${col.width}px` } as React.CSSProperties}>
       <div
         className={cn(
-          "flex h-7 w-(--w) items-center gap-1 whitespace-nowrap px-2 font-mono text-xs transition-colors duration-200",
+          "flex h-7 w-full items-center gap-1 whitespace-nowrap px-2 font-mono text-xs transition-colors duration-200",
           col.num && "justify-end",
           col.hl
             ? "bg-info/10 text-info-foreground"
@@ -349,7 +355,6 @@ function HeaderCell({ col }: { col: Col }): React.ReactElement {
               ? "text-muted-foreground/50 line-through"
               : "text-muted-foreground",
         )}
-        style={{ "--w": `${col.width}px` } as React.CSSProperties}
       >
         <span className="relative inline-grid">
           <AnimatePresence initial={false} mode="popLayout">
@@ -435,7 +440,11 @@ function Row({
    * A settled card is exempt on purpose: it arrived with everything already decided, and dealing its
    * rows out one by one would perform an event that did not happen. See `settled`.
    */
-  const arrive = t.reduced || settled ? 0 : staggerDelay(index, count, 0.045) / speed;
+  // 75ms apart, not 45: a card of a dozen rows is the common case, and at 45 they arrived close
+  // enough together to read as one block appearing rather than as rows being dealt out. Past eight
+  // rows `staggerDelay` compresses this into `STAGGER_WINDOW_S` anyway, so the number sets the pace
+  // of the small cards and the window still bounds the big ones.
+  const arrive = t.reduced || settled ? 0 : staggerDelay(index, count, 0.075) / speed;
   // The tint and the verdict mark ride the same wave, bounded the same way. A verdict keeps the
   // test's own clock, which the WHERE and HAVING phases already budget for (`n * STAGGER_MS + 700`).
   const delayMs = t.reduced || settled ? 0 : verdict ? testDelay : arrive * 1000;
@@ -520,10 +529,11 @@ function Cell({
   delayMs: number;
 }): React.ReactElement {
   return (
-    <div className="shrink-0 overflow-hidden">
+    // Same basis and growth as the header above it: see `HeaderCell`.
+    <div className="shrink-0 grow basis-(--w) overflow-hidden" style={{ "--w": `${col.width}px` } as React.CSSProperties}>
       <div
         className={cn(
-          "flex h-7 w-(--w) items-center truncate whitespace-nowrap px-2 font-mono text-xs tabular-nums line-through decoration-transparent transition-colors delay-(--d) duration-200",
+          "flex h-7 w-full items-center truncate whitespace-nowrap px-2 font-mono text-xs tabular-nums line-through decoration-transparent transition-colors delay-(--d) duration-200",
           col.num && "justify-end",
           value === null && "text-muted-foreground italic",
           hl && !fail && "bg-info/10 text-info-foreground",
@@ -532,12 +542,7 @@ function Cell({
           col.drop && !fail && "text-muted-foreground/45",
           fail && "text-destructive-foreground decoration-destructive/70",
         )}
-        style={
-          {
-            "--w": `${col.width}px`,
-            "--d": `${delayMs}ms`,
-          } as React.CSSProperties
-        }
+        style={{ "--d": `${delayMs}ms` } as React.CSSProperties}
       >
         {formatCell(value)}
       </div>

@@ -19,10 +19,25 @@ export type Phase = { readonly ms: number; readonly label: string };
  */
 export type ProjectionNote = { readonly label: string; readonly perRow: boolean };
 
-/** Gap between one row's test and the next, in WHERE and HAVING. */
-export const STAGGER_MS = 110;
-/** Rest on a station's settled state before playback moves on. */
-export const HOLD_MS = 1000;
+/**
+ * Gap between one row's test and the next, in WHERE and HAVING.
+ *
+ * This is the walk's most-watched gesture — a row being measured against the predicate, one after
+ * another — so it is paced to be followed rather than to be got through. At 110ms a twelve-row card
+ * was over in 1.3 seconds, which is long enough to see THAT rows were tested and too short to see
+ * WHICH ones failed.
+ */
+export const STAGGER_MS = 150;
+/**
+ * Rest on a station's settled state before playback moves on.
+ *
+ * Dead time by definition: nothing moves during it, it exists so a settled card can be read before
+ * it is replaced. It used to be a full second, and a second of stillness after every station is
+ * most of what made the walk feel like it was waiting rather than explaining — so it is roughly
+ * halved, and the time goes to the gestures in `walk-motion.ts` instead. The rest of the pause a
+ * reader feels is inside the phases themselves, and shortening those is what `BEAT` must not do.
+ */
+export const HOLD_MS = 560;
 
 /**
  * The walk's tempo: what turns every phase length below into wall-clock time.
@@ -31,16 +46,21 @@ export const HOLD_MS = 1000;
  * most attention — and this is the one place that decides how fast that rhythm is played, so the
  * proportions between stations survive a change of pace.
  *
- * Above 1 because a beat has to outlast the motion inside it. A spring settles in about half a
- * second, rows stagger in or out across `STAGGER_WINDOW_S` and then fade or fold for another 0.22
- * to 0.32s, and the shortest phases here are 700ms: at a tempo of 1 the next scene arrived while
- * the last gesture was still finishing, so motion interrupted it. What that looks like is not
- * "fast", it is "broken".
+ * Above 1 because a beat has to outlast the motion inside it. Rows stagger in or out across
+ * `STAGGER_WINDOW_S` and then fade or fold, and the shortest phases here are 700ms: at a tempo of 1
+ * the next scene arrived while the last gesture was still finishing, so motion interrupted it. What
+ * that looks like is not "fast", it is "broken".
  *
  * Raising this ALONE does not make the walk feel slower, which is worth knowing before reaching for
  * it: it lengthens the pause between gestures, not the gestures, so a station that flashed its rows
  * in and then waited just waits longer. The pace a reader actually feels is set by the stagger —
  * see `staggerDelay` — and this number exists to keep the beat long enough to hold it.
+ *
+ * Which is why it did NOT change when the walk was slowed down to be studied. The gestures grew
+ * instead (`walk-motion.ts`), so they now fill about 0.93s of this 1.015s beat where they used to
+ * fill 0.67s — the motion got longer and the dead tail at the end of every phase got shorter, from
+ * the same number. Lower this to close the gap further and the gestures get cut off instead; the
+ * pause that is actually safe to shorten is `HOLD_MS`.
  */
 export const BEAT = 1.45;
 

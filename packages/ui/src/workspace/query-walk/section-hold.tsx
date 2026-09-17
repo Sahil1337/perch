@@ -16,7 +16,7 @@
 import { motion } from "motion/react";
 import type * as React from "react";
 import { highlightSql } from "../sql-editor/highlight-sql";
-import { isSetOp } from "./clauses";
+import { isSetOp, regroups, type ParsedSetOp, type SetTree } from "./clauses";
 import type { Section } from "./program";
 import { useT } from "./walk-motion";
 
@@ -33,11 +33,31 @@ function joinWords(words: readonly string[]): string {
   return `${words.slice(0, -1).join(", ")} and ${words[words.length - 1]}`;
 }
 
+/**
+ * The chain as it evaluates: `1 UNION (2 INTERSECT 3)`.
+ *
+ * Branches are numbered from 1 because that is how they are counted on the chapter strip above,
+ * where the reader has just watched each one run. The outermost combine is left unbracketed — it is
+ * the whole statement, and a pair of parentheses around everything says nothing.
+ */
+function grouping(parsed: ParsedSetOp): string {
+  const draw = (node: SetTree, top: boolean): string => {
+    if (node.kind === "branch") return String(node.index + 1);
+    const op = parsed.operators[node.opIndex]?.op.toUpperCase() ?? "?";
+    const body = `${draw(node.left, false)} ${op} ${draw(node.right, false)}`;
+    return top ? body : `(${body})`;
+  };
+  return draw(parsed.tree, true);
+}
+
 export function SectionHold({ section }: { section: Section }): React.ReactElement {
   const t = useT();
   const operators = operatorList(section);
-  const branches =
-    section.parsed !== null && isSetOp(section.parsed) ? section.parsed.branches.length : 0;
+  const setOp = section.parsed !== null && isSetOp(section.parsed) ? section.parsed : null;
+  const branches = setOp?.branches.length ?? 0;
+  // Only a chain that does NOT evaluate left to right needs explaining. When it does, the order on
+  // the strip is already the order it runs in, and a line restating that is noise.
+  const regrouped = setOp !== null && regroups(setOp);
 
   if (section.unsafeToProbe) return <WritingSection section={section} />;
 
@@ -57,9 +77,16 @@ export function SectionHold({ section }: { section: Section }): React.ReactEleme
         {branches > 0 ? `Each of the ${branches} branches` : "Each branch"} ran on its own, in the
         chapters before this one. This step only puts their rows together, so it has no FROM, WHERE
         or SELECT of its own to step through — there is nothing here to walk yet.
-        {operators.length > 1 &&
-          " Note that the branches are listed as written: INTERSECT binds tighter than UNION and EXCEPT, so they do not combine left to right."}
       </p>
+      {regrouped && (
+        <p className="max-w-prose text-muted-foreground text-sm leading-relaxed">
+          They do not combine in the order they are written:{" "}
+          <span className="font-mono">INTERSECT</span> binds tighter than{" "}
+          <span className="font-mono">UNION</span> and <span className="font-mono">EXCEPT</span>, so
+          this runs as <span className="font-mono text-foreground">{grouping(setOp)}</span>, by
+          branch number on the strip above.
+        </p>
+      )}
       <pre className="max-w-full overflow-x-auto whitespace-pre-wrap rounded-md bg-card p-3 text-start font-mono text-xs leading-5">
         {highlightSql(section.text)}
       </pre>

@@ -139,13 +139,34 @@ export type SetBranch = {
 };
 
 /**
+ * How the branches actually combine, once precedence is applied.
+ *
+ * SQL binds INTERSECT tighter than UNION and EXCEPT, and UNION and EXCEPT bind equally and to the
+ * left — so `a union b intersect c` is `a union (b intersect c)` and `a union b except c` is
+ * `(a union b) except c`. A consumer that draws the chain left to right off `branches` alone gets
+ * the first of those wrong, and gets it wrong in the direction a reader believes.
+ *
+ * `index` indexes `ParsedSetOp.branches`; `opIndex` indexes `ParsedSetOp.operators`, so the word the
+ * user wrote is still the thing that gets highlighted.
+ */
+export type SetTree =
+  | { readonly kind: "branch"; readonly index: number }
+  | {
+      readonly kind: "combine";
+      readonly op: SetOperator;
+      readonly opIndex: number;
+      readonly left: SetTree;
+      readonly right: SetTree;
+    };
+
+/**
  * A statement whose top level is a chain of set operators.
  *
- * The branch list is FLAT and precedence is NOT applied: SQL binds INTERSECT tighter than UNION and
- * EXCEPT, so `a union b intersect c` really means `a union (b intersect c)`, but this is still one
- * three-branch list. That is what the visualiser wants — a row of branches to feed the rows through
- * — so a consumer that draws the chain must say it is showing the written order rather than imply
- * that it evaluates left to right.
+ * The branch list is FLAT and in source order: it is what the chapter strip walks, and every branch
+ * runs on its own whatever the grouping is. Precedence lives in `tree` beside it rather than in the
+ * list's shape, because the two questions have different answers — "which pieces did the user
+ * write, in what order" and "which two results actually meet at each step" — and collapsing them
+ * into one nested list would cost the strip its reading order.
  */
 export type ParsedSetOp = {
   readonly kind: "setop";
@@ -158,6 +179,8 @@ export type ParsedSetOp = {
   readonly branches: readonly SetBranch[];
   /** One per gap between branches: operators[i] joins branches[i] and branches[i+1]. */
   readonly operators: readonly { readonly op: SetOperator; readonly range: Range }[];
+  /** The same chain grouped the way SQL evaluates it. A single branch is the bare `branch` node. */
+  readonly tree: SetTree;
   /** A trailing ORDER BY / LIMIT / OFFSET that applies to the WHOLE statement, not the last branch. */
   readonly orderBy: Clause | null;
   readonly orderItems: readonly OrderItem[];
@@ -165,6 +188,37 @@ export type ParsedSetOp = {
   readonly limitValue: number | null;
   readonly offset: Clause | null;
   readonly offsetValue: number | null;
+};
+
+/**
+ * `dept_name in ('Comp. Sci.', 'Physics')` — the other IN, the one whose parentheses hold values.
+ *
+ * `subqueryPredicates` steps straight over these, correctly: there is no subquery to run and so no
+ * section to build. But the WHERE station then shows the whole thing as one opaque pass/fail, and
+ * "which of these values did this row actually match" is the only question the predicate asks.
+ *
+ * The values are kept as RANGES, never as parsed literals. Deciding in JavaScript whether a row's
+ * value equals one of them would be re-implementing SQL comparison — collation, numeric coercion,
+ * `CHAR` padding — and getting it wrong in exactly the cases a reader would never think to check.
+ * The station splices these ranges into the probe instead and lets the database say.
+ */
+export type InList = {
+  /** The whole predicate as written: `x not in (1, 2)`. */
+  readonly range: Range;
+  /** The compared expression on the left. */
+  readonly left: Range;
+  /** Each value inside the parentheses, commas dropped. */
+  readonly values: readonly Range[];
+  readonly negated: boolean;
+  /**
+   * Whether a bare `null` sits among the values, read off the TEXT rather than off a result.
+   *
+   * It earns its own flag because it silently decides the predicate: `x not in (1, null)` is never
+   * true for any x, since the comparison to `null` is unknown and an unknown conjunct sinks the
+   * whole `not in`. A reader staring at an empty result deserves to be told that, and the word is
+   * right there in the query — no probe required.
+   */
+  readonly hasNull: boolean;
 };
 
 export type SubqueryPredicateKind = "exists" | "not exists" | "in" | "not in" | "scalar";
@@ -743,6 +797,61 @@ function parseTokens(
   };
 }
 
+/**
+ * Binding strength, and the only thing that differs between the operators.
+ *
+ * INTERSECT binds tighter than UNION and EXCEPT in both dialects the walk parses. `ALL` changes
+ * whether duplicates survive, never how tightly the operator binds, so the two spellings of each
+ * operator share a number.
+ */
+const SET_PRECEDENCE: Record<SetOperator, number> = {
+  intersect: 2,
+  "intersect all": 2,
+  union: 1,
+  "union all": 1,
+  except: 1,
+  "except all": 1,
+};
+
+/**
+ * The flat chain, grouped the way it evaluates.
+ *
+ * Two levels and left association are the whole grammar, so this is two loops rather than a general
+ * precedence climb: the inner one takes every INTERSECT it can reach, the outer one folds what is
+ * left. The cursor is both "next branch to take" and "index of the operator that follows what has
+ * been taken so far" — those stay equal because branches and operators alternate, and it is why one
+ * counter is enough for both.
+ */
+function setTree(ops: readonly SetOperator[]): SetTree {
+  let i = 0;
+  const tighter = (): SetTree => {
+    let node: SetTree = { kind: "branch", index: i };
+    while (i < ops.length && SET_PRECEDENCE[ops[i]!] === 2) {
+      const opIndex = i;
+      i += 1;
+      node = { kind: "combine", op: ops[opIndex]!, opIndex, left: node, right: { kind: "branch", index: i } };
+    }
+    return node;
+  };
+  let node = tighter();
+  while (i < ops.length) {
+    const opIndex = i;
+    i += 1;
+    node = { kind: "combine", op: ops[opIndex]!, opIndex, left: node, right: tighter() };
+  }
+  return node;
+}
+
+/** Whether the chain groups any other way than plain left to right, which is the only case a
+ *  reader has to be told about: when it does not, the written order IS the evaluation order. */
+export function regroups(parsed: ParsedSetOp): boolean {
+  const leftToRight = (node: SetTree): boolean =>
+    node.kind === "branch"
+      ? node.index === 0
+      : node.right.kind === "branch" && leftToRight(node.left);
+  return !leftToRight(parsed.tree);
+}
+
 const isClauseWord = (kw: string | null): boolean => kw !== null && CLAUSE_WORDS.has(kw);
 
 /**
@@ -816,6 +925,7 @@ export function parseStatement(text: string, dialect: Dialect): ParsedSelect | P
     ctes: prefix.ctes,
     branches,
     operators: operators.map(({ op, range }) => ({ op, range })),
+    tree: setTree(operators.map(({ op }) => op)),
     orderBy: tail.orderBy,
     orderItems: tail.orderItems,
     limit: tail.limit,

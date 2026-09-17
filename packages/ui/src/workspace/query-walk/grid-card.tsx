@@ -93,6 +93,16 @@ export function GridCard({ grid }: { readonly grid: GridView }): React.ReactElem
   );
 }
 
+/**
+ * The two lines over the rows: the driving query's name spanning its columns, then the labels.
+ *
+ * `--w` is a FLOOR here, not a width. This card is as wide as the widest thing in it, which is
+ * regularly the legend above rather than the table — a paragraph of prose over four short columns —
+ * and columns that only ever measured themselves left the difference as dead space down the right of
+ * every row. They share that slack instead, so the count column ends where the card ends. The gutter
+ * and the two pinned columns at the right edge are not part of the bargain: they are the same width
+ * whatever the card's is.
+ */
 function Header({
   cols,
   group,
@@ -108,27 +118,42 @@ function Header({
   return (
     <div className="border-b">
       {/* The group's own name sits over its columns, because a header of bare course codes says
-          nothing about where the codes came from. */}
+          nothing about where the codes came from.
+
+          Every line of this card — this one, the labels under it, and each row — is the same list of
+          flex items in the same order, so the three of them cannot drift apart. That takes more care
+          here than anywhere else, because this line is one element standing over many: the band
+          grows by as many shares as it covers columns, which is exactly what those columns take
+          between them, so its edges stay on theirs however much slack there is to share. The two
+          spacers at the end are the fold marker and the count, which this line has nothing to put in
+          but must still leave room for — without them it would have 128px more slack to hand out
+          than the line below, and every column would sit right of its own label. */}
       <div className="flex h-6 items-stretch">
         <div className="w-5.5 shrink-0" />
         {cols.map((col) => (
-          <div className="shrink-0 w-(--w)" key={col.id} style={{ "--w": `${col.width}px` } as React.CSSProperties} />
+          <div
+            className="shrink-0 grow basis-(--w)"
+            key={col.id}
+            style={{ "--w": `${col.width}px` } as React.CSSProperties}
+          />
         ))}
         {group.columns.length > 0 && (
           <div
-            className="flex h-6 w-(--w) shrink-0 items-center gap-1 whitespace-nowrap border-info/30 border-x bg-info/5 px-2 font-mono text-info-foreground text-xs"
-            style={{ "--w": `${span}px` } as React.CSSProperties}
+            className="flex h-6 shrink-0 grow-(--n) basis-(--w) items-center gap-1 whitespace-nowrap border-info/30 border-x bg-info/5 px-2 font-mono text-info-foreground text-xs"
+            style={{ "--n": `${group.columns.length}`, "--w": `${span}px` } as React.CSSProperties}
           >
             <span className="truncate">{group.title}</span>
           </div>
         )}
+        {group.hidden > 0 && <div className="w-12 shrink-0" />}
+        <div className="w-20 shrink-0" />
       </div>
       <div className="flex h-7 items-stretch">
         <div className="w-5.5 shrink-0" />
         {cols.map((col) => (
           <div
             className={cn(
-              "flex h-7 w-(--w) shrink-0 items-center truncate whitespace-nowrap px-2 font-mono text-muted-foreground text-xs",
+              "flex h-7 shrink-0 grow basis-(--w) items-center truncate whitespace-nowrap px-2 font-mono text-muted-foreground text-xs",
               col.num && "justify-end",
             )}
             key={col.id}
@@ -139,7 +164,7 @@ function Header({
         ))}
         {group.columns.map((column) => (
           <div
-            className="flex h-7 w-(--w) shrink-0 items-center justify-center truncate whitespace-nowrap px-1 font-mono text-info-foreground text-xs"
+            className="flex h-7 shrink-0 grow basis-(--w) items-center justify-center truncate whitespace-nowrap px-1 font-mono text-info-foreground text-xs"
             key={column.id}
             style={{ "--w": `${width}px` } as React.CSSProperties}
             title={column.label}
@@ -213,10 +238,11 @@ function GridRow({
           </motion.span>
         )}
       </div>
+      {/* Same basis and the same growth as the label above each one: see `Header`. */}
       {cols.map((col) => (
         <div
           className={cn(
-            "flex h-7 w-(--w) shrink-0 items-center truncate whitespace-nowrap px-2 font-mono text-xs tabular-nums",
+            "flex h-7 shrink-0 grow basis-(--w) items-center truncate whitespace-nowrap px-2 font-mono text-xs tabular-nums",
             col.num && "justify-end",
             row.cells[col.id] === null && "text-muted-foreground italic",
           )}
@@ -228,7 +254,7 @@ function GridRow({
       ))}
       {row.grid.map((cell, at) => (
         <div
-          className="flex h-7 w-(--w) shrink-0 items-center justify-center"
+          className="flex h-7 shrink-0 grow basis-(--w) items-center justify-center"
           key={cell.key}
           style={{ "--w": `${width}px` } as React.CSSProperties}
         >
