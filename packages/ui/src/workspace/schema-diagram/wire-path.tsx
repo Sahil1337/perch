@@ -24,11 +24,15 @@ export type WireState = "idle" | "lit" | "muted" | "hidden";
 export function WirePath({
   animate,
   index,
+  paused,
   state,
   wire,
 }: {
   animate: boolean;
   index: number;
+  /** Hold the pulse where it is. Paused rather than removed, so the wire does not lose its phase
+   *  — and so a gesture neither starts nor ends with every pulse on screen jumping. */
+  paused: boolean;
   state: WireState;
   wire: Wire;
 }): React.ReactElement {
@@ -58,7 +62,11 @@ export function WirePath({
           the phases and means no wire starts empty. */}
       {animate && (
         <path
-          className={cn("animate-wire-pulse transition-colors", lit ? "stroke-info" : "stroke-info/70")}
+          className={cn(
+            "animate-wire-pulse transition-colors",
+            paused && "paused",
+            lit ? "stroke-info" : "stroke-info/70",
+          )}
           d={d}
           fill="none"
           pathLength={1}

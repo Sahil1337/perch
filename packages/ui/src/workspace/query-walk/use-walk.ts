@@ -14,7 +14,13 @@ import * as React from "react";
 import { boundPlan } from "./bound";
 import { isSetOp, type ParsedSelect } from "./clauses";
 import type { Program, ResultOnly, Section } from "./program";
-import { buildResultStation, buildStations, SAMPLE_ROWS, type Station } from "./steps";
+import {
+  buildRecursionStations,
+  buildResultStation,
+  buildStations,
+  SAMPLE_ROWS,
+  type Station,
+} from "./steps";
 
 export type QueryOutcome =
   | { readonly ok: true; readonly result: StatementResult }
@@ -27,15 +33,26 @@ export type StationResult = {
 
 export type WalkData = {
   /**
-   * Null for a result-only section, whose body the clause slicer refused: it has one station, and
-   * that station is the statement itself, so there are no clauses for a scene or a sentence to
-   * reach for. Every builder that needs the parse checks the station id first.
+   * Null when the walk's stations are not about clauses of one SELECT, so there are none for a
+   * scene or a sentence to reach for. Every builder that needs the parse checks the station id
+   * first.
+   *
+   * Two things land here. A result-only section, whose body the clause slicer refused, has one
+   * station and that station is the statement itself. A recursive CTE that could be split has
+   * three, and they are three different STATEMENTS rather than three clauses of one — its own
+   * `parsed` is the invented `select * from chain`, which describes none of them.
    */
   readonly parsed: ParsedSelect | null;
   /** The SQL this walk runs, which `parsed` cannot always be asked for. */
   readonly text: string;
-  /** Set exactly when `parsed` is null: what sort of thing this one-station walk is, for the
-   *  narrator, which has a different lesson for a VALUES list than for a bare `select 1`. */
+  /**
+   * What sort of thing a one-station walk is, for the narrator, which has a different lesson for a
+   * VALUES list than for a bare `select 1`.
+   *
+   * Set only when `parsed` is null, but no longer whenever it is: a split recursive CTE has a null
+   * parse and no `result`, because it is not a section the slicer refused — its stations carry
+   * their own sentences instead. Read this as "a result-only section", not as "there is no parse".
+   */
   readonly result: ResultOnly | null;
   readonly stations: readonly Station[];
   readonly results: readonly StationResult[];
@@ -216,6 +233,28 @@ function planSection(program: Program, section: Section): SectionPlan {
       return { section, parsed: null, stations: [], status: "held" };
     }
     return { section, parsed: null, stations: [buildResultStation(section.text)], status: "pending" };
+  }
+
+  // A recursive CTE whose two halves `program.ts` could prove: START, REPEAT and SETTLE rather than
+  // the ten-station walk over `select * from chain`, which narrates a trivial SELECT and leaves the
+  // recursion — the only interesting thing in the query — unexplained. `parsed` goes null with
+  // them, which is what routes the stage through `resultScene`: each station is a whole statement
+  // of its own, and the section's own parse describes none of the three.
+  if (section.recursion !== null) {
+    if (section.binding.kind === "bound") {
+      return { section, parsed: null, stations: [], status: "held" };
+    }
+    return {
+      section,
+      parsed: null,
+      stations: buildRecursionStations(
+        section.recursion,
+        section.prefix,
+        section.recursion.name,
+        section.text,
+      ),
+      status: "pending",
+    };
   }
   const parsed = section.parsed !== null && !isSetOp(section.parsed) ? section.parsed : null;
   const bound =

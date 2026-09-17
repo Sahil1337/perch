@@ -3,7 +3,7 @@
 
 import type { StatementResult } from "@perch/protocol";
 import { colsOf, positional, rowsOf, visibleIndices } from "./columns";
-import type { Scene, TableView } from "./types";
+import type { Col, Scene, TableView } from "./types";
 
 export const tables = (list: TableView[], count: number | null, tight = true): Scene => ({
   kind: "tables",
@@ -42,9 +42,21 @@ const MAX_COLS = 8;
 export function capCols(view: TableView): TableView {
   // One folded column is not worth the marker that replaces it.
   if (view.cols.length <= MAX_COLS + 1) return view;
-  const lit = view.cols.flatMap((col, i) => (col.hl || col.sort ? [i] : []));
-  const rest = view.cols.flatMap((col, i) => (col.hl || col.sort ? [] : [i]));
-  const keep = new Set([...lit, ...rest].slice(0, MAX_COLS));
+  /**
+   * What the cap keeps first: the columns the station is about — a join key, a sort key, the ones a
+   * WHERE names, all of which arrive already lit — then ordinary columns, and a column already known
+   * to be on its way out last of all. Folding a survivor away to make room for one that is about to
+   * be dropped would hide the only part of the card that outlives this station.
+   */
+  const rank = (col: Col): number => (col.hl || col.sort ? 0 : col.drop ? 2 : 1);
+  const order = view.cols.map((col, i) => [rank(col), i] as const);
+  const keep = new Set(
+    order
+      .slice()
+      .sort((a, b) => a[0] - b[0] || a[1] - b[1])
+      .slice(0, MAX_COLS)
+      .map(([, i]) => i),
+  );
   return {
     ...view,
     cols: view.cols.filter((_, i) => keep.has(i)),

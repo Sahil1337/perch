@@ -42,10 +42,33 @@ export function selectScene(ctx: SceneContext): Scene {
     }
   }
   if (phase === 0) {
-    const kept = prevVisible.filter((i) => taken.has(i));
-    const cols = colsOf(prevSample, kept, positional);
+    /**
+     * Every earlier column, with the ones the SELECT list does not carry marked as leaving.
+     *
+     * This phase is called "dropping unused columns", so it has to show the columns being dropped.
+     * It used to narrow straight to the survivors, which showed the aftermath instead of the act:
+     * by the time the card arrived the dropped columns were already gone, and the reader was given
+     * a card that had quietly changed shape. Rows keep their key across the whole station (the key
+     * is hashed over `prevVisible`, not over what is shown), so these are the same rows throughout
+     * and only the columns move.
+     *
+     * It also fixes the case that had no picture at all. When the list keeps NOTHING — `count(*)`,
+     * an aggregate, any list of pure expressions — nothing maps back, the survivors are none, and
+     * narrowing to none drew a card with a title, a row count and no columns whatsoever: a blank
+     * rectangle claiming ten rows. Now it says what is true, which is that all of them are going.
+     */
+    const cols = colsOf(prevSample, prevVisible, positional).map((col, at) =>
+      taken.has(prevVisible[at]!) ? col : { ...col, drop: true },
+    );
     return tables(
-      [{ key: "main", title: mainTitle, cols, rows: rowsOf(prevSample, cols, kept, "m:", prevVisible) }],
+      [
+        {
+          key: "main",
+          title: mainTitle,
+          cols,
+          rows: rowsOf(prevSample, cols, prevVisible, "m:", prevVisible),
+        },
+      ],
       own,
     );
   }

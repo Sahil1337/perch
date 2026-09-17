@@ -13,6 +13,14 @@ export type Col = {
   readonly num: boolean;
   readonly hl?: boolean;
   readonly sort?: "asc" | "desc";
+  /**
+   * The SELECT list does not carry this column into its output, so it is about to go.
+   *
+   * Only SELECT's first phase sets it, and it is the whole of what that phase has to say: the
+   * station is named "dropping unused columns" and a card that has already dropped them is showing
+   * the aftermath rather than the act.
+   */
+  readonly drop?: boolean;
 };
 
 export type Row = {

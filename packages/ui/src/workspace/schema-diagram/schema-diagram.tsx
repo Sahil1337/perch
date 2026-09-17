@@ -90,7 +90,46 @@ export function SchemaDiagram({ focus }: { focus?: string }): React.ReactElement
   });
   const [drag, setDrag] = React.useState<Drag | null>(null);
   const viewportRef = React.useRef<HTMLDivElement>(null);
+  const canvasRef = React.useRef<HTMLDivElement>(null);
   const [viewportSize, setViewportSize] = React.useState({ width: 0, height: 0 });
+
+  /*
+   * A pointer emits moves faster than the screen refreshes — a trackpad runs to 120Hz — and every
+   * one of them used to be a React render of every card and every wire. Two things fix that.
+   *
+   * `schedule` coalesces: the LATEST piece of work runs, once, on the next frame. And a PAN never
+   * reaches React at all while the gesture is live, because nothing about the picture depends on
+   * where it is panned to except the transform itself, which is written straight to the node. The
+   * final value is committed on release, which is when `visible` — and so which wires pulse — is
+   * worth recomputing. A card drag still goes through state: the wires have to follow the card.
+   */
+  const frame = React.useRef<number | null>(null);
+  const pending = React.useRef<(() => void) | null>(null);
+  const schedule = React.useCallback((work: () => void): void => {
+    pending.current = work;
+    if (frame.current !== null) return;
+    frame.current = window.requestAnimationFrame(() => {
+      frame.current = null;
+      const run = pending.current;
+      pending.current = null;
+      run?.();
+    });
+  }, []);
+  const flush = React.useCallback((): void => {
+    if (frame.current !== null) {
+      window.cancelAnimationFrame(frame.current);
+      frame.current = null;
+    }
+    const run = pending.current;
+    pending.current = null;
+    run?.();
+  }, []);
+  React.useEffect(() => flush, [flush]);
+
+  /** Where the pan is right now, which during a gesture is ahead of `view.pan`. */
+  const livePan = React.useRef<Point | null>(null);
+  /** Wheel deltas banked since the last frame, so a trackpad flick is one render, not forty. */
+  const wheelPan = React.useRef<Point>({ x: 0, y: 0 });
 
   React.useLayoutEffect(() => {
     const viewport = viewportRef.current;
@@ -229,15 +268,21 @@ export function SchemaDiagram({ focus }: { focus?: string }): React.ReactElement
           y: event.clientY - rect.top,
         });
       } else {
-        setView((previous) => ({
-          ...previous,
-          pan: { x: previous.pan.x - event.deltaX, y: previous.pan.y - event.deltaY },
-        }));
+        wheelPan.current.x -= event.deltaX;
+        wheelPan.current.y -= event.deltaY;
+        schedule(() => {
+          const banked = wheelPan.current;
+          wheelPan.current = { x: 0, y: 0 };
+          setView((previous) => ({
+            ...previous,
+            pan: { x: previous.pan.x + banked.x, y: previous.pan.y + banked.y },
+          }));
+        });
       }
     };
     viewport.addEventListener("wheel", onWheel, { passive: false });
     return () => viewport.removeEventListener("wheel", onWheel);
-  }, [zoomBy]);
+  }, [schedule, zoomBy]);
 
   const setKeysOnly = (next: boolean): void => {
     setKeysOnlyChoice(next);
@@ -311,13 +356,22 @@ export function SchemaDiagram({ focus }: { focus?: string }): React.ReactElement
     if (!moved) return;
     if (!drag.moved) setDrag({ ...drag, moved: true });
     if (drag.kind === "pan") {
-      setView((previous) => ({ ...previous, pan: { x: drag.pan.x + dx, y: drag.pan.y + dy } }));
+      const pan = { x: drag.pan.x + dx, y: drag.pan.y + dy };
+      livePan.current = pan;
+      schedule(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        canvas.style.setProperty("--pan-x", `${pan.x}px`);
+        canvas.style.setProperty("--pan-y", `${pan.y}px`);
+      });
     } else {
       const next = { x: drag.at.x + dx / view.zoom, y: drag.at.y + dy / view.zoom };
-      setLayout((previous) => ({
-        ...previous,
-        positions: new Map(previous.positions).set(drag.key, next),
-      }));
+      schedule(() =>
+        setLayout((previous) => ({
+          ...previous,
+          positions: new Map(previous.positions).set(drag.key, next),
+        })),
+      );
     }
   };
 
@@ -326,6 +380,12 @@ export function SchemaDiagram({ focus }: { focus?: string }): React.ReactElement
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
+    // Whatever the last frame was going to do, do it now — a gesture that ends between frames
+    // would otherwise drop its final millimetre of travel.
+    flush();
+    const panned = livePan.current;
+    livePan.current = null;
+    if (panned) setView((previous) => ({ ...previous, pan: panned }));
     if (!drag.moved) {
       // A click: on a card selects it (again to clear); on the canvas clears.
       setSelected((previous) => (drag.kind === "card" && previous !== drag.key ? drag.key : null));
@@ -422,17 +482,25 @@ export function SchemaDiagram({ focus }: { focus?: string }): React.ReactElement
         ) : (
           <div
             className="absolute top-0 left-0 origin-top-left translate-x-(--pan-x) translate-y-(--pan-y) scale-(--zoom)"
+            ref={canvasRef}
+            /* `livePan` rather than `view.pan`: a pan gesture writes the transform straight to this
+               node and tells React on release, so a render that happens in between — a hover, a
+               card drag — must agree with what is already on screen instead of snapping it back. */
             style={
               {
-                "--pan-x": `${view.pan.x}px`,
-                "--pan-y": `${view.pan.y}px`,
+                "--pan-x": `${(livePan.current ?? view.pan).x}px`,
+                "--pan-y": `${(livePan.current ?? view.pan).y}px`,
                 "--zoom": view.zoom,
               } as React.CSSProperties
             }
           >
+            {/* Its own compositing layer. The pulses animate `stroke-dashoffset`, which is a paint,
+                not a transform, so every frame re-rasters whatever shares a layer with them —
+                promoting the wires keeps that off the cards, which are the expensive thing to
+                raster and never move while a pulse travels. */}
             <svg
               aria-hidden
-              className="pointer-events-none absolute top-0 left-0 overflow-visible"
+              className="pointer-events-none absolute top-0 left-0 overflow-visible will-change-transform"
               height={1}
               width={1}
             >
@@ -445,6 +513,9 @@ export function SchemaDiagram({ focus }: { focus?: string }): React.ReactElement
                     animate={!reduced && state !== "hidden" && intersects(wireBounds(wire), visible)}
                     index={index}
                     key={wire.edge.id}
+                    // Held still for the duration of a gesture: a pan or a drag is already asking
+                    // the compositor for every frame it has, and a paused animation costs nothing.
+                    paused={drag !== null}
                     state={state}
                     wire={wire}
                   />

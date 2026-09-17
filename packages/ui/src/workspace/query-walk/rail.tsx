@@ -53,6 +53,12 @@ export function Rail({
                 : null;
           return (
             <li className="relative flex w-24 flex-col items-center gap-1.5" key={station.key}>
+              {/* The rail lines run behind every dot, and the active fill is translucent, so the
+                  line would show through it. This opaque disc sits between the two. */}
+              <div
+                aria-hidden
+                className="absolute top-0 left-1/2 size-6 -translate-x-1/2 rounded-full bg-card"
+              />
               <button
                 aria-current={isActive ? "step" : undefined}
                 aria-label={`${station.label}${note ? `, ${note}` : ""}`}

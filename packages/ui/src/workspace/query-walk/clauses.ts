@@ -189,6 +189,34 @@ export type SubqueryPredicate = {
   readonly correlated: readonly string[];
 };
 
+/**
+ * A subquery written in the SELECT list, whose result is a VALUE rather than a test.
+ *
+ * The two shapes are the same two a predicate has, and so is what separates them: one that names
+ * nothing outside itself is computed once and the same value lands on every row, while a correlated
+ * one is re-run for each row and lands a different value on each. What it does NOT have is a
+ * verdict — there is no boolean here for a probe to splice `true` over — which is why it carries no
+ * `kind` and why `bound.ts` cannot treat it as a predicate.
+ */
+export type SelectSubquery = {
+  /** The whole select-list item as written: the expression around the subquery, and its alias. */
+  readonly item: Range;
+  /** The subquery itself, parentheses included: `(select count(*) from student)`. */
+  readonly range: Range;
+  /** Inside those parentheses. */
+  readonly body: Range;
+  /** The name the item was given — `total_students` — or null when it was given none. */
+  readonly alias: string | null;
+  /** The subquery parsed on its own; the enclosing statement's CTEs are seeded into its scope. */
+  readonly parsed: ParsedSelect | Unsupported;
+  /**
+   * References inside it that name something it does not define: the outer query's rows. Only
+   * QUALIFIED ones count, exactly as for a predicate — an empty list means "no PROVABLE
+   * correlation" and never "uncorrelated". See `correlatedIn`.
+   */
+  readonly correlated: readonly string[];
+};
+
 const JOIN_WORDS = new Set(["join", "inner", "left", "right", "full", "cross", "natural"]);
 const CLAUSE_WORDS = new Set([
   "where", "group", "having", "window", "order", "limit", "offset", "fetch", "for",
@@ -963,6 +991,78 @@ export function subqueryPredicates(text: string, body: Range, dialect: Dialect):
     i++;
   }
   return out;
+}
+
+/**
+ * The depth-zero subqueries in a select list, at most one per item, in source order.
+ *
+ * A select item is an expression, so the subquery can sit anywhere inside it — bare, inside a
+ * `CASE`, inside a `coalesce(…)` — and the search descends through parentheses that hold values
+ * until it reaches one that holds a query. It stops there and at one per item, because the item IS
+ * the column: giving each half of `(select …) + (select …)` a finding of its own would claim the
+ * reader wrote two columns where they wrote one.
+ *
+ * `list` is a `ParsedSelect.selectList`, and `text` is the text that range indexes.
+ */
+export function selectSubqueries(text: string, list: Range, dialect: Dialect): SelectSubquery[] {
+  const tree = parserFor(dialect).parse(text);
+  const host = nodeContaining(tree.topNode, list);
+  const toks = children(host, text).filter(
+    (token) => token.from >= list.from && token.to <= list.to,
+  );
+
+  // The same seeding `subqueryPredicates` does, for the same reason: a CTE the statement declares is
+  // in scope inside this subquery too, so without it a `from monthly` here reads as an unknown table.
+  const statementToks = statementTokens(text, dialect);
+  const scopeCtes = statementToks ? readWith(statementToks, text, 0).ctes : [];
+
+  const out: SelectSubquery[] = [];
+  for (const item of splitItems(toks, text)) {
+    const parens = selectParensIn(item, text);
+    if (parens === null) continue;
+    const first = item[0]!;
+    const last = item[item.length - 1]!;
+    const parsed = parseTokens(text, parensTokens(parens.node, text), scopeCtes);
+    out.push({
+      item: { from: first.from, to: last.to },
+      range: { from: parens.from, to: parens.to },
+      body: { from: parens.from + 1, to: parens.to - 1 },
+      alias: itemAlias(item),
+      parsed,
+      correlated: correlatedIn(parens.node, text, parsed, scopeCtes),
+    });
+  }
+  return out;
+}
+
+/** The first parenthesised QUERY in an item, searching inside value parentheses on the way. */
+function selectParensIn(item: readonly Token[], text: string): Token | null {
+  for (const token of item) {
+    if (token.name !== "Parens") continue;
+    if (isSelectParens(token.node, text)) return token;
+    const inner = selectParensIn(children(token.node, text), text);
+    if (inner !== null) return inner;
+  }
+  return null;
+}
+
+/**
+ * The name a select item was given, or null.
+ *
+ * `expr as name` is settled by the keyword. The implicit form — `(select …) total` — is read only
+ * when the token in front of the name cannot be continued by one, so the `y` of `x + y` is never
+ * mistaken for an alias. This name is what the chapter strip shows, and a name taken off the middle
+ * of an expression would send the reader looking for a column that does not exist.
+ */
+function itemAlias(item: readonly Token[]): string | null {
+  const n = item.length;
+  const last = item[n - 1];
+  if (!last || n < 2) return null;
+  if (n >= 3 && item[n - 2]?.kw === "as") return bareName(last.text);
+  if (!IDENT.has(last.name)) return null;
+  const before = item[n - 2]!;
+  const ends = before.name === "Parens" || IDENT.has(before.name) || before.kw === "end";
+  return ends ? bareName(last.text) : null;
 }
 
 /** The deepest node that still holds the whole range, so a clause body nested in parentheses is

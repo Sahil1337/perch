@@ -10,10 +10,39 @@ import type { StationState, WalkData } from "./use-walk";
 
 export type Phase = { readonly ms: number; readonly label: string };
 
+/**
+ * A select-list subquery that became a chapter of its own: what it is called, and whether it ran
+ * once for the whole query or once for every row.
+ *
+ * The SELECT station's own sentence is about columns being BORN — and one of these columns was not
+ * born here at all, which is the one thing the station cannot say from the parse in front of it.
+ */
+export type ProjectionNote = { readonly label: string; readonly perRow: boolean };
+
 /** Gap between one row's test and the next, in WHERE and HAVING. */
 export const STAGGER_MS = 110;
 /** Rest on a station's settled state before playback moves on. */
 export const HOLD_MS = 1000;
+
+/**
+ * The walk's tempo: what turns every phase length below into wall-clock time.
+ *
+ * The numbers in `phasesFor` are a RHYTHM — 700ms for a glance, 1.7s for the step that earns the
+ * most attention — and this is the one place that decides how fast that rhythm is played, so the
+ * proportions between stations survive a change of pace.
+ *
+ * Above 1 because a beat has to outlast the motion inside it. A spring settles in about half a
+ * second, rows stagger in or out across `STAGGER_WINDOW_S` and then fade or fold for another 0.22
+ * to 0.32s, and the shortest phases here are 700ms: at a tempo of 1 the next scene arrived while
+ * the last gesture was still finishing, so motion interrupted it. What that looks like is not
+ * "fast", it is "broken".
+ *
+ * Raising this ALONE does not make the walk feel slower, which is worth knowing before reaching for
+ * it: it lengthens the pause between gestures, not the gestures, so a station that flashed its rows
+ * in and then waited just waits longer. The pace a reader actually feels is set by the stagger —
+ * see `staggerDelay` — and this number exists to keep the beat long enough to hold it.
+ */
+export const BEAT = 1.45;
 
 const code = (text: string): string => `\`${text.replace(/\s+/g, " ").trim()}\``;
 
@@ -54,9 +83,44 @@ function resultSentence(walk: WalkData): string {
   }
 }
 
-export function sentenceFor(index: number, walk: WalkData): string {
+/** The clause the SELECT sentence ends on when one of its columns came from a chapter of its own. */
+function projectionsSentence(notes: readonly ProjectionNote[]): string {
+  if (notes.length === 0) return "";
+  const once = notes.filter((note) => !note.perRow).map((note) => code(note.label));
+  const perRow = notes.filter((note) => note.perRow).map((note) => code(note.label));
+  const parts: string[] = [];
+  // Correlation is the whole difference, so each group gets the sentence that is true of it: one
+  // value repeated down the column, or a different value worked out for every row.
+  if (once.length > 0) {
+    parts.push(
+      once.length === 1
+        ? `${list(once)} is a subquery with a chapter of its own, computed once before any of this, so the same value lands on every row`
+        : `${list(once)} are subqueries with chapters of their own, each computed once before any of this, so the same values land on every row`,
+    );
+  }
+  if (perRow.length > 0) {
+    parts.push(
+      perRow.length === 1
+        ? `${list(perRow)} is a subquery that names the row it is computed for, so it runs again for every row and each one gets its own value`
+        : `${list(perRow)} are subqueries that name the row they are computed for, so they run again for every row and each one gets its own values`,
+    );
+  }
+  return ` ${parts.join(", and ")}.`;
+}
+
+export function sentenceFor(
+  index: number,
+  walk: WalkData,
+  /** The select-list subqueries of the section being walked; empty for every station but SELECT. */
+  projections: readonly ProjectionNote[] = [],
+): string {
   const { parsed, stations } = walk;
   const station = stations[index]!;
+  // A station that came with its own sentence is one nothing below could have written: the clause
+  // vocabulary here describes what a SELECT does to rows, and a recursive CTE's three stations are
+  // about three separate statements. It is checked before `result` because those three wear the
+  // `result` id — they show a rows card, they are just not result-ONLY sections.
+  if (station.sentence !== null) return station.sentence;
   if (station.id === "result") return resultSentence(walk);
   // Every station below reads clauses off the parse, and the only walk without one is the
   // result-only walk the line above has already answered for.
@@ -130,12 +194,13 @@ export function sentenceFor(index: number, walk: WalkData): string {
       const base = alias
         ? `Only now are the output columns chosen and computed. Aliases like ${code(alias)} are born here, which is why WHERE could not use them and ORDER BY can.`
         : "Only now are the output columns chosen and computed. Nothing earlier could refer to a column that does not exist yet, which is why WHERE runs before SELECT.";
+      const born = projectionsSentence(projections);
       const branches = caseExpressions(parsed)[0];
-      if (!branches) return base;
+      if (!branches) return `${base}${born}`;
       const fallback = branches.fallback
         ? `falls through to ${code(branches.fallback)}`
         : `comes out null, because this ${code("case")} has no ${code("else")}`;
-      return `${base} The ${code("case")} is one of those columns: each row takes the first ${code("when")} that is true of it, and a row no branch claims ${fallback}.`;
+      return `${base} The ${code("case")} is one of those columns: each row takes the first ${code("when")} that is true of it, and a row no branch claims ${fallback}.${born}`;
     }
     case "distinct":
       return station.present

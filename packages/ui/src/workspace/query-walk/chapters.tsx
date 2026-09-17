@@ -98,6 +98,12 @@ function describe(run: SectionRun, sections: readonly SectionRun[]): string {
         ? `${predicatePhrase(origin.predicate.kind)} subquery, re-run for every row of ${outer}.${cells}`
         : `${predicatePhrase(origin.predicate.kind)} subquery. Nothing in it depends on the outer row, so it is computed once.${cells}`;
     }
+    case "projection":
+      // Correlation decides the whole sentence, because it decides what the reader is looking at: one
+      // number repeated down the column, or a different number on every row.
+      return outer
+        ? `a subquery in the SELECT list, so it is a column of ${outer} rather than a filter on it — and it runs once for every row of ${outer}, landing a different value on each.`
+        : "a subquery in the SELECT list. Nothing in it depends on the outer row, so it is computed once, before the rows are projected, and the same value lands on every one of them.";
     case "branch":
       return `branch ${origin.index + 1} of the set operation.`;
     case "main":

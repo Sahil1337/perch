@@ -12,6 +12,7 @@ export function ScrollArea({
   fill = false,
   clampContentMinWidth = true,
   overscrollContain = false,
+  viewportRender,
   ...props
 }: ScrollAreaPrimitive.Root.Props & {
   scrollFade?: boolean;
@@ -19,6 +20,15 @@ export function ScrollArea({
   fill?: boolean;
   clampContentMinWidth?: boolean;
   overscrollContain?: boolean;
+  /**
+   * Own the element that actually scrolls.
+   *
+   * The viewport is the scrollport, and a caller sometimes needs it to be something else — a
+   * `motion.div` with `layoutScroll`, so layout animations inside are measured against the scroll
+   * offset rather than the page. Without this the caller hand-rolls a scroller and the fade that
+   * goes with it, which is how you end up with two of everything.
+   */
+  viewportRender?: ScrollAreaPrimitive.Viewport.Props["render"];
 }): React.ReactElement {
   return (
     <ScrollAreaPrimitive.Root
@@ -36,6 +46,7 @@ export function ScrollArea({
             "data-has-overflow-y:pe-2.5 data-has-overflow-x:pb-2.5",
         )}
         data-slot="scroll-area-viewport"
+        render={viewportRender}
       >
         <ScrollAreaPrimitive.Content
           className={cn(fill && "size-full")}

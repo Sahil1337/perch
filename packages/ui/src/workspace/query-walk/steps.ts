@@ -14,6 +14,10 @@ import {
   type SourceRef,
   WALK_PREFIX,
 } from "./clauses";
+// Type-only, and deliberately so: `program.ts` reaches `grid.ts`, which reaches back here, and an
+// import that survived to runtime would close that ring. What the walk needs from a `Recursion` is
+// its shape, which costs nothing at run time.
+import type { Recursion } from "./program";
 
 /** The one definition lives in `clauses.ts`, where the parser and the query builders can both
  *  reach it; this keeps the name importable from here, which is where it was first spelled. */
@@ -93,6 +97,25 @@ export type Station = {
   /** Which join this station is, when it is one. */
   readonly join: JoinClause | null;
   readonly joinIndex: number;
+  /**
+   * A sentence that overrides the narrator's own, for a station the clause vocabulary cannot
+   * describe.
+   *
+   * Null for every station named after a clause: FROM, WHERE and the rest are explained from the
+   * parse, which is richer than anything a builder could write down in advance. It is set where
+   * there is no clause to explain — a recursive CTE's three stations are about the shape of the
+   * whole CTE, and `sentenceFor` has nothing to read that would tell it so.
+   */
+  readonly sentence: string | null;
+  /**
+   * A range in the ROOT text this station is about, when `clause` does not index the section's text.
+   *
+   * The two are alternatives, not a pair. `clause` is an offset into the statement the section runs,
+   * which for most sections IS the reader's text shifted by a prefix; for a section whose text the
+   * walk invented there is no such offset, and the honest thing to point at is the root range the
+   * program mapped when it took the section apart. Null when neither is available.
+   */
+  readonly root: Range | null;
 };
 
 const ABSENT: Station["batches"] = [];
@@ -416,7 +439,119 @@ export function buildResultStation(text: string): Station {
     ],
     join: null,
     joinIndex: -1,
+    sentence: null,
+    root: null,
   };
+}
+
+/**
+ * The three stations a recursive CTE gets once `program.ts` has proved its shape: START, REPEAT,
+ * SETTLE.
+ *
+ * All three are `id: "result"` — a rows card and a count, the same one `buildResultStation` gets —
+ * because what they teach is the DIFFERENCE between three tables, not anything happening inside one
+ * of them. A scene of their own would have to animate a loop the walk deliberately does not run.
+ *
+ * REPEAT is the only one that rewrites anything, and what it does is the rewrite the database does
+ * on its first pass: `chain c` becomes `(<the anchor>) c`. It is spliced BY RANGE, right to left,
+ * off the ranges `readRecursion` recorded — a string replace of the name would also hit the `chain`
+ * in a column called `chain_id`, in a quoted identifier, or in a literal, and the statement it built
+ * would run and be wrong rather than fail.
+ *
+ * `prefix` is the whole WITH list this section runs with, the recursive CTE included, and it is
+ * rendered ONCE at the head of each statement. Three things follow from that. The anchor spliced
+ * into REPEAT carries no prefix of its own, because a WITH inside a derived table is not legal
+ * there. The count wrapper keeps the prefix outside its subquery, for the same reason. And the CTE
+ * sitting unreferenced in START's and REPEAT's prefix costs nothing: an unreferenced CTE is not
+ * executed, recursive or not, so neither statement ever runs the recursion it is explaining.
+ */
+export function buildRecursionStations(
+  recursion: Recursion,
+  prefix: string,
+  cteName: string,
+  wholeText: string,
+): Station[] {
+  // Nothing is appended to any of these, so the newline rule at the top of the file applies only
+  // where the wrapper puts a body on its own line — which it does, for exactly that reason.
+  const counted = (body: string): string =>
+    `${prefix}select count(*) from (\n${body}\n) as ${WALK_PREFIX}count`;
+  const station = (
+    key: string,
+    label: string,
+    sampleLabel: string,
+    body: string,
+    sample: string,
+    sentence: string,
+    root: Range | null,
+  ): Station => ({
+    key,
+    id: "result",
+    label,
+    present: true,
+    // The statement these run is not the section's own text, so an offset into it would index
+    // nothing the narrator could point at. `root` carries the reader's line instead.
+    clause: null,
+    batches: [
+      [
+        { id: "sample", label: sampleLabel, sql: sample },
+        { id: "count", label: "Count", sql: counted(body) },
+      ],
+    ],
+    join: null,
+    joinIndex: -1,
+    sentence,
+    root,
+  });
+
+  const settleBody = `select * from ${cteName}`;
+  const pass = firstPass(recursion);
+  return [
+    station(
+      "recursion.start",
+      "START",
+      "Where the recursion begins",
+      recursion.anchorSql,
+      `${prefix}${recursion.anchorSql}`,
+      recursion.sentences.start,
+      recursion.anchor,
+    ),
+    station(
+      "recursion.repeat",
+      "REPEAT",
+      "One pass of the step",
+      pass,
+      `${prefix}${pass}`,
+      recursion.sentences.repeat,
+      recursion.step,
+    ),
+    station(
+      "recursion.settle",
+      "SETTLE",
+      "The whole CTE, every pass run",
+      settleBody,
+      wholeText,
+      recursion.sentences.settle,
+      recursion.anchor === null || recursion.step === null
+        ? null
+        : { from: recursion.anchor.from, to: recursion.step.to },
+    ),
+  ];
+}
+
+/**
+ * The recursive term with the anchor standing in for the CTE: what the database computes on its
+ * first pass, and the only pass the walk can show without iterating.
+ *
+ * The alias is kept as the reader wrote it — `chain c` becomes `(…) c` — because the rest of the
+ * term is full of `c.id` and a derived table under any other name would not resolve them. Where
+ * they wrote no alias the CTE's own name takes its place, which is what they were already using.
+ */
+function firstPass(recursion: Recursion): string {
+  let out = recursion.stepSql;
+  for (const ref of [...recursion.selfRefs].sort((a, b) => b.range.from - a.range.from)) {
+    out = `${out.slice(0, ref.range.from)}(${recursion.anchorSql}) ${ref.alias}${out.slice(ref.range.to)}`;
+  }
+  return out;
 }
 
 export function buildStations(parsed: ParsedSelect, dialect: Dialect): Station[] {
@@ -457,11 +592,13 @@ export function buildStations(parsed: ParsedSelect, dialect: Dialect): Station[]
     ]),
     join: null,
     joinIndex: -1,
+    sentence: null,
+    root: null,
   });
 
   /* JOIN n: the FROM list up to and including join n. */
   if (parsed.joins.length === 0) {
-    stations.push({ key: "join", id: "join", label: "JOIN", present: false, clause: null, batches: ABSENT, join: null, joinIndex: -1 });
+    stations.push({ key: "join", id: "join", label: "JOIN", present: false, clause: null, batches: ABSENT, join: null, joinIndex: -1, sentence: null, root: null });
   }
   parsed.joins.forEach((join, index) => {
     const through = `select *\n${text.slice(parsed.fromKeyword.from, join.range.to)}`;
@@ -482,6 +619,8 @@ export function buildStations(parsed: ParsedSelect, dialect: Dialect): Station[]
       batches: [queries],
       join,
       joinIndex: index,
+      sentence: null,
+      root: null,
     });
   });
 
@@ -511,7 +650,7 @@ export function buildStations(parsed: ParsedSelect, dialect: Dialect): Station[]
           },
         ]
       : [];
-    stations.push({ key: "where", id: "where", label: "WHERE", present: parsed.where !== null, clause: parsed.where?.range ?? null, batches: parsed.where ? [queries] : ABSENT, join: null, joinIndex: -1 });
+    stations.push({ key: "where", id: "where", label: "WHERE", present: parsed.where !== null, clause: parsed.where?.range ?? null, batches: parsed.where ? [queries] : ABSENT, join: null, joinIndex: -1, sentence: null, root: null });
   }
 
   /* GROUP BY: the grouped rows, plus the rows before grouping ordered by the keys. */
@@ -536,7 +675,7 @@ export function buildStations(parsed: ParsedSelect, dialect: Dialect): Station[]
           },
         ]
       : [];
-    stations.push({ key: "group", id: "group", label: "GROUP BY", present: parsed.groupBy !== null, clause: parsed.groupBy?.range ?? null, batches: parsed.groupBy ? [queries] : ABSENT, join: null, joinIndex: -1 });
+    stations.push({ key: "group", id: "group", label: "GROUP BY", present: parsed.groupBy !== null, clause: parsed.groupBy?.range ?? null, batches: parsed.groupBy ? [queries] : ABSENT, join: null, joinIndex: -1, sentence: null, root: null });
   }
 
   /* HAVING */
@@ -553,7 +692,7 @@ export function buildStations(parsed: ParsedSelect, dialect: Dialect): Station[]
           },
         ]
       : [];
-    stations.push({ key: "having", id: "having", label: "HAVING", present: parsed.having !== null, clause: parsed.having?.range ?? null, batches: parsed.having ? [queries] : ABSENT, join: null, joinIndex: -1 });
+    stations.push({ key: "having", id: "having", label: "HAVING", present: parsed.having !== null, clause: parsed.having?.range ?? null, batches: parsed.having ? [queries] : ABSENT, join: null, joinIndex: -1, sentence: null, root: null });
   }
 
   /* WINDOW: the rows HAVING left, each one given the window function's value.
@@ -593,6 +732,8 @@ export function buildStations(parsed: ParsedSelect, dialect: Dialect): Station[]
       batches: fn ? [[sample(probe), count(withHaving)]] : ABSENT,
       join: null,
       joinIndex: -1,
+      sentence: null,
+      root: null,
     });
   }
 
@@ -620,6 +761,8 @@ export function buildStations(parsed: ParsedSelect, dialect: Dialect): Station[]
       batches: [queries],
       join: null,
       joinIndex: -1,
+      sentence: null,
+      root: null,
     });
   }
 
@@ -634,6 +777,8 @@ export function buildStations(parsed: ParsedSelect, dialect: Dialect): Station[]
     batches: parsed.distinct ? [[sample(withDistinct), count(withDistinct)]] : ABSENT,
     join: null,
     joinIndex: -1,
+    sentence: null,
+    root: null,
   });
 
   /* ORDER BY: no count, the rows only move. */
@@ -646,6 +791,8 @@ export function buildStations(parsed: ParsedSelect, dialect: Dialect): Station[]
     batches: parsed.orderBy ? [[sample(lines(withDistinct, orderBy))]] : ABSENT,
     join: null,
     joinIndex: -1,
+    sentence: null,
+    root: null,
   });
 
   /* LIMIT / OFFSET: the query exactly as written. The server still caps the rows it returns. */
@@ -663,6 +810,8 @@ export function buildStations(parsed: ParsedSelect, dialect: Dialect): Station[]
     batches: hasLimit ? [[{ id: "sample", label: "The query as written", sql: slice(parsed.statement) }]] : ABSENT,
     join: null,
     joinIndex: -1,
+    sentence: null,
+    root: null,
   });
 
   return stations;

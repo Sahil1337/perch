@@ -7,6 +7,7 @@
 // straight into the first station of the next. There is nothing to navigate back out of.
 
 import { PauseIcon, PlayIcon, SkipBackIcon, SkipForwardIcon } from "lucide-react";
+import type { SqlComment } from "@perch/sql";
 import * as React from "react";
 import { Button } from "../../ui/button";
 import { Kbd } from "../../ui/kbd";
@@ -15,14 +16,15 @@ import { EvidenceContext, useEvidenceStore } from "./bound-evidence";
 import { BoundSection } from "./bound-section";
 import { Chapters } from "./chapters";
 import type { SourceRef } from "./clauses";
-import { HOLD_MS, phasesFor, sentenceFor, type Phase } from "./narration";
+import { BEAT, HOLD_MS, phasesFor, sentenceFor, type Phase } from "./narration";
 import { Narrator } from "./narrator";
-import { sectionForSource, type SectionId } from "./program";
+import { projectionsIn, sectionForSource, type SectionId } from "./program";
 import { Rail } from "./rail";
 import { buildScene, countAt, errorOf, inputCount, sampleId } from "./scenes";
 import { SectionHold } from "./section-hold";
 import { SkippedNote } from "./skipped-note";
 import { Stage } from "./stage";
+import type { StationId } from "./steps";
 import { buildTerminus } from "./terminus";
 import {
   runsPerRow,
@@ -32,7 +34,7 @@ import {
   type SectionRun,
   type StationState,
 } from "./use-walk";
-import { SpeedContext } from "./walk-motion";
+import { RowsMoveContext, SpeedContext } from "./walk-motion";
 
 type Pos = { section: number; station: number; phase: number };
 
@@ -47,6 +49,24 @@ type Pos = { section: number; station: number; phase: number };
 const HOLD_PHASE: readonly Phase[] = [{ ms: 2200, label: "not run" }];
 
 const NO_STATES: readonly StationState[] = [];
+
+/**
+ * Stations whose rows change POSITION rather than contents, and so the only ones whose rows are
+ * worth animating from where they were: what survives a filter slides up into the gap the rejected
+ * rows left, a sort re-orders the card, a cut drops the tail.
+ *
+ * Everywhere else a row's CELLS change — a projection, a window function, a grouping — which changes
+ * the key it is drawn under, so the old row leaves and a new one arrives however the layout system
+ * is configured. Tracking those rows anyway bought nothing and had every row on stage measured on
+ * every frame of every transition. See `Row` in `stage.tsx`.
+ */
+const MOVING_STATIONS: ReadonlySet<StationId> = new Set<StationId>([
+  "where",
+  "having",
+  "distinct",
+  "order",
+  "limit",
+]);
 
 /** The walk to step through, or null when the section holds a placeholder instead of running. */
 function walkOf(run: SectionRun | undefined): SectionRun["walk"] {
@@ -77,7 +97,17 @@ function ownsArrowKeys(target: EventTarget | null): boolean {
   );
 }
 
-export function WalkPlayer({ data, probe }: { data: ProgramData; probe: Probe }): React.ReactElement {
+export function WalkPlayer({
+  data,
+  probe,
+  comments,
+}: {
+  data: ProgramData;
+  probe: Probe;
+  /** Stripped out of the statement before the program was built, and carried through to the
+   *  narrator's Notes tab — the one place in the walk that still shows them. */
+  comments: readonly SqlComment[];
+}): React.ReactElement {
   const { program, sections } = data;
   // What the bound chapters measured, held for the whole program so the last station can explain an
   // empty result out of numbers that have already been fetched.
@@ -288,7 +318,7 @@ export function WalkPlayer({ data, probe }: { data: ProgramData; probe: Probe })
     const dwell = holding ? HOLD_PHASE[0]!.ms : (stationPhases[phase]?.ms ?? 800);
     // Leaving a station — or a whole chapter — rests on its settled state before moving on.
     const rest = phase === lastPhase ? HOLD_MS : 0;
-    const id = setTimeout(() => setPos(next), (dwell + rest) / speed);
+    const id = setTimeout(() => setPos(next), ((dwell + rest) * BEAT) / speed);
     return () => clearTimeout(id);
   }, [holding, lastPhase, next, perRow, phase, playing, settled, speed, stationPhases]);
 
@@ -345,9 +375,21 @@ export function WalkPlayer({ data, probe }: { data: ProgramData; probe: Probe })
       tables: built.tables.map((view, at) => (at === 0 ? { ...view, empty: terminus.why } : view)),
     };
   }, [built, terminus]);
+  // A column whose value comes from a subquery is not computed at the SELECT station — it has a
+  // chapter of its own — and the station's sentence is the only place that can say so.
+  const projections = React.useMemo(
+    () =>
+      run
+        ? projectionsIn(program, run.section).map((child) => ({
+            label: child.label,
+            perRow: child.binding.kind === "bound",
+          }))
+        : [],
+    [program, run],
+  );
   const sentence = React.useMemo(
-    () => (walk ? sentenceFor(stationIndex, walk) : ""),
-    [stationIndex, walk],
+    () => (walk ? sentenceFor(stationIndex, walk, projections) : ""),
+    [projections, stationIndex, walk],
   );
 
   // A FROM card whose source became a section of its own points AT that section rather than
@@ -418,14 +460,17 @@ export function WalkPlayer({ data, probe }: { data: ProgramData; probe: Probe })
           {walk && station && scene ? (
             <div className="grid min-h-0 flex-1 gap-4 md:grid-cols-3">
               <div className="flex min-h-0 min-w-0 flex-col md:col-span-2">
-                <Stage
-                  scene={scene}
-                  sceneKey={run?.section.id ?? ""}
-                  sourceLink={sourceLink}
-                  state={state}
-                />
+                <RowsMoveContext.Provider value={MOVING_STATIONS.has(station.id)}>
+                  <Stage
+                    scene={scene}
+                    sceneKey={run?.section.id ?? ""}
+                    sourceLink={sourceLink}
+                    state={state}
+                  />
+                </RowsMoveContext.Provider>
               </div>
               <Narrator
+                comments={comments}
                 count={count}
                 error={error}
                 input={input}
@@ -433,6 +478,8 @@ export function WalkPlayer({ data, probe }: { data: ProgramData; probe: Probe })
                 phase={phase}
                 phases={stationPhases}
                 result={walk.results[stationIndex]}
+                root={program.text}
+                section={run?.section ?? null}
                 sentence={terminus === null ? sentence : `${sentence} ${terminus.sentence}`}
                 sql={walk.text}
                 state={state}

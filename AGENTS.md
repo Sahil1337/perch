@@ -12,31 +12,29 @@ README.
 
 ## Commands
 
-Run everything from the repo root. There is one lockfile and one `node_modules`.
+Run everything from the repo root. There is one `bun.lock` and one `node_modules`.
 
-- **Bun workspaces.** `bun install` at the root installs every workspace, from the single
-  `bun.lock`. **Never** run an install or add a dependency inside `apps/*` or `packages/*` — it
-  creates a nested lockfile and a second copy of React or TypeScript. Add the dependency to that
-  workspace's `package.json` and install at root.
+- **Never** run an install or add a dependency inside `apps/*` or `packages/*` — it creates a
+  nested lockfile and a second copy of React or TypeScript. Add the dependency to that
+  workspace's `package.json` and install at the root.
+- `build`, `typecheck` and `lint` fan out to every workspace (`--filter '*'`, which skips a
+  workspace that lacks the script). `lint` is the exception: one root ESLint run over
+  `apps/server/src` and `packages/ui/src`, then `bun run --filter @perch/web lint` for the Next
+  app's pinned ESLint 9.
 - Target one workspace with `--filter`: `bun run --filter perch typecheck`,
   `bun run --filter @perch/web lint`, `bun run --filter @perch/protocol check`.
   `bun run perch -- <args>` drives the CLI (the workspace bin, so it needs a `build` first).
-- **Turborepo runs `dev` and `start`.** `bun run dev` starts `next dev` (:3000) and `perch serve`
-  (a free port, picked by `scripts/dev.mjs` and passed to both through `PERCH_DEV_PORT` /
-  `NEXT_PUBLIC_PERCH_URL`) together; `dev:server` and `dev:ui` are the halves, both on :4600.
-  `bun run start` runs the built app, which is one process: there is no production UI server,
+- **Turborepo owns `dev` and `start`, nothing else.** `dev` starts `next dev` (:3000) and
+  `perch serve` (a free port, picked by `scripts/dev.mjs` and passed to both through
+  `PERCH_DEV_PORT` / `NEXT_PUBLIC_PERCH_URL`); `dev:server` and `dev:ui` are the halves, both on
+  :4600. `start` runs the built app, which is one process: there is no production UI server,
   because `apps/web` static-exports into `apps/server/ui/` and `perch serve` mounts it at `/`.
-  Turbo 2 filters the environment, so a new variable either half needs must be added to
-  `passThroughEnv` in `turbo.json` or it silently will not arrive. Everything else — `build`, `typecheck`,
-  `lint` — stays on bun's own fan-out, so `turbo.json` has exactly one task and CI never calls
-  turbo. Don't move a task into it without a reason to want its cache.
-- Bare `bun run build|typecheck|lint` fan out to every workspace (`--filter '*'`, which
-  skips a workspace that lacks the script). `lint` is the exception: one root ESLint run over
-  `apps/server/src` and `packages/ui/src`, then `bun run --filter @perch/web lint` for the Next
-  app's pinned ESLint 9.
-- **Bun is the package manager and script runner; Node is still the server's runtime.**
-  `apps/server` ships to npm, declares `engines.node >=22` and imports `node:` builtins, so every
-  CI step that runs the CLI runs it on Node across the OS matrix. Do not "simplify" that to Bun.
+  **Turbo 2 filters the environment** — a new variable either half needs must be added to
+  `passThroughEnv` in `turbo.json` or it silently will not arrive. Don't move another task into
+  turbo without a reason to want its cache.
+- **Don't break Node.** The server runs on Bun in dev and ships as a Bun binary, but Node 22+ is
+  still a supported target: see [CONTRIBUTING.md](CONTRIBUTING.md#scripts) before touching
+  process, fs, net or crypto behaviour.
 - **ESLint config lives at the repo root** (`eslint.config.js`) and covers every ESLint 10
   workspace. `apps/web` keeps its own next to it; see the comment at the top of the root
   config for why. Do not add a root `tsconfig.json` — tsconfig presets still live in

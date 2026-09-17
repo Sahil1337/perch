@@ -7,4 +7,5 @@
 // copy, kept honest by `bun run --filter @perch/sql check`.
 
 export { splitStatements, type SplitStatement } from "./split";
+export { scanComments, stripComments, type SqlComment } from "./comments";
 export { formatSql, type FormatSqlOptions } from "./format";

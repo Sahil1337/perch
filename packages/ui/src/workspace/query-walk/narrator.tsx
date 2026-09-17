@@ -1,17 +1,25 @@
 "use client";
 
 // The side of the walk that reads. Top to bottom it is one thought: which station this is, how far
-// through it the playback has got, what the station does, and what it did to the row count. The two
-// pieces of SQL — the user's query and the statements the walk actually sent — are reference, not
-// narration, so they sit in tabs at the foot where they can be ignored.
+// through it the playback has got, what the station does, and what it did to the row count. The
+// reference material — the user's query, the statements the walk actually sent, and the prose the
+// user wrote around the query — is not narration, so it sits in tabs at the foot where it can be
+// ignored. "Your query" is the default of the three because it is the one anyone reads.
+//
+// The panes are components of their own (`query-pane.tsx`, `notes-panel.tsx`): each is now a real
+// piece of work rather than three slices of a string, and neither has anything to do with the other.
 
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowRightIcon } from "lucide-react";
+import type { SqlComment } from "@perch/sql";
 import * as React from "react";
 import { cn } from "../../lib/utils";
 import { Tabs, TabsList, TabsPanel, TabsTab } from "../../ui/tabs";
 import { highlightSql } from "../sql-editor/highlight-sql";
 import type { Phase } from "./narration";
+import { countNotes, NotesPanel, StationNote } from "./notes-panel";
+import type { Section } from "./program";
+import { QueryPane, stationRange } from "./query-pane";
 import type { Station } from "./steps";
 import { TickNumber } from "./tick-number";
 import type { StationResult, StationState } from "./use-walk";
@@ -36,6 +44,9 @@ export function Sentence({ text }: { text: string }): React.ReactElement {
 
 export function Narrator({
   sql,
+  root,
+  section,
+  comments,
   station,
   state,
   result,
@@ -47,7 +58,14 @@ export function Narrator({
   phases,
   onPhase,
 }: {
+  /** The section's own text: what ran, and the query pane's fallback when it cannot be placed. */
   sql: string;
+  /** The statement as written, comments already stripped — what "Your query" shows. */
+  root: string;
+  /** The open chapter, or null when the walk has none to place in `root`. */
+  section: Section | null;
+  /** Everything stripped out of the statement before the walk read it. */
+  comments: readonly SqlComment[];
   station: Station;
   state: StationState;
   result: StationResult | undefined;
@@ -61,13 +79,19 @@ export function Narrator({
   onPhase: (index: number) => void;
 }): React.ReactElement {
   const t = useT();
-  const clause = station.clause;
   const failed = state === "failed";
   const delta = input === null || count === null ? 0 : count - input;
   const queries = station.batches.flat();
   const [tab, setTab] = React.useState("query");
-  // A station with no clause ran no statements, so "SQL that ran" is empty and unselectable there.
-  const active = queries.length === 0 ? "query" : tab;
+  const notes = React.useMemo(() => countNotes(comments), [comments]);
+  // A station with no clause ran no statements, so "SQL that ran" is empty and unselectable there;
+  // a query with no comments has no Notes. Either way the selection falls back rather than leaving
+  // the tab strip pointing at a panel that is not there.
+  const empty = (queries.length === 0 && tab === "ran") || (notes === 0 && tab === "notes");
+  const active = empty ? "query" : tab;
+  // Where this station is in the text the comments were cut out of, so a remark written on that
+  // clause can be found. Null when the chapter does not map — see `query-pane.tsx`.
+  const here = stationRange(section, station);
   return (
     <aside
       aria-label="Narrator"
@@ -115,6 +139,9 @@ export function Narrator({
                 <p className="mt-1.5 text-foreground text-sm leading-relaxed">
                   <Sentence text={sentence} />
                 </p>
+                {/* The reader's own remark about THIS clause, and only ever one line of it. The
+                    question above the query is not here: it is three lines long and lives in Notes. */}
+                <StationNote comments={comments} range={here} />
               </>
             )}
           </motion.div>
@@ -133,21 +160,12 @@ export function Narrator({
           <TabsTab disabled={queries.length === 0} value="ran">
             SQL that ran
           </TabsTab>
+          <TabsTab disabled={notes === 0} value="notes">
+            Notes{notes > 0 && ` · ${notes}`}
+          </TabsTab>
         </TabsList>
         <TabsPanel className="min-h-0 overflow-auto" value="query">
-          <pre className="whitespace-pre-wrap font-mono text-sm leading-6">
-            {clause ? (
-              <>
-                <span className="opacity-40">{highlightSql(sql.slice(0, clause.from))}</span>
-                <mark className="rounded-sm bg-info/10 text-inherit">
-                  {highlightSql(sql.slice(clause.from, clause.to))}
-                </mark>
-                <span className="opacity-40">{highlightSql(sql.slice(clause.to))}</span>
-              </>
-            ) : (
-              <span className="opacity-40">{highlightSql(sql)}</span>
-            )}
-          </pre>
+          <QueryPane fallback={sql} root={root} section={section} station={station} />
         </TabsPanel>
         <TabsPanel className="min-h-0 overflow-auto" value="ran">
           <div className="flex flex-col gap-2">
@@ -173,6 +191,9 @@ export function Narrator({
               );
             })}
           </div>
+        </TabsPanel>
+        <TabsPanel className="min-h-0 overflow-auto" value="notes">
+          <NotesPanel comments={comments} />
         </TabsPanel>
       </Tabs>
     </aside>

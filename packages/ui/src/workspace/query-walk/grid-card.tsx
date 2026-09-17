@@ -50,7 +50,8 @@ export function GridCard({ grid }: { readonly grid: GridView }): React.ReactElem
       className="shrink-0 overflow-hidden rounded-lg border bg-card shadow-sm/5"
       exit={{ opacity: 0 }}
       initial={{ opacity: 0 }}
-      layout
+      // Position only: see the note on `Table` in `stage.tsx` for why no card animates its size.
+      layout="position"
       transition={{ layout: t.spring, default: t.fade }}
     >
       <div className="flex h-8 items-center gap-2 border-b bg-muted/60 px-2.5 font-medium text-xs">

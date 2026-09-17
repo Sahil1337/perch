@@ -6,18 +6,22 @@ it small and easy to change.
 
 ## Setup
 
-Bun 1.2 or newer is the package manager and script runner; Node 22 or newer (see `.nvmrc`) is
-what the server itself runs on. Install once, at the repo root:
+Bun 1.2+ installs and runs the scripts; the server itself targets Node 22+ (see `.nvmrc`).
+Install once, at the repo root:
 
 ```sh
 bun install        # installs every workspace
 bun run dev        # both halves: the UI on :3000, the API on a fresh port
 ```
 
-`bun run dev` runs `perch serve` and `next dev` together through Turborepo, prefixing each line
-with the workspace it came from. The UI keeps Next's usual :3000; the API takes a free port
-picked at startup, so it never argues with a real `perch serve` you have running, or with a second
-clone. Open the `dev UI` line:
+> **Never run an install or add a dependency inside `apps/*` or `packages/*`.** It creates a
+> nested lockfile and a second copy of React or TypeScript. Add the dependency to that
+> workspace's `package.json` and install at the root.
+
+`dev` runs `perch serve` and `next dev` together through Turborepo, prefixing each line with the
+workspace it came from. The UI keeps Next's usual :3000; the API takes a free port picked at
+startup, so it never argues with a real `perch serve` you have running, or with a second clone.
+Open the `dev UI` line:
 
 ```
 perch:dev: perch v0.1.0 → http://127.0.0.1:54716
@@ -34,22 +38,10 @@ line.
 Because the API port changes per run, a tab left open from a previous session points at a port
 that is gone — reload it from the fresh URL. To pin the port instead, set `PERCH_DEV_PORT=4600`.
 
-`bun run dev:server` and `bun run dev:ui` run one half each, skipping the launcher; both then
-default to :4600 — the server's `--port ${PERCH_DEV_PORT:-4600}` and `apps/web/.env.development`
-agree on that number so the halves still find each other. Note that `next dev` refuses to start a
-second server for the same directory, so stop any `next dev` you already have running for
-`apps/web` first.
-
-To drive the CLI out of the workspace without installing it globally:
-
-```sh
-bun run perch -- conn add local postgres://you@localhost:5432/postgres --test
-bun run perch -- run local -e "select 1"
-```
-
-> **Never run an install or add a dependency inside `apps/*` or `packages/*`.** It creates a
-> nested lockfile and a second copy of React or TypeScript. Add the dependency to that
-> workspace's `package.json` and run `bun install` at the root.
+`dev:server` and `dev:ui` run one half each, skipping the launcher; both then default to :4600 —
+the server's `--port ${PERCH_DEV_PORT:-4600}` and `apps/web/.env.development` agree on that number
+so the halves still find each other. Note that `next dev` refuses to start a second server for the
+same directory, so stop any `next dev` you already have running for `apps/web` first.
 
 ## Repo map
 
@@ -63,35 +55,37 @@ perch/
 ├─ packages/sql/       @perch/sql — statement splitter + formatter the frontend needs
 ├─ packages/tsconfig/  @perch/tsconfig — base / node / react presets
 ├─ eslint.config.js    one ESLint config for the repo (apps/web pins its own)
-├─ turbo.json          Turborepo tasks — `dev` only; build/typecheck/lint stay on bun
+├─ turbo.json          Turborepo tasks — `dev` and `start`; everything else fans out directly
 ├─ scripts/dev.mjs     picks the API's port, then hands both halves to turbo
 └─ docs/               architecture/, api/, design/
 ```
 
 ## Scripts
 
-Run these from the repo root. The fan-out ones use `bun run --filter '*'`, so a workspace that
-does not define the script is skipped rather than failing the run.
+Run these from the repo root as `bun run <script>`. The fan-out ones use `--filter '*'`, so a
+workspace that does not define the script is skipped rather than failing the run.
 
 | Script | What it does |
 |---|---|
-| `bun run dev` | both halves: `next dev` on :3000 + `perch serve` on a free port (scripts/dev.mjs) |
-| `bun run dev:server` | just the server (`perch serve --no-open` on :4600, from TypeScript) |
-| `bun run dev:ui` | just the UI (`next dev` on :3000, expects the API on :4600) |
-| `bun run build` | builds every workspace that has a build |
-| `bun run start` | runs the built app: `perch serve` on :4600, serving the built UI and the API |
-| `bun run typecheck` | `tsc --noEmit` across every workspace |
-| `bun run lint` | ESLint over apps/server and packages/ui, then apps/web's own ESLint 9 pass |
-| `bun run smoke` | end-to-end smoke against a local Postgres (apps/server/scripts/smoke.sh) |
-| `bun run perch -- <args>` | runs the `perch` binary from the server workspace (needs a build) |
-| `bun run clean` | removes node_modules and all build output |
+| `dev` | both halves: `next dev` on :3000 + `perch serve` on a free port (scripts/dev.mjs) |
+| `dev:server` | just the server (`perch serve --no-open` on :4600, from TypeScript) |
+| `dev:ui` | just the UI (`next dev` on :3000, expects the API on :4600) |
+| `build` | builds every workspace that has a build |
+| `start` | runs the built app: `perch serve` on :4600, serving the built UI and the API |
+| `typecheck` | `tsc --noEmit` across every workspace |
+| `lint` | ESLint over apps/server and packages/ui, then apps/web's own ESLint 9 pass |
+| `smoke` | end-to-end smoke against a local Postgres (apps/server/scripts/smoke.sh) |
+| `perch -- <args>` | runs the `perch` binary from the server workspace (needs a build) |
+| `clean` | removes node_modules and all build output |
 
 To target a single workspace, use `--filter`: `bun run --filter perch typecheck`,
 `bun run --filter @perch/web lint`, `bun run --filter @perch/protocol check`.
 
-Bun installs and runs the scripts; **it is not the server's runtime**. `apps/server`
-declares `engines.node >=22` and imports `node:` builtins, so everything in CI that runs
-the CLI runs it on Node, across an OS matrix.
+**Node 22+ is still a supported target.** Dev and the shipped binary both run on Bun, but
+`apps/server` declares `engines.node >=22`, points `bin` at `dist/cli/main.js` and runs `start` as
+`node dist/cli/main.js`. Nothing exercises that path day to day (CI is commented out while the
+repo is private), so check a change that touches process, fs, net or crypto with
+`bun run --filter perch build && bun run --filter perch start`.
 
 ## Where things go
 

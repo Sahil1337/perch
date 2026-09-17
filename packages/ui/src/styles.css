@@ -255,6 +255,15 @@
   html {
     @apply font-sans;
   }
+  /* Text selection, which nothing styled before this: the browser's own highlight is picked for a
+     white page, and under `color-scheme: dark` it lands as a flat slab that fights the surface it
+     is on and dims the text it is meant to pick out. The tint is the editor's selection formula
+     exactly (`sql-editor/theme.ts`), so dragging across a card and dragging across SQL are the
+     same colour. Translucent on purpose — the ink underneath keeps its own colour, which is what
+     lets a red error line or a lit cell stay itself while selected. */
+  ::selection {
+    background-color: color-mix(in oklab, var(--color-info) 30%, transparent);
+  }
 }
 
 /* The raw palette. Namespaced --bui-* so it cannot clash with the theme tokens above; the remap

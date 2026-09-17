@@ -11,6 +11,7 @@
 
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { XIcon } from "lucide-react";
+import { stripComments, type SqlComment } from "@perch/sql";
 import * as React from "react";
 import { Button } from "../../ui/button";
 import { useWorkspace } from "../context";
@@ -21,7 +22,16 @@ import { useProgram, type Probe } from "./use-walk";
 export function QueryWalk({ sql }: { sql: string }): React.ReactElement {
   const { connection, probe } = useWorkspace();
   const dialect = connection?.dialect ?? "postgres";
-  const program = React.useMemo(() => buildProgram(sql, dialect), [sql, dialect]);
+  // Comments come out BEFORE anything else looks at the statement, and the whole walk is built from
+  // what is left. An exercise question written as a `--` header is part of the text, so left in it
+  // dominates every pane that echoes the query and is copied into every statement the walk sends;
+  // taken out here, each range, probe, highlight and "SQL that ran" is comment-free without any of
+  // them knowing comments exist. They are carried down to the narrator, which has a tab for them.
+  const stripped = React.useMemo(() => stripComments(sql), [sql]);
+  const program = React.useMemo(
+    () => buildProgram(stripped.sql, dialect),
+    [stripped.sql, dialect],
+  );
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border bg-popover text-popover-foreground shadow-lg/5">
@@ -51,13 +61,21 @@ export function QueryWalk({ sql }: { sql: string }): React.ReactElement {
           Connect to a database to walk this query.
         </p>
       ) : (
-        <Walk probe={probe} program={program} />
+        <Walk comments={stripped.comments} probe={probe} program={program} />
       )}
     </div>
   );
 }
 
 /** A component of its own only so `useProgram` is never called for a statement that has no program. */
-function Walk({ program, probe }: { program: Program; probe: Probe }): React.ReactElement {
-  return <WalkPlayer data={useProgram(program, probe)} probe={probe} />;
+function Walk({
+  program,
+  probe,
+  comments,
+}: {
+  program: Program;
+  probe: Probe;
+  comments: readonly SqlComment[];
+}): React.ReactElement {
+  return <WalkPlayer comments={comments} data={useProgram(program, probe)} probe={probe} />;
 }

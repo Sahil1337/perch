@@ -9,7 +9,7 @@ import { cn } from "../../lib/utils";
 import { formatCell } from "../results-grid";
 import type { BucketView, Col, Scene } from "./scenes";
 import { TickNumber } from "./tick-number";
-import { collapseAfter, useT } from "./walk-motion";
+import { collapseAfter, staggerDelay, useT } from "./walk-motion";
 
 export function BucketsScene({
   scene,
@@ -54,7 +54,9 @@ function Bucket({
       animate={{ opacity: 1, y: 0 }}
       className="w-44 shrink-0 overflow-hidden rounded-lg border bg-card shadow-sm/5"
       initial={{ opacity: 0, y: 10 }}
-      layout
+      // Position only: a bucket's height is already moving under it as the members fold away, and
+      // scaling the card on top of that animates the same height twice. See `Table` in `stage.tsx`.
+      layout="position"
       transition={{ ...t.spring, delay: t.reduced ? 0 : index * 0.05 }}
     >
       <div className="flex h-8 items-center gap-2 border-b bg-info/10 px-2.5 font-medium text-info-foreground text-xs">
@@ -72,7 +74,7 @@ function Bucket({
               <motion.div
                 animate={{ opacity: 1 }}
                 className="mb-1 flex h-7 items-center gap-2 overflow-hidden rounded-md border bg-card px-2 font-mono text-xs tabular-nums last:mb-0"
-                exit={{ height: 0, opacity: 0, marginBottom: 0, transition: collapseAfter(t, i * 0.06) }}
+                exit={{ height: 0, opacity: 0, marginBottom: 0, transition: collapseAfter(t, staggerDelay(i, bucket.members.length, 0.06)) }}
                 initial={{ opacity: 0 }}
                 key={member.key}
                 layout="position"

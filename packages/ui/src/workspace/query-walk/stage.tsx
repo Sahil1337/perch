@@ -9,6 +9,7 @@ import * as React from "react";
 import type { Cell as CellValue } from "@perch/protocol";
 import { cn } from "../../lib/utils";
 import { Button } from "../../ui/button";
+import { ScrollArea } from "../../ui/scroll-area";
 import { Spinner } from "../../ui/spinner";
 import { formatCell } from "../results-grid";
 import { AnswerCard } from "./answer-card";
@@ -21,13 +22,16 @@ import { TerminusCard } from "./terminus-card";
 import { TickNumber } from "./tick-number";
 import type { StationState } from "./use-walk";
 import { VerdictMark } from "./verdict-mark";
-import { collapseAfter, useSpeed, useT } from "./walk-motion";
+import { collapseAfter, staggerDelay, useRowsMove, useSpeed, useT } from "./walk-motion";
 
 /**
  * Where a FROM source came from, when it became a section of its own: the section's name, and a way
  * to open it. Null for a plain table, and for a subquery the slicer never sliced.
  */
-export type SourceLink = { readonly label: string; readonly onJump: () => void };
+export type SourceLink = {
+  readonly label: string;
+  readonly onJump: () => void;
+};
 
 export function Stage({
   scene,
@@ -50,32 +54,42 @@ export function Stage({
   sceneKey: string;
 }): React.ReactElement {
   const t = useT();
-  const box = React.useRef<HTMLDivElement>(null);
-  const edges = useEdges(box);
   return (
     <section
       aria-label="Stage"
       className="relative min-h-96 min-w-0 flex-1 overflow-hidden rounded-xl border bg-muted/40"
     >
       {/* A wide join runs past the stage, so the edge with more to show fades out: the only honest
-          way to say "there is more this way" without stealing a row of height for a legend. */}
-      <div
-        className={cn(
-          "size-full overflow-auto",
-          edges.left && edges.right
-            ? "mask-x-from-92%"
-            : edges.right
-              ? "mask-r-from-92%"
-              : edges.left
-                ? "mask-l-from-92%"
-                : null,
-        )}
-        ref={box}
+          way to say "there is more this way" without stealing a row of height for a legend.
+
+          `ScrollArea` is where that lives, the same as every other scroll box in the app. It was
+          hand-rolled here once — a hook measuring `scrollWidth` on a frame, a mask toggled by React
+          state, and a memo to stop that state re-rendering the scene — three moving parts to
+          reproduce what `scrollFade` does declaratively off Base UI's own overflow variables. It
+          also fades IN PROPORTION to what is left over the edge rather than snapping on at the ends,
+          which is what the hand-rolled one could never do.
+
+          `clampContentMinWidth={false}` because a wide join is exactly the content that has to be
+          allowed past the viewport's width, and `fill` so the scene can still centre itself against
+          the full height of the stage. */}
+      <ScrollArea
+        clampContentMinWidth={false}
+        fill
+        scrollFade
+        // The scrollport has to be a motion element: layout animations happen inside it, and without
+        // `layoutScroll` every rectangle measured in here is out by the scroll offset the moment a
+        // wide join has been scrolled, so rows animate in from somewhere they never were.
+        viewportRender={<motion.div layoutScroll />}
       >
         {/* `items-center-safe`, so a scene taller than the stage scrolls from its top edge rather
             than having it centred out of reach. `max-w-full` lets a wrapping scene use the width. */}
-        <div className="flex min-h-full items-center-safe p-4 md:p-6">
-          <div className="mx-auto w-max max-w-full">
+        <div className="flex min-h-full items-center-safe">
+          {/* The padding rides on the scene rather than on the scroll box. A scene wider than the
+              stage overflows a padded box, and overflow runs past padding: the left gutter holds
+              because the content starts after it, the right one is simply not in the scroll range,
+              so the widest card ends flush against the edge. On `w-max` it is part of the scene's
+              own width and both edges scroll into view. */}
+          <div className="mx-auto w-max max-w-full p-4 md:p-6">
             <LayoutGroup key={sceneKey}>
               {/* A station that failed or is not in the query has no scene: whatever the builder
                   could still make of it is a half-built card, and the message below would print
@@ -88,12 +102,12 @@ export function Stage({
             </LayoutGroup>
           </div>
         </div>
-      </div>
+      </ScrollArea>
       <AnimatePresence>
         {state === "loading" && (
           <motion.div
             animate={{ opacity: 1 }}
-            className="absolute inset-0 flex items-center justify-center gap-2 bg-background/60 text-muted-foreground text-sm backdrop-blur-sm"
+            className="absolute inset-0 flex items-center justify-center gap-2 bg-background/85 text-muted-foreground text-sm"
             exit={{ opacity: 0 }}
             initial={{ opacity: 0 }}
             key="loading"
@@ -133,46 +147,6 @@ export function Stage({
 }
 
 /**
- * Which sides of a scroll box still have content behind them. The scene's own width is not
- * observable — the cards overflow a wrapper that never changes size — so the measurement is taken
- * after every render (a new station or phase) and again once that scene's motion has settled.
- */
-function useEdges(ref: React.RefObject<HTMLDivElement | null>): { left: boolean; right: boolean } {
-  const [edges, setEdges] = React.useState({ left: false, right: false });
-  const measure = React.useCallback((): void => {
-    const box = ref.current;
-    if (!box) return;
-    const left = box.scrollLeft > 2;
-    const right = box.scrollWidth - box.clientWidth - box.scrollLeft > 2;
-    setEdges((previous) =>
-      previous.left === left && previous.right === right ? previous : { left, right },
-    );
-  }, [ref]);
-
-  // No dependency array on purpose: every render is a scene that may be a different width. The
-  // state setter returns the same object when nothing moved, so this settles after one pass.
-  React.useEffect(() => {
-    measure();
-    const settle = [setTimeout(measure, 400), setTimeout(measure, 1000)];
-    return () => settle.forEach(clearTimeout);
-  });
-
-  React.useEffect(() => {
-    const box = ref.current;
-    if (!box) return;
-    box.addEventListener("scroll", measure, { passive: true });
-    const observer = new ResizeObserver(measure);
-    observer.observe(box);
-    return () => {
-      box.removeEventListener("scroll", measure);
-      observer.disconnect();
-    };
-  }, [ref, measure]);
-
-  return edges;
-}
-
-/**
  * The cards of a scene in a row, with the grid — when there is one — first and widest.
  *
  * The terminus is the one card that is NOT in that row: it belongs under the result it explains,
@@ -190,13 +164,13 @@ function TablesScene({
   const terminus = scene.kind === "tables" ? scene.terminus : undefined;
   const answer = scene.kind === "tables" ? scene.answer : undefined;
   return (
-    <motion.div className="flex flex-col items-start gap-3" layout transition={t.spring}>
+    <motion.div className="flex flex-col items-start gap-3" layout="position" transition={t.spring}>
       <motion.div
         className={cn(
           "relative flex items-start",
           scene.kind === "grid" ? "gap-6" : scene.tight ? "gap-3" : "gap-12",
         )}
-        layout
+        layout="position"
         transition={t.spring}
       >
         <AnimatePresence initial={false} mode="popLayout">
@@ -235,34 +209,55 @@ function Table({
   // plain table, or a subquery the slicer refused — offers nothing here; there is nowhere to go,
   // and an unsliced subquery is already accounted for in the skipped note under the strip.
   const link = view.source ? sourceLink(view.source) : null;
+  /** The reference already says what the title says, so the title is the one to drop. */
+  const named = link !== null && link.label === view.title;
+  // The gutter down the left edge belongs to the verdict marks. A card that never stamps one — a
+  // result, a plain source — would otherwise carry 22px of dead space that reads as the first
+  // column being indented, against the `px-2` its last column gets on the other edge.
+  const marks = view.rows.some((row) => row.verdict !== undefined);
   return (
     <motion.div
       animate={{ opacity: 1 }}
       className="shrink-0 overflow-hidden rounded-lg border bg-card shadow-sm/5"
       exit={{ opacity: 0 }}
       initial={{ opacity: 0 }}
-      layout
+      // POSITION, not size. A bare `layout` animates a card's width and height by SCALING it and
+      // then un-scaling every projection node inside, which is both the most expensive thing on this
+      // stage — a correction written to every child, every frame — and a second animation of a
+      // height that is already moving, because the rows inside are collapsing out on their own clock.
+      // Two springs on one height is exactly the stutter this looked like. The card now follows its
+      // content the way any other element does, and only its POSITION, when a neighbour resizes, is
+      // animated. Nothing inside it is scaled, so nothing inside it has to be corrected.
+      layout="position"
       transition={{ layout: t.spring, default: t.fade }}
     >
       <div className="flex h-8 items-center gap-2 border-b bg-muted/60 px-2.5 font-medium text-xs">
-        <span className="relative">
-          <AnimatePresence initial={false} mode="popLayout">
-            <motion.span
-              animate={{ opacity: 1, y: 0 }}
-              className="block whitespace-nowrap"
-              exit={{ opacity: 0, y: -4 }}
-              initial={{ opacity: 0, y: 4 }}
-              key={view.title}
-              transition={t.fade}
-            >
-              {view.title}
-            </motion.span>
-          </AnimatePresence>
-        </span>
+        {/* A source read under its section's own name says that name twice — a title reading
+            `advisor_teaches` beside a button reading `advisor_teaches`. The repetition is not just
+            noise: a card is as wide as its header and its columns are laid out at fixed pixel
+            widths, so the doubled name stretches the card well past its own table and leaves a
+            band of empty space down the right of the rows. The button carries the name in that
+            case, because it is the half that also goes somewhere. */}
+        {!named && (
+          <span className="relative">
+            <AnimatePresence initial={false} mode="popLayout">
+              <motion.span
+                animate={{ opacity: 1, y: 0 }}
+                className="block whitespace-nowrap"
+                exit={{ opacity: 0, y: -4 }}
+                initial={{ opacity: 0, y: 4 }}
+                key={view.title}
+                transition={t.fade}
+              >
+                {view.title}
+              </motion.span>
+            </AnimatePresence>
+          </span>
+        )}
         {link && (
           <Button
             aria-label={`Computed in ${link.label}, go to it`}
-            className="ms-1"
+            className={cn(!named && "ms-1")}
             onClick={link.onJump}
             size="xs"
             variant="outline"
@@ -287,12 +282,10 @@ function Table({
       ) : (
         <>
           <div className="flex h-7 items-stretch border-b">
-            <div className="w-5.5 shrink-0" />
-            <AnimatePresence initial={false}>
-              {view.cols.map((col) => (
-                <HeaderCell col={col} key={col.id} />
-              ))}
-            </AnimatePresence>
+            {marks && <div className="w-5.5 shrink-0" />}
+            {view.cols.map((col) => (
+              <HeaderCell col={col} key={col.id} />
+            ))}
             {hidden.length > 0 && (
               <div
                 className="flex h-7 w-12 shrink-0 items-center justify-center font-mono text-muted-foreground text-xs"
@@ -305,7 +298,7 @@ function Table({
           {/* The rows scroll under the header rather than growing the card past the stage: a
               25-row sample is three screens tall, and the card's title has to stay in sight. The
               cap is 16 rows: `h-7` plus each row's own bottom border, so no row is cut in half. */}
-          <div className="max-h-116 overflow-y-auto">
+          <motion.div className="max-h-116 overflow-y-auto" layoutScroll>
             {items.length === 0 && (
               <p className="px-3 py-6 text-center text-muted-foreground text-xs">
                 {view.empty ?? "No rows."}
@@ -318,37 +311,43 @@ function Table({
                 ) : (
                   <Row
                     cols={view.cols}
+                    count={view.rows.length}
                     folded={hidden.length > 0}
                     index={item.index}
                     key={item.row.key}
+                    marks={marks}
                     row={item.row}
                     settled={view.settled === true}
                   />
                 ),
               )}
             </AnimatePresence>
-          </div>
+          </motion.div>
         </>
       )}
     </motion.div>
   );
 }
 
+/**
+ * A column header. The width is a plain custom property, not an animated one: see `Cell`.
+ *
+ * The label still crossfades and the sort arrow still arrives — that is one node per column, at most
+ * nine per card, and it is the part a reader actually watches.
+ */
 function HeaderCell({ col }: { col: Col }): React.ReactElement {
   const t = useT();
   return (
-    <motion.div
-      animate={{ width: col.width, opacity: 1 }}
-      className="shrink-0 overflow-hidden"
-      exit={{ width: 0, opacity: 0 }}
-      initial={{ width: 0, opacity: 0 }}
-      transition={t.collapse}
-    >
+    <div className="shrink-0 overflow-hidden">
       <div
         className={cn(
           "flex h-7 w-(--w) items-center gap-1 whitespace-nowrap px-2 font-mono text-xs transition-colors duration-200",
           col.num && "justify-end",
-          col.hl ? "bg-info/10 text-info-foreground" : "text-muted-foreground",
+          col.hl
+            ? "bg-info/10 text-info-foreground"
+            : col.drop
+              ? "text-muted-foreground/50 line-through"
+              : "text-muted-foreground",
         )}
         style={{ "--w": `${col.width}px` } as React.CSSProperties}
       >
@@ -386,7 +385,7 @@ function HeaderCell({ col }: { col: Col }): React.ReactElement {
           )}
         </AnimatePresence>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -394,22 +393,52 @@ function Row({
   row,
   cols,
   index,
+  count,
   folded,
+  marks,
   settled,
 }: {
   row: RowView;
   cols: readonly Col[];
   index: number;
+  /** How many rows are moving together, which is what bounds the stagger. See `staggerDelay`. */
+  count: number;
   /** The card folded some columns away: this row needs the same placeholder its header has. */
   folded: boolean;
+  /** Some row on this card carries a verdict, so every row keeps the gutter the marks sit in. */
+  marks: boolean;
   /** The card arrived with its verdicts already decided: nothing here is a test happening now. */
   settled: boolean;
 }): React.ReactElement {
   const t = useT();
   const speed = useSpeed();
+  /**
+   * The station moves rows, so this one is a shared element: it may be the same row a station
+   * earlier, on this card or on the one beside it, and the layout animation carries it there.
+   *
+   * Off everywhere else, and that costs nothing to look at. A station that REBUILDS its rows gives
+   * them new cells, a row's key is the hash of its cells, so the row remounts and fades whatever the
+   * projection system is told — all `layoutId` bought there was a measurement of every row on stage
+   * on every frame of every transition.
+   */
+  const moves = useRowsMove();
   const verdict = row.verdict;
   const testDelay = ((row.testIndex ?? 0) * STAGGER_MS) / speed;
-  const delayMs = t.reduced || settled ? 0 : verdict ? testDelay : (index * 70) / speed;
+  /**
+   * When this row's turn comes, in seconds: rows ARRIVE one after another rather than all at once.
+   *
+   * This is what a station's beat is actually spent on. Without it every row of a card faded in
+   * together over 220ms and then the scene sat still until the next station — a flash followed by a
+   * wait, which is what "too fast" means here even when the beat itself is long. Lengthening the
+   * beat only lengthens the wait; the fix is to give the reader something arriving THROUGH it.
+   *
+   * A settled card is exempt on purpose: it arrived with everything already decided, and dealing its
+   * rows out one by one would perform an event that did not happen. See `settled`.
+   */
+  const arrive = t.reduced || settled ? 0 : staggerDelay(index, count, 0.045) / speed;
+  // The tint and the verdict mark ride the same wave, bounded the same way. A verdict keeps the
+  // test's own clock, which the WHERE and HAVING phases already budget for (`n * STAGGER_MS + 700`).
+  const delayMs = t.reduced || settled ? 0 : verdict ? testDelay : arrive * 1000;
   return (
     <motion.div
       animate={{ opacity: 1 }}
@@ -421,12 +450,16 @@ function Row({
         verdict === "fail" && "bg-destructive/8",
         row.current && "z-10 ring-1 ring-info ring-inset",
       )}
-      exit={{ height: 0, opacity: 0, transition: collapseAfter(t, index * 0.045) }}
+      exit={{
+        height: 0,
+        opacity: 0,
+        transition: collapseAfter(t, staggerDelay(index, count, 0.045) / speed),
+      }}
       initial={{ opacity: 0 }}
-      layout="position"
-      layoutId={row.key}
+      layout={moves ? "position" : undefined}
+      layoutId={moves ? row.key : undefined}
       style={{ "--d": `${delayMs}ms` } as React.CSSProperties}
-      transition={{ layout: t.spring, default: t.fade }}
+      transition={{ layout: t.spring, default: { ...t.fade, delay: arrive } }}
     >
       {verdict === "pass" && !settled && (
         <motion.span
@@ -436,21 +469,21 @@ function Row({
           transition={{ duration: t.reduced ? 0 : 0.9, delay: delayMs / 1000, times: [0, 0.25, 1] }}
         />
       )}
-      <div className="flex w-5.5 shrink-0 items-center justify-center">
-        <VerdictMark delayMs={delayMs} settled={settled} verdict={verdict} />
-      </div>
-      <AnimatePresence initial={false}>
-        {cols.map((col) => (
-          <Cell
-            col={col}
-            delayMs={delayMs}
-            fail={verdict === "fail"}
-            hl={Boolean(col.hl) || Boolean(row.hl?.includes(col.id))}
-            key={col.id}
-            value={row.cells[col.id] ?? null}
-          />
-        ))}
-      </AnimatePresence>
+      {marks && (
+        <div className="flex w-5.5 shrink-0 items-center justify-center">
+          <VerdictMark delayMs={delayMs} settled={settled} verdict={verdict} />
+        </div>
+      )}
+      {cols.map((col) => (
+        <Cell
+          col={col}
+          delayMs={delayMs}
+          fail={verdict === "fail"}
+          hl={Boolean(col.hl) || Boolean(row.hl?.includes(col.id))}
+          key={col.id}
+          value={row.cells[col.id] ?? null}
+        />
+      ))}
       {folded && (
         <span
           aria-hidden
@@ -463,6 +496,16 @@ function Row({
   );
 }
 
+/**
+ * One cell. A plain div sized by a custom property — the pattern the grid card already uses.
+ *
+ * This used to be a `motion.div` folding its own width in and out, which is the most expensive thing
+ * this file ever did: `width` is not a transform, so each of them wrote a layout property every
+ * frame, and a join scene carries three cards of twenty-five rows by eight columns — six hundred
+ * JavaScript-driven animations, each invalidating the layout of a card that was ALSO being measured
+ * by the projection nodes above it. The fold it paid for was mostly invisible anyway: a row's key is
+ * the hash of its cells, so a card whose columns changed has already remounted every row.
+ */
 function Cell({
   col,
   value,
@@ -476,28 +519,29 @@ function Cell({
   fail: boolean;
   delayMs: number;
 }): React.ReactElement {
-  const t = useT();
   return (
-    <motion.div
-      animate={{ width: col.width, opacity: 1 }}
-      className="shrink-0 overflow-hidden"
-      exit={{ width: 0, opacity: 0 }}
-      initial={{ width: 0, opacity: 0 }}
-      transition={t.collapse}
-    >
+    <div className="shrink-0 overflow-hidden">
       <div
         className={cn(
           "flex h-7 w-(--w) items-center truncate whitespace-nowrap px-2 font-mono text-xs tabular-nums line-through decoration-transparent transition-colors delay-(--d) duration-200",
           col.num && "justify-end",
           value === null && "text-muted-foreground italic",
           hl && !fail && "bg-info/10 text-info-foreground",
+          // On its way out of the query: dimmed, so the columns that survive read as the card's
+          // subject and these as what is leaving it.
+          col.drop && !fail && "text-muted-foreground/45",
           fail && "text-destructive-foreground decoration-destructive/70",
         )}
-        style={{ "--w": `${col.width}px`, "--d": `${delayMs}ms` } as React.CSSProperties}
+        style={
+          {
+            "--w": `${col.width}px`,
+            "--d": `${delayMs}ms`,
+          } as React.CSSProperties
+        }
       >
         {formatCell(value)}
       </div>
-    </motion.div>
+    </div>
   );
 }
 

@@ -27,7 +27,7 @@ import { useReportEvidence } from "./bound-evidence";
 import { BoundPanel } from "./bound-panel";
 import { BoundScrubber } from "./bound-scrubber";
 import { GridPickContext } from "./grid-card";
-import { boundInnerTitle, boundPhases, ROW_HOLD_MS } from "./narration";
+import { BEAT, boundInnerTitle, boundPhases, ROW_HOLD_MS } from "./narration";
 import type { Program, Section, SectionId } from "./program";
 import { answerView, boundScene, gridScene, innerCard, type Scene, type TableView } from "./scenes";
 import { Stage } from "./stage";
@@ -35,7 +35,7 @@ import type { BoundEvidence } from "./terminus";
 import { useBoundRun } from "./use-bound";
 import { bindKey, useGridRun } from "./use-grid";
 import type { Probe, StationState } from "./use-walk";
-import { useSpeed, useT } from "./walk-motion";
+import { RowsMoveContext, useSpeed, useT } from "./walk-motion";
 
 /** What the grid measured for one cell, or null when its probe never reached that pair. */
 function answerFor(
@@ -123,7 +123,7 @@ function BoundWalk({
     const lastRow = current >= rows.length - 1;
     const id = setTimeout(
       () => (lastRow ? onDone() : bind(current + 1)),
-      ROW_HOLD_MS / speed,
+      (ROW_HOLD_MS * BEAT) / speed,
     );
     return () => clearTimeout(id);
   }, [bind, current, onDone, playing, rows.length, speed, waiting]);
@@ -267,12 +267,17 @@ function BoundWalk({
             {/* Keyed by the section rather than by the bound row: stepping from one outer row to
                 the next is exactly where the inner card should animate, because those rows are
                 successive answers from the same subquery. */}
-            <Stage
-              scene={scene ?? NOTHING_YET}
-              sceneKey={plan.section.id}
-              sourceLink={NO_LINK}
-              state={state}
-            />
+            {/* A row that answered for the last outer row and answers again for this one IS the
+                same row, so it travels rather than being struck out and redrawn: the one place
+                outside a filter where that is true, and these cards are a handful of rows. */}
+            <RowsMoveContext.Provider value>
+              <Stage
+                scene={scene ?? NOTHING_YET}
+                sceneKey={plan.section.id}
+                sourceLink={NO_LINK}
+                state={state}
+              />
+            </RowsMoveContext.Provider>
           </div>
           <BoundPanel
             answer={answer}

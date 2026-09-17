@@ -26,8 +26,9 @@ bun run --filter perch compile     # bundles src/cli/main.ts → apps/server/dis
 ./apps/server/dist/perch --help
 ```
 
-`bun run dev` (root) skips the build and runs the CLI straight from TypeScript with `tsx`
-(`tsx src/cli/main.ts serve --no-open`).
+`bun run dev` (root) skips the build and runs the CLI straight from TypeScript on Bun
+(`bun src/cli/main.ts serve --no-open`). `bun run start` runs the built output on Node, which is
+the other runtime this CLI has to work on — see CONTRIBUTING.md.
 
 ## Quick start
 
