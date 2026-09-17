@@ -11,7 +11,6 @@ PostgreSQL · MySQL · Local-first · SQL notebooks · CLI
 </p>
 
 <p>
-<a href="#installation">Installation</a> ·
 <a href="#getting-started">Getting started</a> ·
 <a href="#features">Features</a> ·
 <a href="apps/server/README.md">CLI & API</a> ·
@@ -140,6 +139,10 @@ There is no import step or proprietary project format.
 - Autosave is configurable
 - Untitled queries can be saved into a workspace
 
+<p align="center">
+  <img src="docs/assets/open-folder.png" alt="Perch folder picker for opening a workspace" width="748">
+</p>
+
 ---
 
 ### Split panes
@@ -205,26 +208,11 @@ Switching connections or databases automatically updates the schema and editor c
   <img src="docs/assets/command-palette.png" alt="Perch command palette" width="635">
 </p>
 
-## Installation
-
-Download the latest binary for your platform from [Perch Releases](https://github.com/Sahil1337/perch/releases).
-
-```sh
-chmod +x perch
-mv perch /usr/local/bin/perch
-```
-
-On macOS, Gatekeeper may quarantine downloaded binaries:
-
-```sh
-xattr -d com.apple.quarantine /usr/local/bin/perch
-```
-
-To build from source, see [`CONTRIBUTING.md`](CONTRIBUTING.md).
-
 ## Getting started
 
-Start Perch:
+Perch has no prebuilt binaries yet — build it from source by following [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
+Then start Perch:
 
 ```sh
 perch
