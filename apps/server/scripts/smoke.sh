@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # End-to-end smoke test against a local Postgres. This is the only automated exercise of the CLI
 # and the HTTP API, so every step asserts its answer: a wrong status code or a missing field fails
-# the run. Usage: bash scripts/smoke.sh   (override the database with PERCH_SMOKE_PG=<url>)
+# the run. The CLI is serve/stop/status only, so everything else runs over the API.
+# Usage: bash scripts/smoke.sh   (override the database with PERCH_SMOKE_PG=<url>)
 set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/.."
@@ -30,18 +31,6 @@ trap cleanup EXIT
 
 echo "== CLI (perch home: $PERCH_HOME)"
 expect "version prints a semver" "$($CLI --version | grep -cE '^[0-9]+\.[0-9]+\.[0-9]+$')" "1"
-expect_has "conn add --test reaches the server" "ok ·" "$($CLI conn add demo "$PG_URL" --test)"
-expect_has "conn ls lists it" "demo" "$($CLI conn ls)"
-expect_has "conn dbs sees the target db" "$PG_DB" "$($CLI conn dbs demo)"
-expect_has "schema lists orders" "orders" "$($CLI schema demo)"
-expect_has "schema --table shows a pk" "pk" "$($CLI schema demo --table public.orders)"
-expect_has "run table format has a footer" "rows ·" "$($CLI run demo -e "select status, count(*) as n from orders group by 1")"
-expect "run json format returns 3 rows" "$($CLI run demo -e "select id from orders limit 3" --format json | json 'j.length')" "3"
-expect "run csv format has the header" "$($CLI run demo -e "select id, status from orders limit 1" --format csv | head -1 | tr -d '\r')" "id,status"
-set +e; ERR_OUT=$($CLI run demo -e "select * from order o" 2>&1); ERR_CODE=$?; set -e
-expect "run exits 1 on a SQL error" "$ERR_CODE" "1"
-expect_has "run prints the error" "syntax error" "$ERR_OUT"
-expect_has "history records the runs" "select" "$($CLI history --limit 3)"
 
 echo "== server"
 $CLI serve --port "$PORT" --no-open --dir "$PWD" > "$PERCH_HOME/serve.log" 2>&1 &
@@ -50,10 +39,20 @@ for _ in $(seq 1 40); do curl -sf "$B/health" >/dev/null && break; sleep 0.5; do
 J="content-type: application/json"
 
 expect "health names the server" "$(curl -s "$B/health" | json 'j.name')" "perch"
-CID=$(curl -s "$B/connections" | json 'j[0].id')
+# Connections come from the API, so this is where the one the rest of the run uses is created.
+CREATED=$(curl -s -X POST -H "$J" -d "{\"name\":\"demo\",\"url\":\"$PG_URL\"}" "$B/connections")
+CID=$(echo "$CREATED" | json 'j.id')
+expect "create connection answers without the password" "$(echo "$CREATED" | json 'j.name + ":" + String("password" in j)')" "demo:false"
 expect "connections lists demo without its password" "$(curl -s "$B/connections" | json 'j[0].name + ":" + String("password" in j[0])')" "demo:false"
+TESTED=$(curl -s -X POST "$B/connections/$CID/test")
+expect "test round-trips a server version and a latency" "$(echo "$TESTED" | json 'String(j.serverVersion.length > 0) + ":" + typeof j.latencyMs')" "true:number"
+expect "databases sees the target db" "$(curl -s "$B/connections/$CID/databases" | json "String(j.includes('$PG_DB'))")" "true"
 expect "connect → connected" "$(curl -s -X POST "$B/connections/$CID/connect" | json 'j.status')" "connected"
 expect "schema has orders with 5 columns" "$(curl -s "$B/connections/$CID/schema" | json 'j.schemas[0].tables.find(t=>t.name==="orders").columns.length')" "5"
+expect "schema marks the orders primary key" "$(curl -s "$B/connections/$CID/schema" | json 'String(j.schemas[0].tables.find(t=>t.name==="orders").columns.some(c=>c.pk))')" "true"
+SYNC=$(curl -s -X POST -H "$J" -d "{\"connectionId\":\"$CID\",\"sql\":\"select status, count(*) as n from orders group by 1\"}" "$B/query/sync")
+expect "sync query finishes and times itself" "$(echo "$SYNC" | json 'j.status + ":" + typeof j.durationMs')" "done:number"
+expect "sync query returns 3 rows" "$(curl -s -X POST -H "$J" -d "{\"connectionId\":\"$CID\",\"sql\":\"select id from orders limit 3\"}" "$B/query/sync" | json 'j.results[0].rowCount')" "3"
 STREAM=$(curl -s -N -X POST -H "$J" -d "{\"connectionId\":\"$CID\",\"sql\":\"select id from orders limit 5; select count(*) from customers\"}" "$B/query")
 expect "stream starts with 2 statements" "$(echo "$STREAM" | head -1 | json 'j.statements')" "2"
 expect "stream ends done" "$(echo "$STREAM" | tail -1 | json 'j.status')" "done"
@@ -87,6 +86,7 @@ expect "readOnly:true select returns a row" "$(echo "$RO_SYNC" | json 'j.status 
 expect "plain column names its source, expression has none" "$(echo "$RO_SYNC" | json 'j.results[0].columns[1].source.table + "." + j.results[0].columns[1].source.column + ":" + typeof j.results[0].columns[2].source')" "orders.status:undefined"
 expect "settings update persists" "$(curl -s -X PUT -H "$J" -d '{"maxRows":500}' "$B/settings" | json 'j.maxRows')" "500"
 expect "history has the runs" "$(curl -s "$B/history?limit=2" | json 'j.length')" "2"
+expect "history records the sql that ran" "$(curl -s "$B/history?limit=2" | json 'String(j.every(r => r.sql.includes("select")))')" "true"
 expect_has "status sees the server" "running" "$($CLI status)"
 
 echo "== $FAILED failure(s)"

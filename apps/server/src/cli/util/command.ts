@@ -67,24 +67,3 @@ export function defineCommand<T extends OptionsConfig>(
     }
   };
 }
-
-/** The handlers a group dispatches to, keyed by the word that selects them. */
-export type GroupHandlers = Record<string, (argv: string[]) => Promise<void>>;
-
-/**
- * A command that is only a namespace for subcommands (`perch conn ls`, `perch files ls`). An
- * unknown or missing subcommand prints `usage`; an unknown one also fails, since `perch conn`
- * with no arguments is someone asking what it does, and `perch conn lsx` is a typo.
- */
-export function defineGroup(
-  usage: string,
-  handlers: GroupHandlers,
-): (argv: string[]) => Promise<void> {
-  return async (argv: string[]): Promise<void> => {
-    const [sub, ...rest] = argv;
-    const run = sub ? handlers[sub] : undefined;
-    if (run) return run(rest);
-    console.log(usage.trimEnd());
-    if (sub && sub !== "--help" && sub !== "-h") process.exitCode = 1;
-  };
-}

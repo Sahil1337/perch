@@ -12,29 +12,11 @@ commands:
   serve                 start the local server and open the UI (default command)
   stop                  stop the running server
   status                show whether the server is running
-  discover              find Postgres/MySQL servers already on this machine
-  conn add|ls|rm|test|dbs   manage saved connections
-  schema <conn>          inspect a connection's schema
-  run <conn> <file|-e sql|->  run SQL directly through the driver (no server needed)
-  history                show recent runs
-  files ls [dir]          list .sql files in a directory
-  settings get|set        read or change local settings
 
 Run "perch <command> --help" for command-specific options. "perch --version" prints the version.
 `;
 
-const COMMANDS = new Set([
-  "serve",
-  "stop",
-  "status",
-  "discover",
-  "conn",
-  "schema",
-  "run",
-  "history",
-  "files",
-  "settings",
-]);
+const COMMANDS = new Set(["serve", "stop", "status"]);
 
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
@@ -62,8 +44,8 @@ async function main(): Promise<void> {
   }
   // else: no command / a leading flag — falls through to "serve" with the full argv.
 
-  // Command modules are imported lazily so e.g. "perch run" never needs to load the HTTP server
-  // module (and keeps working standalone even before/without src/server/start.ts).
+  // The command module is imported lazily so `perch --version` and `perch --help` answer without
+  // loading the HTTP server module at all.
   switch (command) {
     case "serve": {
       const { cmdServe } = await import("./commands/serve.js");
@@ -76,34 +58,6 @@ async function main(): Promise<void> {
     case "status": {
       const { cmdStatus } = await import("./commands/serve.js");
       return cmdStatus(rest);
-    }
-    case "discover": {
-      const { cmdDiscover } = await import("./commands/discover.js");
-      return cmdDiscover(rest);
-    }
-    case "conn": {
-      const { cmdConn } = await import("./commands/conn.js");
-      return cmdConn(rest);
-    }
-    case "schema": {
-      const { cmdSchema } = await import("./commands/schema.js");
-      return cmdSchema(rest);
-    }
-    case "run": {
-      const { cmdRun } = await import("./commands/run.js");
-      return cmdRun(rest);
-    }
-    case "history": {
-      const { cmdHistory } = await import("./commands/history.js");
-      return cmdHistory(rest);
-    }
-    case "files": {
-      const { cmdFiles } = await import("./commands/files.js");
-      return cmdFiles(rest);
-    }
-    case "settings": {
-      const { cmdSettings } = await import("./commands/settings.js");
-      return cmdSettings(rest);
     }
   }
 }

@@ -174,7 +174,7 @@ There is no test suite: the repo deliberately carries none — no `*.test.ts`, n
 
 | Workflow       | What it runs                                                                                                                                                                                     |
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `server.yml`   | `typecheck`, `lint`, `build` and a CLI smoke (`--version`, `conn ls`), on **Node** across 22/24 × ubuntu/windows/macos; then `apps/server/scripts/smoke.sh` against a Postgres service container |
+| `server.yml`   | `typecheck`, `lint`, `build` and a CLI smoke (`--version`, `status`), on **Node** across 22/24 × ubuntu/windows/macos; then `apps/server/scripts/smoke.sh` against a Postgres service container |
 | `packages.yml` | protocol `typecheck`, `bun run --filter @perch/protocol check` (the types-only guard), client `typecheck`                                                                                        |
 | `web.yml`      | `lint`, `typecheck`, `build` for `apps/web`                                                                                                                                                      |
 

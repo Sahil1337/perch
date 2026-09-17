@@ -9,7 +9,7 @@ export const DISCOVERY_TTL_MS = 30_000;
 
 /**
  * Kept here rather than imported from `db/url.ts` so discovery stays free of the driver layer:
- * this module is loaded by `perch discover`, which has no reason to pull in pg and mysql2.
+ * a scan has no reason to pull in pg and mysql2.
  */
 export const DEFAULT_PORTS: Record<Dialect, number> = { postgres: 5432, mysql: 3306 };
 export const LOOPBACK = "127.0.0.1";

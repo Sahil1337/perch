@@ -7,13 +7,13 @@
 <p><strong>A lightweight SQL workspace for developers.</strong></p>
 
 <p>
-PostgreSQL · MySQL · Local-first · SQL notebooks · CLI
+PostgreSQL · MySQL · Local-first · SQL notebooks
 </p>
 
 <p>
 <a href="#getting-started">Getting started</a> ·
 <a href="#features">Features</a> ·
-<a href="apps/server/README.md">CLI & API</a> ·
+<a href="apps/server/README.md">API</a> ·
 <a href="CONTRIBUTING.md">Contributing</a>
 </p>
 
@@ -178,7 +178,7 @@ Inspect query results in a fast, virtualized grid.
 
 ### Query history
 
-Every query run from the UI or CLI is stored in local history.
+Every query you run is stored in local history.
 
 History survives restarts and records the SQL, outcome, row count, and execution time.
 
@@ -212,84 +212,11 @@ Switching connections or databases automatically updates the schema and editor c
 
 Perch has no prebuilt binaries yet — build it from source by following [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
-Then start Perch:
-
-```sh
-perch
-```
-
 On first launch, choose a workspace, connection, and database.
 
 Perch can discover database servers already running on your machine, including PostgreSQL and MySQL installations exposed through local ports, binaries on `PATH`, Homebrew, systemd, Windows services, and Docker.
 
-```console
-$ perch discover
-
-dialect  | address        | up | version         | sources          | suggested url
----------+----------------+----+-----------------+------------------+---------------------------------------
-postgres | 127.0.0.1:5432 | ✓  | PostgreSQL 18.4 | port,binary,brew | postgres://you@127.0.0.1:5432/postgres
-
-1 found in 730 ms · os user you
-```
-
 Perch never installs or bundles a database server.
-
-## CLI
-
-Perch includes a CLI for scripts, automation, and CI.
-
-The CLI and UI share connections, files, history, and settings.
-
-```console
-$ perch conn add local postgres://user:pass@localhost:5432/shop
-
-$ perch conn test local
-ok · PostgreSQL 16.2 on x86_64-pc-linux-gnu · 11 ms
-
-$ perch run local -e "select status, count(*) from orders group by 1"
-
-status   | count
----------+------
-paid     |  1204
-refunded |    37
-
-2 rows · 8 ms
-```
-
-`perch run` connects directly to the database without starting the Perch server. It exits non-zero on SQL errors, making it suitable for scripts and CI.
-
-### Common commands
-
-```sh
-perch                              # Start Perch
-perch discover                     # Discover local databases
-
-perch conn add <name> <url>        # Save a connection
-perch conn ls                      # List connections
-perch conn test <name>             # Test a connection
-perch conn dbs <name>              # List databases
-perch conn rm <name>               # Remove a connection
-
-perch schema <conn>                # Inspect schema
-
-perch run <conn> query.sql         # Execute a SQL file
-perch run <conn> -e "SELECT 1"     # Execute SQL
-cat query.sql | perch run <conn> - # Execute stdin
-
-perch history --limit 20
-perch files ls ~/sql
-
-perch settings get
-perch settings set <key> <value>
-
-perch serve --port 4600 --dir ~/sql
-perch status
-perch stop
-```
-
-Every command supports `--help`. Commands that output data also support `--json`.
-
-**[Full CLI and HTTP API reference →](apps/server/README.md)**
 
 ## Keyboard shortcuts
 
