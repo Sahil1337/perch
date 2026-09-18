@@ -4,13 +4,16 @@
 #   curl -fsSL https://raw.githubusercontent.com/Sahil1337/perch/main/install.sh | sh
 #
 # Environment:
-#   PERCH_VERSION       install this tag instead of the latest (e.g. v0.1.0)
-#   PERCH_INSTALL_DIR   install here instead of the first writable default
-#   PERCH_DOWNLOAD_BASE fetch assets from here instead of GitHub (testing, mirrors)
+#   PERCH_VERSION        install this tag instead of the latest (e.g. v0.1.0)
+#   PERCH_INSTALL_DIR    install here instead of the first writable default
+#   PERCH_DOWNLOAD_BASE  fetch assets from here instead of GitHub (testing, mirrors)
+#   PERCH_NO_MODIFY_PATH leave the shell profile alone and just print the line to add
 set -eu
 
 REPO="Sahil1337/perch"
 BIN="perch"
+MARKER="# added by the perch installer"
+OS=""
 
 say() { printf '%s\n' "$*"; }
 err() { printf 'error: %s\n' "$*" >&2; exit 1; }
@@ -89,8 +92,84 @@ verify_checksum() {
   say "  checksum ok"
 }
 
+# ~/.local/bin rather than /Users/you/.local/bin, for anything we print.
+tilde() {
+  case "$1" in
+    "$HOME"/*) printf '~/%s\n' "${1#"$HOME"/}" ;;
+    *) printf '%s\n' "$1" ;;
+  esac
+}
+
+on_path() {
+  case ":$PATH:" in *":$1:"*) return 0 ;; esac
+  return 1
+}
+
+# The line that puts a directory on PATH, in the syntax of the shell the user actually runs.
+path_line() {
+  case "${SHELL##*/}" in
+    fish) printf 'fish_add_path "%s"\n' "$1" ;;
+    *) printf 'export PATH="%s:$PATH"\n' "$1" ;;
+  esac
+}
+
+# Where that line goes, or nothing for a shell we don't know. A login shell on macOS reads
+# ~/.bash_profile and not ~/.bashrc, which is the other way round from Linux.
+profile_path() {
+  case "${SHELL##*/}" in
+    zsh) printf '%s\n' "$HOME/.zshrc" ;;
+    fish) printf '%s\n' "$HOME/.config/fish/config.fish" ;;
+    bash) [ "$OS" = darwin ] && printf '%s\n' "$HOME/.bash_profile" || printf '%s\n' "$HOME/.bashrc" ;;
+  esac
+}
+
+# Nothing here can fix the terminal that is already open — its PATH was read before we ran — so
+# the profile gets the line and this shell gets one to paste.
+setup_path() {
+  dir=$1
+  if on_path "$dir"; then
+    say ""
+    say "Run: $BIN"
+    return 0
+  fi
+
+  # $HOME, not ~, which does not expand inside the quotes of the exported value.
+  ref=$dir
+  case "$dir" in "$HOME"/*) ref="\$HOME/${dir#"$HOME"/}" ;; esac
+  line=$(path_line "$ref")
+  rc=$(profile_path)
+  [ -z "${PERCH_NO_MODIFY_PATH:-}" ] || rc=""
+
+  if [ -n "$rc" ]; then
+    if [ -f "$rc" ] && grep -qF "$ref" "$rc"; then
+      say "  $(tilde "$rc") already puts it on PATH"
+    elif mkdir -p "$(dirname "$rc")" 2>/dev/null &&
+      printf '\n%s\n%s\n' "$MARKER" "$line" >> "$rc" 2>/dev/null; then
+      say "  added $(tilde "$dir") to PATH in $(tilde "$rc")"
+    else
+      rc=""
+    fi
+  fi
+
+  say ""
+  if [ -n "$rc" ]; then
+    say "For this terminal, run:"
+    say ""
+    say "  $line"
+    say ""
+    say "New terminals have it already. Then: $BIN"
+  else
+    say "$(tilde "$dir") is not on your PATH. Add this line to your shell profile:"
+    say ""
+    say "  $line"
+    say ""
+    say "Or run it directly: $(tilde "$dir")/$BIN"
+  fi
+}
+
 main() {
   target=$(detect_target)
+  OS=${target%-*}
   tag=${PERCH_VERSION:-$(latest_tag)}
   version=${tag#v}
   archive="$BIN-$version-$target.tar.gz"
@@ -121,17 +200,8 @@ main() {
   fi
   mv "$tmp/$BIN" "$dir/$BIN"
 
-  say "  installed $dir/$BIN"
-  case ":$PATH:" in
-    *":$dir:"*) say "" ; say "Run: $BIN" ;;
-    *)
-      say ""
-      say "$dir is not on your PATH. Add it:"
-      say "  echo 'export PATH=\"$dir:\$PATH\"' >> ~/.zshrc && exec zsh"
-      say ""
-      say "Or run it directly: $dir/$BIN"
-      ;;
-  esac
+  say "  installed $(tilde "$dir")/$BIN"
+  setup_path "$dir"
 }
 
 main "$@"

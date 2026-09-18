@@ -1,20 +1,18 @@
-# perch — the server and CLI
+# Perch — the server and CLI
 
-The engine room of [Perch](../../README.md), a lightweight SQL workspace for PostgreSQL and MySQL.
+The [Perch](../../README.md) binary: the `perch` CLI, and the local server it starts.
 
-`perch` is one binary with two halves:
-
-- **the CLI** starts, stops and inspects a local server — three commands, no configuration;
-- **the server** is everything else. Connections, schema, queries, files, history and settings are
+- **The CLI** starts, stops and inspects that server — three commands, no configuration.
+- **The server** is everything else. Connections, schema, queries, files, history and settings are
   an HTTP API bound to `127.0.0.1`, with the web UI embedded in the same binary and served at `/`.
 
 The UI is a pure client of that API. It has no private channel into the server, so anything the
 app can do you can do with `curl`.
 
-[Quick start](#quick-start) · [CLI](#cli) · [HTTP API](#http-api) ·
-[Perch home](#perch-home) · [Security](#security) · [Building from source](#building-from-source)
+[CLI](#cli) · [HTTP API](#http-api) · [Perch home](#perch-home) · [Security](#security) ·
+[Building](#building) · [Inside the binary](#inside-the-binary)
 
-## Quick start
+## CLI
 
 ```sh
 perch                       # start the server and open the UI — serve is the default command
@@ -23,18 +21,12 @@ perch status                # is a server running, and where?
 perch stop                  # stop it
 ```
 
-The first run creates `~/.perch/` and a `queries/` folder inside it, and that folder is the
-workspace until you add another with `--dir`. Nothing is installed, downloaded or bundled — perch
-connects to database servers you already run.
-
-## CLI
-
 Every command takes `--help`. `perch --version` prints the version the binary was built with.
 
 ### `perch [serve]`
 
-Starts the local server and opens the UI in your browser. It is the default command, so bare
-`perch` is `perch serve`. On start it prints where it landed:
+Starts the server and opens the UI in your browser. It is the default command, so bare `perch` is
+`perch serve`. On start it prints where it landed:
 
 ```
 perch v0.1.0 → http://127.0.0.1:4600
@@ -94,8 +86,7 @@ bodies, responses and the table of error codes.
 
 ## Perch home
 
-Everything perch keeps on your machine lives under `~/.perch` and nowhere else. `PERCH_HOME`
-relocates the whole directory.
+What the server reads and writes, all of it under `~/.perch` (`PERCH_HOME` relocates it):
 
 ```
 ~/.perch/
@@ -117,28 +108,22 @@ tool that talks to your own databases and worth knowing exactly:
 - **Passwords are stored in plain JSON** in `connections.json`. Don't commit or sync that file.
   This is a local dev tool, not a secrets vault.
 
-## Building from source
+## Building
 
-A Go module (`perch`) at `apps/server`, needing **Go 1.25+** and nothing else. It has no npm
-dependencies; `package.json` exists only so turbo and `bun run --filter perch <script>` keep
-reaching the scripts in [`scripts/`](scripts).
+A Go module (`perch`) at `apps/server`: **Go 1.25+**, and no npm dependencies. `package.json`
+exists only so turbo and `bun run --filter perch <script>` reach the scripts in
+[`scripts/`](scripts).
 
 ```sh
 # Build the UI first, or you get an API-only binary that says as much at /.
 bun run --filter @perch/web build
-bun run --filter perch build        # -> apps/server/dist/perch
-./apps/server/dist/perch --help
-
-# Every release target from this one machine — CGO is off and every dependency is pure Go.
-bun run --filter perch build:all    # -> apps/server/dist/perch-<os>-<arch>
+bun run --filter perch build        # -> dist/perch
+bun run --filter perch build:all    # every release target, from this one machine
 ```
 
-`bun run dev` from the repo root skips the build entirely and runs the server from source with
-`go run`, allow-listing the Vite dev server's origin. See
-[`CONTRIBUTING.md`](../../CONTRIBUTING.md) for the rest of the development setup.
-
-Three dependencies — `pgx/v5`, `go-sql-driver/mysql`, `fsnotify` — and the standard library for
-everything else.
+`build:all` cross-compiles because `CGO_ENABLED=0` and every dependency is pure Go. There are
+three of them — `pgx/v5`, `go-sql-driver/mysql`, `fsnotify` — and the standard library for the
+rest. Development setup is in [`CONTRIBUTING.md`](../../CONTRIBUTING.md).
 
 ## Inside the binary
 
@@ -153,7 +138,5 @@ file watcher — are fields on `*Server`, so routes are methods rather than clos
 dependency bag. The commented tree is in
 [`docs/architecture/server-structure.md`](../../docs/architecture/server-structure.md).
 
-**There is no test suite, by choice.** What a change has to clear instead: `gofmt -l .`,
-`go vet ./...`, `go build ./...`, a CLI smoke on the Linux/macOS/Windows matrix, and
-[`scripts/smoke.sh`](scripts/smoke.sh) against a real PostgreSQL — the only end-to-end exercise of
-the HTTP API, so please don't remove it. It drives the compiled binary, so build first.
+[`scripts/smoke.sh`](scripts/smoke.sh) against a real PostgreSQL is the only end-to-end exercise of
+the HTTP API. It drives the compiled binary, so build first.

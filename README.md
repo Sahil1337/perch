@@ -220,7 +220,11 @@ curl -fsSL https://raw.githubusercontent.com/Sahil1337/perch/main/install.sh | s
 ```
 
 This fetches the latest release for your platform, verifies its checksum, and installs `perch`
-into `/usr/local/bin` — or `~/.local/bin` if that is not writable. Then:
+into `/usr/local/bin` if that is writable, or `~/.local/bin` otherwise.
+
+If it lands somewhere that is not on your `PATH`, the installer adds it to your shell profile
+(`~/.zshrc`, `~/.bash_profile` or `~/.bashrc`, or fish's `config.fish`) and prints one line to
+paste into the terminal you already have open. New terminals need nothing.
 
 ```sh
 perch          # starts the server and opens the UI
@@ -228,8 +232,11 @@ perch status   # is it running, and where
 perch stop     # stop it
 ```
 
-The installer takes `PERCH_VERSION=v0.1.0` to pin a release and `PERCH_INSTALL_DIR=~/bin` to
-choose where it lands.
+| Variable               | What it does                                             |
+| ---------------------- | -------------------------------------------------------- |
+| `PERCH_VERSION`        | install a specific tag, e.g. `v0.1.0`, instead of latest |
+| `PERCH_INSTALL_DIR`    | install somewhere else, e.g. `~/bin`                     |
+| `PERCH_NO_MODIFY_PATH` | leave the shell profile alone and just print the line    |
 
 ### Windows
 
