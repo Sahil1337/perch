@@ -1,9 +1,13 @@
 # Monorepo architecture
 
 One Bun workspaces repo, one lockfile, one `node_modules`. The product is a single binary
-(`perch`, built by `bun build --compile`); everything else in here exists to keep what goes into
-it small, honest and easy to change. `apps/server` is marked `private` — nothing here is
-published to a registry, and distribution is a file you download.
+(`perch`, built by `apps/server/scripts/build.sh`); everything else in here exists to keep what
+goes into it small, honest and easy to change. `apps/server` is marked `private` — nothing here
+is published to a registry, and distribution is a file you download.
+
+The server is Go and the rest is TypeScript. That split is the whole reason the binary is 14 MB
+rather than 65: a JavaScript runtime cannot be left out of a JavaScript binary, and it was 92% of
+the old one.
 
 ```
 perch/
@@ -31,8 +35,8 @@ exactly one consumer (`apps/server`): `packages/protocol` and `packages/client` 
 script, and `apps/web` was then running `eslint-config-next` on its own pinned ESLint 9. A package export
 that one workspace imports is not a shared preset, it is a file with extra steps — a manifest, a
 `peerDependencies` block and a workspace link standing in for a relative path. So the config sits
-at the root now, and `serverLayering`'s globs name their target outright
-(`apps/server/src/db/**`) instead of relying on the config file's position to scope them. If a
+at the root now. (It used to carry a `serverLayering` block whose globs named
+`apps/server/src/**` outright; the server is Go, so Go's package graph enforces that instead.) If a
 workspace ever needs a _different_ baseline, it gets its own `eslint.config.js` — the escape
 hatch `apps/web` used until Next, and with it the ESLint 9 pin, was dropped.
 
@@ -75,24 +79,26 @@ server will use — for "run the statement under the cursor" and for notebook ce
 import them. `apps/server` builds with plain `tsc` and carries five runtime dependencies, so
 an `import { splitStatements } from "@perch/sql"` would survive into `dist/` and drag a private
 workspace package into the shipped output. `@perch/protocol` escapes that only because types erase; a function does not.
-Publishing a second package or switching the shipped artifact to a bundler both cost far more than
-the 150 lines they would save. So `apps/server/src/core/sql/split.ts` stays the authority,
-`packages/sql` holds a byte-identical copy, and `bun run --filter @perch/sql check` fails CI when the
-two diverge (`--fix` re-syncs). A drifted copy would have the editor offer to run one range while
-the server ran another, which is why this is enforced rather than remembered.
+The server is Go now, so the copy is not a copy at all: `packages/sql/src/split.ts` and
+`apps/server/sqlscript/split.go` are two implementations of one rule. They used to be
+byte-identical TypeScript, kept honest mechanically by `bun run --filter @perch/sql check`.
+Nothing can diff across languages, so that check is gone and the agreement is now maintained by
+hand — a change to either must be made to both. A drift means the editor offers to run one range
+while the server runs another, which is why both files say so at the top.
 
 **Protocol is types only, and that is load-bearing.** Every export in `@perch/protocol` is a
 `type`. TypeScript erases type-only imports entirely, so the package is consumed as raw `.ts`
-source by both a NodeNext build (`apps/server`) and a bundler (`apps/web`) with no build step of
-its own, and it never reaches a runtime bundle. That is also why `apps/server` can list it under
-`devDependencies`: by the time `dist/` exists, nothing references it, so no `@perch/*` package has
-to travel with the build. The shipped output's only runtime dependencies are `hono`,
-`@hono/node-server`, `pg`, `pg-cursor` and `mysql2`.
+source by `apps/web` and `@perch/client` with no build step of its own, and it never reaches a
+runtime bundle.
+
+The server no longer consumes it: `apps/server/protocol` is the same contract written as Go
+structs, and the two are kept in step by hand. The binary's only dependencies are `pgx/v5`,
+`go-sql-driver/mysql` and `fsnotify`, all pure Go.
 
 The rule is enforced, not merely documented: `bun run --filter @perch/protocol check` runs
 `scripts/assert-types-only.mjs`, which fails on any `export const | let | var | function | class |
 enum | default` in `packages/protocol/src`. If you need a value — a default, a lookup table, a
-type guard — it belongs to whoever owns the behaviour: `apps/server` or `@perch/client`.
+type guard — it belongs to whoever owns the behaviour: `@perch/client`, or the server's Go side.
 
 **Nothing depends on `apps/server`.** The server is a leaf, not a library. A frontend that wants
 something from it asks over HTTP through `@perch/client`; the types it needs are in the protocol
@@ -103,12 +109,14 @@ outside the workspace — without breaking anyone.
 
 ## How the frontend ships inside the server package
 
-There is one artifact on npm. `apps/server/package.json` declares `files: ["dist", "ui",
-"README.md"]`, and `createServer({ uiDir })` in
-`apps/server/src/server/create-server.ts` passes `uiDir` down to
-`apps/server/src/server/routes/ui.ts`, which mounts it as static assets with an SPA fallback to
-`index.html`, registered last and behind `/api/*`. When `uiDir` is absent or missing on disk, `/`
-serves a small placeholder page listing the API instead.
+There is one artifact, and the UI is inside it. `@perch/web`'s build writes `apps/server/ui/`;
+`scripts/build.sh` stages that into `apps/server/webui/static/`, which `//go:embed` compiles into
+the binary. `apps/server/server/ui.go` serves it with an SPA fallback to `index.html`, registered
+last and behind `/api/*`.
+
+A directory wins over the embedded copy when there is one — `--ui <dir>`, or a `ui/` folder next
+to the executable — because it is more current than whatever was built in. With neither, `/`
+answers 503 saying the UI was not built.
 
 So the build chain is:
 
@@ -124,15 +132,15 @@ overrides the location, which is how you point a running server at a dev build.
 - **Bun workspaces**, `["packages/*", "apps/*"]` (the same `workspaces` field npm read). One
   `bun.lock` at the root; one `bun install` — `bun install --frozen-lockfile` in CI — installs
   everything. This is why no CI job uses `working-directory`.
-- **Bun ≥ 1.2 installs and runs scripts; Node ≥ 22 runs the server.** The two are separate
-  choices. `apps/server` declares `engines.node >=22`, imports `node:`
-  builtins throughout and is launched as `node dist/cli/main.js`, so everything in CI that _runs_
-  the CLI runs it on Node, across 22/24 and three OSes — under Bun it would be Bun being tested,
-  not the artifact we ship. `typecheck`/`lint` are runtime-agnostic and go through Bun. Bun's
-  other job here is unchanged: `bun build --compile` produces the single-file `perch` binary.
+- **Bun ≥ 1.2 installs and runs scripts; Go ≥ 1.25 builds the server.** The two are separate
+  choices and they do not meet: the Go module has no npm dependencies, and
+  `apps/server/package.json` holds nothing but scripts that shell out to `scripts/*.sh`, so that
+  turbo and `--filter perch` keep working. CI runs the CLI on three OSes from the compiled
+  binary, which is the artifact we ship rather than a stand-in for it.
 - **Scripts fan out** with `bun run --filter '*'`, which skips a workspace that lacks the script
-  rather than breaking the run. Target one workspace with `--filter <name>`. `lint` is the one
-  script that does not fan out — see the ESLint bullet below.
+  rather than breaking the run. Target one workspace with `--filter <name>`. Two do not fan out:
+  `lint` (see the ESLint bullet below) and `build`, which is ordered `@perch/web` then `perch`
+  because the binary embeds the web bundle and `--filter '*'` promises no order.
 - **Turborepo owns `dev` and `start`, and nothing else.** `bun run dev` starts `vite dev` on
   :5173 and the API on a free port, output prefixed per workspace. `bun run start` runs what
   `bun run build` produced — a single `perch serve`, since the built UI is a folder of static

@@ -1,6 +1,9 @@
 // Splits a SQL script into individual statements without a real parser: we only need to know
 // where the "top level" semicolons are, so everything else (strings, identifiers, comments,
 // dollar-quoted bodies) is skipped verbatim.
+//
+// The server splits the same script with apps/server/sqlscript/split.go. Change one, change the
+// other: a disagreement means the editor highlights a different range than the server executes.
 
 export type SplitStatement = {
   /** The statement text, whitespace-trimmed. Never empty. */

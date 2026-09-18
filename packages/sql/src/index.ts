@@ -1,10 +1,9 @@
 // Shared SQL text utilities for the frontend.
 //
-// `apps/server` does NOT import this package, and must not: it builds with plain `tsc` and ships
-// to npm with five runtime dependencies, so a private `@perch/*` import would survive into `dist/`
-// and break `npm i perch`. `@perch/protocol` only escapes that because types erase; a function
-// does not. So `apps/server/src/core/sql/split.ts` stays the authority and this is a verbatim
-// copy, kept honest by `bun run --filter @perch/sql check`.
+// `splitStatements` here and `Split` in the server's Go `sqlscript` package are two
+// implementations of one rule, and they have to agree: the editor offers to run a range and the
+// server runs it. They used to be byte-identical TypeScript, checked mechanically. Across two
+// languages nothing can check it, so a change to either must be made to both by hand.
 
 export { splitStatements, type SplitStatement } from "./split";
 export { scanComments, stripComments, type SqlComment } from "./comments";

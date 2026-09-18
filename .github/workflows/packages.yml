@@ -27,4 +27,3 @@ jobs:
       - run: bun run --filter @perch/sql typecheck
       - run: bun run --filter @perch/ui typecheck
       - run: bun run --filter @perch/protocol check
-      - run: bun run --filter @perch/sql check

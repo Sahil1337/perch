@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Dialect-agnostic SQL text utilities shared by the frontend. Mirrors apps/server/src/core/sql/*, which stays the authority.",
+  "description": "Dialect-agnostic SQL text utilities for the frontend. The statement splitter is mirrored by the Go server's sqlscript package.",
   "types": "./src/index.ts",
   "exports": {
     ".": {
@@ -15,8 +15,7 @@
     "src"
   ],
   "scripts": {
-    "typecheck": "tsc --noEmit -p tsconfig.json",
-    "check": "node scripts/assert-in-sync.mjs"
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "@perch/protocol": "*",

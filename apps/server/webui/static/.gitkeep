@@ -1,0 +1,2 @@
+# Placeholder so //go:embed has a directory in a clean checkout. The real bundle is copied
+# here by scripts/build.sh and is gitignored.

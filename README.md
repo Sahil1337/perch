@@ -11,7 +11,7 @@ PostgreSQL · MySQL · Local-first · SQL notebooks
 </p>
 
 <p>
-<a href="#getting-started">Getting started</a> ·
+<a href="#install">Install</a> ·
 <a href="#features">Features</a> ·
 <a href="apps/server/README.md">API</a> ·
 <a href="CONTRIBUTING.md">Contributing</a>
@@ -38,6 +38,9 @@ It brings schema exploration, SQL editing, query execution, results, and databas
 Perch works with PostgreSQL and MySQL databases already running on your machine. Your SQL files stay on disk as normal `.sql` files, while Perch provides the tools around them.
 
 **No account. No cloud service. No bundled database.**
+
+Perch ships as a single self-contained binary — around 14 MB, with no runtime to install
+alongside it.
 
 ## Features
 
@@ -208,9 +211,47 @@ Switching connections or databases automatically updates the schema and editor c
   <img src="docs/assets/command-palette.png" alt="Perch command palette" width="635">
 </p>
 
-## Getting started
+## Install
 
-Perch has no prebuilt binaries yet — build it from source by following [`CONTRIBUTING.md`](CONTRIBUTING.md).
+### macOS and Linux
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/Sahil1337/perch/main/install.sh | sh
+```
+
+This fetches the latest release for your platform, verifies its checksum, and installs `perch`
+into `/usr/local/bin` — or `~/.local/bin` if that is not writable. Then:
+
+```sh
+perch          # starts the server and opens the UI
+perch status   # is it running, and where
+perch stop     # stop it
+```
+
+The installer takes `PERCH_VERSION=v0.1.0` to pin a release and `PERCH_INSTALL_DIR=~/bin` to
+choose where it lands.
+
+### Windows
+
+Download `perch-<version>-windows-amd64.exe` from the
+[releases page](https://github.com/Sahil1337/perch/releases/latest) and run it. Windows shows a
+SmartScreen warning the first time — choose **More info → Run anyway**.
+
+### From source
+
+Needs Go 1.25+ and Bun. See [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
+### If macOS refuses to open it
+
+Perch's binaries are not notarized yet. The `curl` install above avoids this entirely, because
+macOS only quarantines files a *browser* downloaded. If you took the binary from the releases
+page instead and macOS says the developer cannot be verified:
+
+```sh
+xattr -d com.apple.quarantine ./perch
+```
+
+## Getting started
 
 On first launch, choose a workspace, connection, and database.
 
@@ -253,7 +294,8 @@ Perch sends no telemetry and does not require a remote service for normal operat
 
 ## Contributing
 
-Perch is a Bun workspace monorepo.
+Perch is a Bun workspace monorepo. The server and CLI are Go; the UI and the shared packages are
+TypeScript.
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for development setup, project structure, scripts, and verification.
 
