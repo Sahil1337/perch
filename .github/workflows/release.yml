@@ -87,6 +87,25 @@ jobs:
           (cd release && sha256sum perch-* > checksums.txt)
           ls -lh release
 
+      - name: Release notes
+        id: notes
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          # The CHANGELOG section for this version is the release body. Hand-written, because a
+          # list of commit subjects is a log, not release notes.
+          awk -v v="$VERSION" '
+            $0 ~ "^## \\[" v "\\]" { found = 1; next }
+            found && /^## / { exit }
+            found { print }
+          ' CHANGELOG.md > "$GITHUB_WORKSPACE/notes.md"
+          if [ -s "$GITHUB_WORKSPACE/notes.md" ]; then
+            echo "notes=$GITHUB_WORKSPACE/notes.md" >> "$GITHUB_OUTPUT"
+            echo "using the CHANGELOG section for $VERSION"
+          else
+            echo "::warning::no '## [$VERSION]' section in CHANGELOG.md — falling back to generated notes"
+          fi
+
       # Note: these binaries are unsigned. macOS quarantines a downloaded copy and Gatekeeper
       # refuses it without notarization; Windows shows a SmartScreen warning. Both need paid
       # certificates, so the draft says so until they exist.
@@ -95,12 +114,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.version.outputs.tag }}
+          NOTES: ${{ steps.notes.outputs.notes }}
         run: |
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" release/* --clobber
+          elif [ -n "$NOTES" ]; then
+            gh release create "$TAG" release/* --draft --title "perch $TAG" --notes-file "$NOTES"
           else
-            gh release create "$TAG" release/* \
-              --draft \
-              --title "perch $TAG" \
-              --generate-notes
+            gh release create "$TAG" release/* --draft --title "perch $TAG" --generate-notes
           fi
