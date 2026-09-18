@@ -117,7 +117,12 @@ jobs:
           NOTES: ${{ steps.notes.outputs.notes }}
         run: |
           if gh release view "$TAG" >/dev/null 2>&1; then
+            # Re-running against an existing release refreshes the notes too, not just the
+            # assets: a CHANGELOG fix is a re-run rather than a hand-edit of the draft.
             gh release upload "$TAG" release/* --clobber
+            if [ -n "$NOTES" ]; then
+              gh release edit "$TAG" --notes-file "$NOTES"
+            fi
           elif [ -n "$NOTES" ]; then
             gh release create "$TAG" release/* --draft --title "perch $TAG" --notes-file "$NOTES"
           else
