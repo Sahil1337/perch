@@ -1,5 +1,3 @@
-"use client";
-
 // Panel geometry: which surfaces are open and how big they are. Per-machine appearance state, so it
 // lives in localStorage; behavioural settings (autosave, keywordCase) belong to the server instead.
 //

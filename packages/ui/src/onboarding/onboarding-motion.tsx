@@ -1,5 +1,3 @@
-"use client";
-
 // The two wrappers the first-run screen is built out of. Neither knows anything about onboarding:
 // one is a height-and-fade, the other is a button that hands over to a copy of itself somewhere
 // else on the screen.

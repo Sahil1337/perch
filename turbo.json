@@ -7,7 +7,7 @@
       "persistent": true,
       "passThroughEnv": [
         "PERCH_DEV_PORT",
-        "NEXT_PUBLIC_PERCH_URL"
+        "VITE_PERCH_URL"
       ]
     },
     "start": {

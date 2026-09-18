@@ -1,5 +1,3 @@
-"use client";
-
 export const SCHEMA_DIAGRAM_EVENT = "perch:visualise";
 
 export type SchemaDiagramEventDetail = {

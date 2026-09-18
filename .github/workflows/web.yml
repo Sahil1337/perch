@@ -24,6 +24,6 @@ jobs:
         with:
           bun-version: latest
       - run: bun install --frozen-lockfile
-      - run: bun run --filter @perch/web lint
+      - run: bun run lint
       - run: bun run --filter @perch/web typecheck
       - run: bun run --filter @perch/web build

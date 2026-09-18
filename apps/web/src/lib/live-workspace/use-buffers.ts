@@ -1,5 +1,3 @@
-"use client";
-
 // The tabs open in the editor, and everything that can be true about whether their contents are on
 // disk. The rules themselves are in `buffers-reducer.ts`; this file is the I/O around them — every
 // action here is "call the server, then say what came back".

@@ -1,5 +1,3 @@
-"use client";
-
 // The parts of the query that got no section, listed where they can be found but not where they
 // interrupt. A piece of SQL that quietly vanished from a visualiser is the worst failure this
 // screen has: the reader believes they have seen the whole query. Collapsed is fine; absent is not.

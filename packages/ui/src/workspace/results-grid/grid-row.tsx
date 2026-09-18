@@ -1,5 +1,3 @@
-"use client";
-
 import type { Cell, ResultColumn } from "@perch/protocol";
 import { AnimatePresence, motion } from "motion/react";
 import type * as React from "react";

@@ -1,5 +1,3 @@
-"use client";
-
 import type { QueryError, StatementResult } from "@perch/protocol";
 import * as React from "react";
 import { Badge } from "../../ui/badge";

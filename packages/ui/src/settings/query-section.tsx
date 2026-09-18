@@ -1,5 +1,3 @@
-"use client";
-
 // Settings → Query. Max rows and statement timeout are both caps the server applies, not
 // something the UI asks for — the help text on each row says so, because "Max rows" alone reads
 // like a page size.

@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="apps/web/app/icon.svg" alt="Perch" width="72">
+<img src="apps/web/public/icon.svg" alt="Perch" width="72">
 
 # Perch
 

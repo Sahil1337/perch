@@ -2,19 +2,10 @@
   "extends": "@perch/tsconfig/react.json",
   "compilerOptions": {
     "jsx": "react-jsx",
-    "incremental": true,
-    "plugins": [{ "name": "next" }],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./src/*"]
     }
   },
-  "include": [
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts",
-    "**/*.mts"
-  ],
+  "include": ["src", "vite.config.ts", "scripts/**/*.mjs"],
   "exclude": ["node_modules"]
 }

@@ -1,5 +1,3 @@
-"use client";
-
 import type { DatabaseSchema } from "@perch/protocol";
 import * as React from "react";
 import { CARD_W, GAP_X, GAP_Y, type Point, type Rect } from "./geometry";

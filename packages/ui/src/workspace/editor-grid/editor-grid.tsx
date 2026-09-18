@@ -1,5 +1,3 @@
-"use client";
-
 // The editor grid: tabs you can drag into splits, the way an IDE does it. Three parts, kept apart:
 // `pane-layout.ts` is the model, a pure tree that every drag ends as one call into;
 // `react-resizable-panels` draws it and owns the resize math; `@dnd-kit` moves the tabs.

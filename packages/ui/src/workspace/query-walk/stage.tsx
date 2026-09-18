@@ -1,5 +1,3 @@
-"use client";
-
 // The animated scene: the tables a station shows, and the rows moving through them. Column widths
 // and stagger delays reach CSS as custom properties, so the layout stays in utility classes.
 

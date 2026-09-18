@@ -1,5 +1,3 @@
-"use client";
-
 // The chapter strip: the program's sections in order, above the station rail that walks whichever
 // one is open. A section is a place in the query, not a detour — so this reads like a table of
 // contents and every entry stays one click away, which is the whole reason the breadcrumb stack it

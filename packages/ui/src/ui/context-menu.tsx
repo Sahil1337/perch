@@ -1,5 +1,3 @@
-"use client";
-
 // Ported from the design system's context-menu primitive (Base UI's `ContextMenu`), with only the
 // `cn` import path changed to this package's location. Kept as a thin, generic wrapper — nothing
 // here knows about the editor; `sql-editor.tsx` is the only caller and supplies its own items.

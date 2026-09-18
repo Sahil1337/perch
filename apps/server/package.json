@@ -22,10 +22,10 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "bun src/cli/main.ts serve --no-open --port ${PERCH_DEV_PORT:-4600} --allow-origin http://localhost:3000 --allow-origin http://localhost:3001",
+    "dev": "bun src/cli/main.ts serve --no-open --port ${PERCH_DEV_PORT:-4600} --allow-origin http://localhost:5173 --allow-origin http://127.0.0.1:5173",
     "start": "node dist/cli/main.js serve",
     "build": "tsc -p tsconfig.build.json && node scripts/postbuild.mjs",
-    "compile": "bun build src/cli/main.ts --compile --outfile dist/perch",
+    "compile": "node scripts/gen-ui-entry.mjs && bun build build/ui-entry.ts --compile --outfile dist/perch",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "eslint src",
     "smoke": "bash scripts/smoke.sh"

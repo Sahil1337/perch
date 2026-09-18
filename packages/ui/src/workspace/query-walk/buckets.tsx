@@ -1,5 +1,3 @@
-"use client";
-
 // GROUP BY's middle: every row gathered into the bucket its keys put it in, then each bucket
 // squashed to the one row the grouped query produced for it.
 

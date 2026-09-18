@@ -7,9 +7,7 @@ node_modules/
 dist/
 build/
 out/
-.next/
 *.tsbuildinfo
-next-env.d.ts
 
 # the frontend bundle the server ships; produced by `bun run build`
 apps/server/ui/
@@ -24,7 +22,7 @@ coverage/
 .env
 .env.*
 !.env.example
-# not a secret: the loopback address `next dev` talks to, committed so the dev
+# not a secret: the loopback address `vite dev` talks to, committed so the dev
 # command works from a clone with no setup.
 !apps/web/.env.development
 *.pem

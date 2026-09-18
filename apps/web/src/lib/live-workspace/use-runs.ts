@@ -1,5 +1,3 @@
-"use client";
-
 import type { PerchClient } from "@perch/client";
 import type { RunRecord, Settings } from "@perch/protocol";
 import type { Run } from "@perch/ui";

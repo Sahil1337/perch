@@ -1,5 +1,3 @@
-"use client";
-
 // The picture the connecting screen stands on: a socket drawing itself, then carrying a stream of
 // packets while the stages beside it tick off. Split out from the screen because it is a complete,
 // self-contained visual — like `connection-beam.tsx` — that never touches the screen's own timing

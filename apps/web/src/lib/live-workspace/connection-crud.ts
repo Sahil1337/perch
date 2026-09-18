@@ -1,5 +1,3 @@
-"use client";
-
 // The five writes against `/api/connections`, and what each does to the list on screen.
 //
 // Two rejection policies, on purpose. A write that only changes the list degrades into
@@ -65,7 +63,7 @@ export function useConnectionCrud(
       } catch (error) {
         const message = messageOf(error);
         setConnections((prev) => asyncError(message, prev));
-        throw new Error(message);
+        throw new Error(message, { cause: error });
       }
     },
     [getClient, setConnections],
@@ -80,7 +78,7 @@ export function useConnectionCrud(
       } catch (error) {
         const message = messageOf(error);
         setConnections((prev) => asyncError(message, prev));
-        throw new Error(message);
+        throw new Error(message, { cause: error });
       }
     },
     [getClient, setConnections],
@@ -105,7 +103,7 @@ export function useConnectionCrud(
       try {
         return await getClient().connections.test(id);
       } catch (error) {
-        throw new Error(messageOf(error));
+        throw new Error(messageOf(error), { cause: error });
       }
     },
     [getClient],
@@ -116,7 +114,7 @@ export function useConnectionCrud(
     try {
       return await getClient().discover();
     } catch (error) {
-      throw new Error(messageOf(error));
+      throw new Error(messageOf(error), { cause: error });
     }
   }, [getClient]);
 

@@ -1,5 +1,3 @@
-"use client";
-
 // A real schema has tables forty columns wide, which would make every card a screen tall, so past
 // a threshold the view opens in keys-only mode: each card shows the columns that take part in a
 // relation and a row saying how many it is not showing, and opens on request. Where the cards are

@@ -1,5 +1,3 @@
-"use client";
-
 // The stage a chapter shows when it is real but was deliberately not run.
 //
 // Three of them exist — a write, a chapter downstream of a write, and a correlated section with

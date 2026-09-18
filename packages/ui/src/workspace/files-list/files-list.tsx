@@ -1,5 +1,3 @@
-"use client";
-
 // The Files sidebar: what is open, and what is openable.
 //
 // Two sections. Open is `buffers` — editor state, including scratch tabs that exist nowhere on disk.

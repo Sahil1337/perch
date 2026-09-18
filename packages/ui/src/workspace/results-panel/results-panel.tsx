@@ -1,5 +1,3 @@
-"use client";
-
 // The results surface: everything a run can turn into, in one place. A run is a list of statement
 // outcomes, and most of them are not grids.
 //

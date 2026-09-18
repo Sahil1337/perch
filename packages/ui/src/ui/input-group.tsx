@@ -1,5 +1,3 @@
-"use client";
-
 // Vendored primitive. Changed from upstream only by the import paths, the dropped Textarea half
 // (perch has no primitive for it) and a `mono` variant on `InputGroupText` — the lint rule forbids
 // restyling that from a call site. Otherwise diffable against the source.

@@ -1,5 +1,3 @@
-"use client";
-
 // The 6px dot that says whether something is up.
 //
 // One component rather than four copies of the same three classes, because these dots sit in four

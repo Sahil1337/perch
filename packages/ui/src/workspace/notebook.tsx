@@ -1,5 +1,3 @@
-"use client";
-
 // The notebook: the same file, shown as a column of cards. A notebook is a view, not a format —
 // one plain `.sql` file, nothing new on the wire. `cells.ts` does the splitting; editing is the part
 // that fights back, in two ways.

@@ -1,5 +1,3 @@
-"use client";
-
 // One value turning into another in place: the old one leaves upward, the new one arrives from
 // below, and nothing around it moves.
 //

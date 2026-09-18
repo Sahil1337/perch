@@ -1,5 +1,3 @@
-"use client";
-
 // The grid's two probes: one for every cell at once, and one more for whichever cell is picked.
 //
 // THE GRID PROBE runs once, beside the per-row section's own outer probe. It is the outer query

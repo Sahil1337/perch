@@ -1,5 +1,3 @@
-"use client";
-
 // The grid: one row per outer row, one column per driving row, one cell per pair.
 //
 // MOTION. There is one rule here and everything obeys it: motion means "this row's state changed

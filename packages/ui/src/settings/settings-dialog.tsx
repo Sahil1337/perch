@@ -1,5 +1,3 @@
-"use client";
-
 // Settings.
 //
 // Five panes behind a left nav, at a fixed 720×520 so the dialog never resizes under the cursor

@@ -1,5 +1,3 @@
-"use client";
-
 // The pulse runs FK → PK, the direction a lookup goes. It runs on every wire on screen, all the
 // time, at a pace slow enough to read as travel; selecting a table dims everything that does not
 // touch it.

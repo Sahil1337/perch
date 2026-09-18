@@ -1,5 +1,3 @@
-"use client";
-
 // Editor font size.
 //
 // Not a server setting. `Settings` is the server's configuration — what it will read, write and

@@ -1,5 +1,3 @@
-"use client";
-
 // What the app is instead of a workspace when there is no server to be a workspace against.
 //
 // Everything below this gate assumes its data is real — the schema tree, the connection picker,

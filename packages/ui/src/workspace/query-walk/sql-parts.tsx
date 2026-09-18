@@ -1,5 +1,3 @@
-"use client";
-
 // A spliced statement, with the substitutions marked — and only the substitutions moving.
 //
 // This is the whole point of the per-row SQL: `takes.ID = s.ID` becomes `takes.ID = '12345'`, and

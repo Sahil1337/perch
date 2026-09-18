@@ -1,5 +1,3 @@
-"use client";
-
 import { AnimatePresence, motion } from "motion/react";
 import type * as React from "react";
 import { useCollapse } from "../../lib/motion";

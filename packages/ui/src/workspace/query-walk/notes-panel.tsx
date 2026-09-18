@@ -1,5 +1,3 @@
-"use client";
-
 // The prose the reader wrote around their query, kept where it can be found and out of where it was
 // in the way.
 //

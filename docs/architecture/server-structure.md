@@ -15,7 +15,10 @@ apps/server/
 │   ├── smoke.sh              end-to-end smoke against a local Postgres — the only thing that
 │   │                         exercises the HTTP API end to end (see "No tests, and the gate")
 │   │                         (run it as `bun run --filter perch smoke` from the root)
-│   └── postbuild.mjs         chmod +x on dist/cli/main.js after `tsc`
+│   ├── postbuild.mjs         chmod +x on dist/cli/main.js after `tsc`
+│   └── gen-ui-entry.mjs      writes build/ui-entry.ts, the entry `compile` builds from: it
+│                             imports every file under ui/ so `--compile` embeds them, then
+│                             registers them with util/embedded-ui and loads the CLI
 └── src/
     ├── cli/                  everything the `perch` binary does: serve, stop, status
     │   ├── main.ts           the entry point (shebang, --version/--help, dispatch).
@@ -83,7 +86,9 @@ apps/server/
     │   ├── routes/           one module per group, each exporting register<X>Routes(app, deps)
     │   │                     health · events · connections · discover · schema · query · runs ·
     │   │                     history · settings · files · ui  (registered in that order; ui is
-    │   │                     last because both of its halves end in a `*` route)
+    │   │                     last because both of its halves end in a `*` route). ui mounts
+    │   │                     either the directory on disk or, in a compiled binary, the files
+    │   │                     embedded in it — see util/embedded-ui
     │   ├── services/         the things that outlive a single request
     │   │   ├── create-services.ts  createServices(opts) → { pool, runLog, runner }: the three
     │   │   │                 are wired together here and nowhere else
@@ -123,6 +128,9 @@ apps/server/
     │   ├── atomic-write.ts   writeFileAtomic(): temp file + rename, with the Windows rename
     │   │                     retry (EPERM/EBUSY while an editor or scanner holds the target)
     │   ├── errno.ts          errnoCode(err) — the ErrnoException cast, written once
+    │   ├── embedded-ui.ts    the UI a `bun --compile` binary carries inside itself: the map
+    │   │                     from a UI path to its path in the bundle, which routes/ui
+    │   │                     serves from when there is no directory on disk
     │   └── open-browser.ts   best-effort cross-platform URL launcher (detached, never throws)
     └── index.ts              the library barrel (see "The library barrel" below).
                               package.json "main"/"types"/"exports" point here.
@@ -265,5 +273,9 @@ published for. `typecheck` and `lint` are runtime-agnostic and go through Bun.
   both now match nothing.
 - `bun run --filter perch build` is `tsc -p tsconfig.build.json` followed by
   `scripts/postbuild.mjs`, which marks `dist/cli/main.js` executable.
+- `bun run --filter perch compile` is `scripts/gen-ui-entry.mjs` followed by
+  `bun build build/ui-entry.ts --compile`. It builds from the generated entry rather than
+  `src/cli/main.ts` because that is the only way the UI gets into the binary; run the frontend
+  build first or the binary ships with the placeholder page. `build/` is gitignored, like `ui/`.
 - `@perch/protocol` is the contract shared with every frontend. Keep shapes stable; add optional
   fields rather than changing existing ones.

@@ -1,5 +1,3 @@
-"use client";
-
 // The walk's motion. It borrows the workspace's CURVES so the scene still moves like the rest of
 // the app, but deliberately not its durations. Every transition here is zeroed under
 // prefers-reduced-motion.

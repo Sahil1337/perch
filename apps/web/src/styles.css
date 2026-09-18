@@ -1,9 +1,22 @@
 @import "tailwindcss";
 @import "shadcn/tailwind.css";
 
+/* Self-hosted Geist, bundled with the app. Perch runs on loopback on a machine that may have no
+   network at all, so a Google Fonts <link> would be a blank first paint waiting on a timeout. */
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+
 /* The design system — tokens, variants and keyframes — lives with the components it styles. */
 @import "@perch/ui/styles.css";
 
 /* @perch/ui is a workspace symlink, so Tailwind's automatic source detection does not reach it.
    Without this, every class used only inside a packages/ui component is tree-shaken away. */
 @source "../../../packages/ui/src";
+
+/* The two names packages/ui/src/styles.css maps `font-sans` and `font-mono` onto. They are defined
+   here, in the app, because the app is what owns the font files — the package ships no CSS of its
+   own for them. Unlayered and last, so they win over anything `@theme` emits into `@layer theme`. */
+:root {
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-geist-mono: "Geist Mono Variable", ui-monospace, monospace;
+}

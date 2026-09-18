@@ -1,5 +1,3 @@
-"use client";
-
 // The schema sidebar: two levels, table → column. Deeper nesting would add rows the user has to
 // open before seeing anything — the database is already named in the topbar, and a table's kind is
 // an icon's worth of information, not a folder. The schema level is conditional, because it is the

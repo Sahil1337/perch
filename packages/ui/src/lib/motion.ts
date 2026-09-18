@@ -1,5 +1,3 @@
-"use client";
-
 // One spring, one fade, one place. Motion that differs per component reads as jitter rather than
 // as character, so every animated surface in the workspace pulls its timing from here.
 

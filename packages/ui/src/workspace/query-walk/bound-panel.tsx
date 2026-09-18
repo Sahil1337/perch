@@ -1,5 +1,3 @@
-"use client";
-
 // The reading side of a per-row section, laid out like the station narrator so the two do not feel
 // like different screens: what this section is, what happened for the row currently bound, what
 // happened in the cell that is picked, and the SQL underneath as reference.

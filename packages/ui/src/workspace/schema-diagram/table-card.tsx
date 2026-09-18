@@ -1,5 +1,3 @@
-"use client";
-
 import type { Column } from "@perch/protocol";
 import {
   ChevronDownIcon,

@@ -30,10 +30,10 @@
     "build": "bun run --filter '*' build",
     "start": "turbo run start --filter=perch",
     "typecheck": "bun run --filter '*' typecheck",
-    "lint": "eslint apps/server/src packages/ui/src && bun run --filter @perch/web lint",
+    "lint": "eslint apps/server/src apps/web/src apps/web/vite.config.ts packages/ui/src",
     "smoke": "bun run --filter perch smoke",
     "perch": "perch",
-    "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules apps/server/dist apps/server/ui apps/web/.next apps/web/out .turbo apps/*/.turbo"
+    "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules apps/server/dist apps/server/ui apps/web/dist .turbo apps/*/.turbo"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

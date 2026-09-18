@@ -1,5 +1,3 @@
-"use client";
-
 // Picking a workspace folder by looking at the machine, rather than typing a path from memory.
 //
 // The obvious control — a native folder dialog — is not available to us. `showDirectoryPicker()`

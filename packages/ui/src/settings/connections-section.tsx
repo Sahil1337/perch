@@ -1,5 +1,3 @@
-"use client";
-
 // Settings → Connections.
 //
 // Three things stacked, in the order they are needed: what you already have, what is already on

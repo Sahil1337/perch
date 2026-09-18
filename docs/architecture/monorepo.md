@@ -9,13 +9,13 @@ published to a registry, and distribution is a file you download.
 perch/
 ├─ package.json            workspaces ["packages/*", "apps/*"]; scripts fan out (except lint)
 ├─ apps/server/            `perch` — the published package: Hono API + `perch` CLI
-├─ apps/web/               @perch/web — the UI; static-exports into apps/server/ui/
+├─ apps/web/               @perch/web — the UI; builds into apps/server/ui/
 ├─ packages/protocol/      @perch/protocol — the wire contract, types only
 ├─ packages/client/        @perch/client — typed HTTP/NDJSON/SSE client over /api/*
 ├─ packages/ui/            @perch/ui — components + the workspace contract, raw .tsx
 ├─ packages/sql/           @perch/sql — SQL text utilities the frontend needs; mirrors apps/server
 ├─ packages/tsconfig/      @perch/tsconfig — base.json / node.json / react.json
-├─ eslint.config.js        one ESLint config for the repo; apps/web pins its own
+├─ eslint.config.js        one ESLint config for the repo, every workspace
 ├─ turbo.json              Turborepo — one task, `dev`, so both halves start together
 ├─ scripts/dev.mjs         picks the API's dev port before handing off to turbo
 └─ docs/architecture · docs/api · docs/design
@@ -28,13 +28,13 @@ workspaces extend them — the indirection buys something.
 
 ESLint used to work the same way, as `@perch/eslint-config`. It doesn't any more. The config had
 exactly one consumer (`apps/server`): `packages/protocol` and `packages/client` have no `lint`
-script, and `apps/web` runs `eslint-config-next` on its own pinned ESLint 9. A package export
+script, and `apps/web` was then running `eslint-config-next` on its own pinned ESLint 9. A package export
 that one workspace imports is not a shared preset, it is a file with extra steps — a manifest, a
 `peerDependencies` block and a workspace link standing in for a relative path. So the config sits
 at the root now, and `serverLayering`'s globs name their target outright
 (`apps/server/src/db/**`) instead of relying on the config file's position to scope them. If a
-workspace ever needs a _different_ baseline, it gets its own `eslint.config.js` — the same escape
-hatch `apps/web` already uses.
+workspace ever needs a _different_ baseline, it gets its own `eslint.config.js` — the escape
+hatch `apps/web` used until Next, and with it the ESLint 9 pin, was dropped.
 
 ## Why each boundary exists
 
@@ -51,9 +51,9 @@ once and tested once. A UI component never sees a `fetch`.
 `storage/` shared by `cli/` and `server/` and `util/` leaf) and documented in
 [server-structure.md](server-structure.md).
 
-**`apps/web` — the UI, and nothing else.** A Next 16 app that static-exports into
-`apps/server/ui/`, so the single npm package carries both halves and there is no second artefact
-to ship. It owns routing and the choice between the live provider and the fixtures; everything a
+**`apps/web` — the UI, and nothing else.** A TanStack Start app in SPA mode — one prerendered
+shell, no SSR, no server functions — that builds into `apps/server/ui/`, so the single package
+carries both halves and there is no second artefact to ship. It owns routing and the choice between the live provider and the fixtures; everything a
 second surface might reuse lives in `packages/ui`, which may not import `@perch/client`.
 
 ## Dependency rules
@@ -133,14 +133,14 @@ overrides the location, which is how you point a running server at a dev build.
 - **Scripts fan out** with `bun run --filter '*'`, which skips a workspace that lacks the script
   rather than breaking the run. Target one workspace with `--filter <name>`. `lint` is the one
   script that does not fan out — see the ESLint bullet below.
-- **Turborepo owns `dev` and `start`, and nothing else.** `bun run dev` starts `next dev` on
-  :3000 and the API on a free port, output prefixed per workspace. `bun run start` runs what
+- **Turborepo owns `dev` and `start`, and nothing else.** `bun run dev` starts `vite dev` on
+  :5173 and the API on a free port, output prefixed per workspace. `bun run start` runs what
   `bun run build` produced — a single `perch serve`, since the built UI is a folder of static
   files the server mounts at `/` rather than a second process to supervise. The port is chosen by `scripts/dev.mjs`
-  before turbo runs, because it is the one thing turbo cannot do: Next inlines `NEXT_PUBLIC_*` at
+  before turbo runs, because it is the one thing turbo cannot do: Vite inlines `VITE_*` at
   compile time, so the UI has to be told where the server is _before_ it starts, and a port fixed
   in both scripts would collide with a real `perch serve`. The launcher picks a free port, passes
-  it to the server as `PERCH_DEV_PORT` and to the bundle as `NEXT_PUBLIC_PERCH_URL`, and refuses to
+  it to the server as `PERCH_DEV_PORT` and to the bundle as `VITE_PERCH_URL`, and refuses to
   start at all when a server is already registered in `server.json` — `perch serve` would attach to
   that one and leave the UI pointed at nothing. Turbo 2 filters task environments, so both
   variables are declared in `passThroughEnv`. It is there for the
@@ -157,15 +157,14 @@ overrides the location, which is how you point a running server at a dev build.
   `serverLayering`, a set of `no-restricted-imports` patterns enforcing the server's import
   direction. Flat config resolves `files` globs against the directory holding the config file, so
   the repo-relative globs match only inside `apps/server` and behave identically whether ESLint
-  runs from the root or from `apps/server`. `bun run lint` is therefore not a plain fan-out: it is
-  one root run plus `apps/web`'s separate pass.
-- **Versions are aligned across every package**: TypeScript 6 and ESLint 10 — with one
-  documented exception. `apps/web` nests its own ESLint 9, because `eslint-config-next` bundles
-  an `eslint-plugin-react` that still calls the `context.getFilename()` ESLint 10 removed. It has
-  its own `eslint.config.mjs` and the root `lint` script invokes it separately, so ESLint never
-  reaches the root config from inside it. `packages/ui` is plain React with no Next.js rules and is
-  linted from the root on ESLint 10. A version skew between workspaces in a single `node_modules`
-  is a debugging tax nobody should pay, so any future skew needs a comment saying why it exists.
+  runs from the root or from `apps/server`. `bun run lint` is therefore not a fan-out at all: it
+  is one root run naming the three source trees that have rules.
+- **Versions are aligned across every package**: TypeScript 6 and ESLint 10, with no exception.
+  `apps/web` used to nest its own ESLint 9, because `eslint-config-next` bundled an
+  `eslint-plugin-react` that still called the `context.getFilename()` ESLint 10 removed; dropping
+  Next took the pin, the nested config and the separate lint pass with it. A version skew between
+  workspaces in a single `node_modules` is a debugging tax nobody should pay, so any future skew
+  needs a comment saying why it exists.
 
 ## The verification gate
 

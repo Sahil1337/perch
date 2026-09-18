@@ -1,5 +1,3 @@
-"use client";
-
 // The right half of a per-row ledger for the two kinds whose answer is not a table.
 //
 // IN is a MEMBERSHIP test, so its card is the set: the outer row's value on top, the values the

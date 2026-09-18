@@ -1,5 +1,3 @@
-"use client";
-
 // The first run.
 //
 // One screen, not a wizard: get perch pointed at a database. Everything else the app can either

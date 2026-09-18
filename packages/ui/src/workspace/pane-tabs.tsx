@@ -1,5 +1,3 @@
-"use client";
-
 // One group's tab strip.
 //
 // Every tab is a drag handle and the strip itself is a drop target. A tab and its close control are

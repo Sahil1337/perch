@@ -1,5 +1,3 @@
-"use client";
-
 // The only picture in the app: a client on your machine, and your database over there. The screen
 // underneath asks for a host and a port because perch neither is a database nor ships one, so the
 // picture has to make "two things, joined" the obvious reading before the form is read at all.

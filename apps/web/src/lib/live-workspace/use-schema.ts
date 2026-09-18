@@ -1,5 +1,3 @@
-"use client";
-
 import type { PerchClient } from "@perch/client";
 import type { DatabaseSchema } from "@perch/protocol";
 import { asyncError, asyncIdle, asyncLoading, asyncReady, asyncRefreshing, type Async } from "@perch/ui";

@@ -1,5 +1,3 @@
-"use client";
-
 import * as React from "react";
 import type { Point, Rect } from "./geometry";
 import type { Node } from "./graph";

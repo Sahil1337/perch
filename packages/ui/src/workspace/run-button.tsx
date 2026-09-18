@@ -1,5 +1,3 @@
-"use client";
-
 // Start the run, and stop it.
 //
 // One control, two jobs. Against a real server the thing you most want after pressing Run is the

@@ -1,5 +1,3 @@
-"use client";
-
 // The context menu's half of the editor: every item it offers, plus the selection flag that decides
 // which of them are live. Each command reaches the view through a ref, so none of them is a reason
 // to re-run the effect that built it.

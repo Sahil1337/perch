@@ -1,5 +1,3 @@
-"use client";
-
 // The regex tokeniser the editor grew out of. It survives only as `highlightSql`, for read-only
 // previews where a full editor per row would be absurd.
 

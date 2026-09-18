@@ -1,5 +1,3 @@
-"use client";
-
 // "Your query": the whole statement the reader wrote, with the open chapter lit inside it.
 //
 // The walk runs a SECTION, and a section's text is not the reader's — it is a body trimmed out of

@@ -1,5 +1,3 @@
-"use client";
-
 // Global keyboard shortcuts.
 //
 // These have to be window-level: ⌘↵ must run the query while the caret is in the editor, and ⌘B

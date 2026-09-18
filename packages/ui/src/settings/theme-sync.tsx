@@ -1,5 +1,3 @@
-"use client";
-
 import * as React from "react";
 import { applyTheme, storedTheme } from "../lib/theme";
 import { useWorkspace } from "../workspace/context";

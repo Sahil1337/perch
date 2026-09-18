@@ -1,5 +1,3 @@
-"use client";
-
 // Where playback can BE, and where it goes next.
 //
 // None of this is about rendering: it is arithmetic over the program's sections and the state of

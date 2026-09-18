@@ -1,5 +1,3 @@
-"use client";
-
 // Running a per-row section: one probe for the outer rows, and one more for whichever row is bound.
 //
 // THE OUTER PROBE runs once, when the section is first opened. It asks for the count and the verdict

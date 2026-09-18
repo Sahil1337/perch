@@ -1,5 +1,3 @@
-"use client";
-
 // Runs a walk's stations through `probe`, one station at a time, in order. Each batch is one probe
 // call carrying its statements separated by `;`; the server runs them in order and stops at the
 // first failure, so a completed statement is in `results` by position and the one after them is

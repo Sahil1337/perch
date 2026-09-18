@@ -1,5 +1,3 @@
-"use client";
-
 // Settings → Files. Autosave, its delay, and the workspace roots list — the only folders Perch
 // may read or write, which is why that fact is said once, plainly, rather than repeated by every
 // control underneath it.

@@ -1,5 +1,3 @@
-"use client";
-
 // The card every scene on the stage is drawn on, and the bar across the top of it.
 
 import { motion } from "motion/react";

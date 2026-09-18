@@ -1,5 +1,3 @@
-"use client";
-
 // The moment between pressing Connect and seeing the workspace. Everything else unmounts, leaving
 // the app's one picture at full size: opening a database is the only ceremony perch has — no
 // account, no import, no sync — so it is worth showing rather than hiding behind a spinner.

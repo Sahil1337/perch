@@ -1,5 +1,3 @@
-"use client";
-
 // Shared row and field primitives for the settings panes: a label-and-control row, and the one
 // numeric field every pane with a byte/row/timeout limit needs.
 

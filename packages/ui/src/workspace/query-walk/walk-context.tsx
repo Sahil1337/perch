@@ -1,5 +1,3 @@
-"use client";
-
 // The two things every part of the walk may need and none of them can change: the program, and the
 // way to ask the database something.
 //

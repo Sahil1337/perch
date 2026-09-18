@@ -1,5 +1,3 @@
-"use client";
-
 // The panel beside the stage: what is happening, and the SQL it happened with.
 //
 // The station narrator and the per-row panel are two readings of the same thing and share this

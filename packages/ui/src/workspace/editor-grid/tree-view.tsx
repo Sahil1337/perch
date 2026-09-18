@@ -1,5 +1,3 @@
-"use client";
-
 import { useDroppable } from "@dnd-kit/core";
 import { FilePlusIcon } from "lucide-react";
 import * as React from "react";

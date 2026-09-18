@@ -1,5 +1,3 @@
-"use client";
-
 // "Found on this machine". perch never bundles a database; it looks for the one you already have —
 // on a default port, installed as a service, in a container, or on PATH — which turns the worst
 // moment of a first run, a blank form asking for a host and port, into a row with a button on it.

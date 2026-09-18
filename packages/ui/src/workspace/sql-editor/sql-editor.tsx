@@ -1,5 +1,3 @@
-"use client";
-
 // The SQL editor, on CodeMirror 6. A plain textarea cannot put a squiggle on the character the
 // server blamed, complete a column name, or answer "which statement is my cursor in" — the gesture
 // this app is used through.

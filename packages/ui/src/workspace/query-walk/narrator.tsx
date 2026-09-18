@@ -1,5 +1,3 @@
-"use client";
-
 // The side of the walk that reads. Top to bottom it is one thought: which station this is, how far
 // through it the playback has got, what the station does, and what it did to the row count. The
 // reference material — the user's query, the statements the walk actually sent, and the prose the

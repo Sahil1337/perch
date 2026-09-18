@@ -1,5 +1,3 @@
-"use client";
-
 // The query walk: one statement read as a PROGRAM of sections — a CTE, a derived table, a subquery
 // predicate, a branch of a set operation, the statement itself — each animated through its logical
 // stations with the real rows and counts the connected database gives back.

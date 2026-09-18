@@ -1,5 +1,3 @@
-"use client";
-
 import type { ConnectionSummary, Dialect, DiscoveredServer } from "@perch/protocol";
 import * as React from "react";
 import { messageOf } from "../lib/errors";

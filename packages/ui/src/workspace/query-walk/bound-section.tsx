@@ -1,5 +1,3 @@
-"use client";
-
 // A section that runs once for every row of another one, actually running.
 //
 // Until this existed the screen said "correlated, so it has no one answer" and stopped there, which

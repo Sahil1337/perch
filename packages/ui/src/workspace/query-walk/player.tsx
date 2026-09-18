@@ -1,5 +1,3 @@
-"use client";
-
 // The player: where the walk is (section, station, phase), whether it is moving, and how fast.
 // Paused, the scene holds at its position and any in-flight motion simply finishes; play resumes
 // from there. Stepping crosses station boundaries, skipping stations the query does not use or that

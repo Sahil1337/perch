@@ -1,5 +1,3 @@
-"use client";
-
 // Saving an untitled query. The question is *where*, and the answer depends on what is open: a
 // workspace folder is the obvious home, and the first one is preselected. With none open, perch
 // offers the folder it made for itself and opens that as a workspace on the way past, so the file

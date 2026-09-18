@@ -1,5 +1,3 @@
-"use client";
-
 import { ChevronRightIcon, FileTextIcon, FolderIcon, FolderOpenIcon, XIcon } from "lucide-react";
 import { motion } from "motion/react";
 import * as React from "react";

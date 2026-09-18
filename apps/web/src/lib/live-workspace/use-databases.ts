@@ -1,5 +1,3 @@
-"use client";
-
 // Which databases the current connection has.
 //
 // Two sources, in order of cost: the connection summary already carries the list for a server that

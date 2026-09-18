@@ -1,5 +1,3 @@
-"use client";
-
 // Settings → Editor. The keyword-case row is not optional: these settings change what the
 // formatter writes, and "Keyword case" alone does not say formatting is an explicit action rather
 // than something that happens as you type.

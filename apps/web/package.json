@@ -2,34 +2,36 @@
   "name": "@perch/web",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "The SQL client UI. Static-exported into apps/server/ui/ and served by the perch server at /.",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build && node scripts/postbuild.mjs",
-    "start": "next start",
-    "lint": "eslint",
-    "typecheck": "next typegen && tsc --noEmit"
+    "dev": "vite dev",
+    "build": "vite build && node scripts/postbuild.mjs",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@fontsource-variable/geist": "^5.3.0",
+    "@fontsource-variable/geist-mono": "^5.3.0",
     "@perch/client": "*",
     "@perch/protocol": "*",
     "@perch/ui": "*",
+    "@tanstack/react-router": "^1.170.38",
     "lucide-react": "^1.33.0",
-    "next": "16.3.2",
     "react": "19.2.8",
-    "react-dom": "19.2.8",
-    "shadcn": "^4.19.0"
+    "react-dom": "19.2.8"
   },
   "devDependencies": {
-    "@shadcn/lint": "^0.1.0",
     "@perch/tsconfig": "*",
-    "@tailwindcss/postcss": "^4",
+    "@shadcn/lint": "^0.1.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "@tanstack/react-start": "^1.168.56",
     "@types/node": "^26.5.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "eslint": "^9.39.5",
-    "eslint-config-next": "16.3.2",
+    "@vitejs/plugin-react": "^6.1.1",
+    "shadcn": "^4.19.0",
     "tailwindcss": "^4",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vite": "^8.3.0"
   }
 }

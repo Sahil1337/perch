@@ -1,5 +1,3 @@
-"use client";
-
 // Vendored primitive. Unmodified apart from the import paths, so it stays diffable against the
 // upstream source.
 

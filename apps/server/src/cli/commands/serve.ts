@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { VERSION } from "../../core/version.js";
 import { DEFAULT_HOST, DEFAULT_PORT, startServer } from "../../server/start.js";
 import { clearServerInfo, getSettings, readServerInfo, saveSettings } from "../../storage/index.js";
+import { hasEmbeddedUi } from "../../util/embedded-ui.js";
 import { openBrowser } from "../../util/open-browser.js";
 import { bold, defineCommand, dim, printJson } from "../util/index.js";
 
@@ -14,7 +15,12 @@ import { bold, defineCommand, dim, printJson } from "../util/index.js";
  * API and a placeholder page — the bundle was right there on disk and nothing ever looked for it,
  * so the app only worked if you knew to pass `--ui`.
  */
-function bundledUiDir(): string {
+function bundledUiDir(): string | undefined {
+  // A compiled binary carries the UI inside itself instead, and its import.meta.url points into
+  // Bun's virtual bundle root — the walk below would resolve to a path on the host machine that
+  // has nothing to do with this install, and an unrelated directory there would shadow the real
+  // bundle. Let the embedded copy answer.
+  if (hasEmbeddedUi()) return undefined;
   // This file compiles to dist/cli/commands/serve.js, so the package root — where ui/ sits next
   // to dist/ — is three levels up.
   return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "ui");

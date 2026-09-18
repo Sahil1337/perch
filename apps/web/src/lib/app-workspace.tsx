@@ -1,5 +1,3 @@
-"use client";
-
 // Which provider the app runs on: the live one, always. There is no fixture mode, because a SQL
 // client that quietly shows invented tables is worse than one that says it cannot reach its server.
 // Every row on screen came off the wire, and failures are rendered as failures — see `<ServerGate>`

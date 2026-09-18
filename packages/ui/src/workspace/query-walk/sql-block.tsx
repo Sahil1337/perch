@@ -1,5 +1,3 @@
-"use client";
-
 // A statement shown as reference rather than as a gesture: highlighted, wrapped, and still.
 //
 // `SqlParts` is the other half of this — the same block with its substitutions cross-fading. This

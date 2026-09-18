@@ -1,5 +1,3 @@
-"use client";
-
 import { FolderOpenIcon } from "lucide-react";
 import * as React from "react";
 import { Button } from "../../ui/button";

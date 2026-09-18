@@ -1,5 +1,3 @@
-"use client";
-
 // Settings with no Save button.
 //
 // A preferences dialog whose controls do not take effect until you press something is a dialog

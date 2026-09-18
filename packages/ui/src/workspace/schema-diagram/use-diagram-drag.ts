@@ -1,5 +1,3 @@
-"use client";
-
 import * as React from "react";
 import type { Point } from "./geometry";
 import type { DiagramLayout } from "./use-diagram-layout";

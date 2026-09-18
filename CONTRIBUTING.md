@@ -11,50 +11,51 @@ Install once, at the repo root:
 
 ```sh
 bun install        # installs every workspace
-bun run dev        # both halves: the UI on :3000, the API on a fresh port
+bun run dev        # both halves: the UI on :5173, the API on a fresh port
 ```
 
 > **Never run an install or add a dependency inside `apps/*` or `packages/*`.** It creates a
 > nested lockfile and a second copy of React or TypeScript. Add the dependency to that
 > workspace's `package.json` and install at the root.
 
-`dev` runs `perch serve` and `next dev` together through Turborepo, prefixing each line with the
-workspace it came from. The UI keeps Next's usual :3000; the API takes a free port picked at
+`dev` runs `perch serve` and `vite dev` together through Turborepo, prefixing each line with the
+workspace it came from. The UI keeps Vite's usual :5173; the API takes a free port picked at
 startup, so it never argues with a real `perch serve` you have running, or with a second clone.
 Open the `dev UI` line:
 
 ```
 perch:dev: perch v0.1.0 → http://127.0.0.1:54716
-perch:dev: dev UI      → http://localhost:3000/
-perch:dev: dev UI      → http://localhost:3001/
-@perch/web:dev:   ▲ Next.js 16.3.2  - Local: http://localhost:3000
+perch:dev: dev UI      → http://localhost:5173/
+perch:dev: dev UI      → http://127.0.0.1:5173/
+@perch/web:dev:   VITE v8.3.0  ready in 430 ms
+@perch/web:dev:   ➜  Local:   http://localhost:5173/
 ```
 
 The UI and the API are on different origins in dev, so the browser only reaches the API because
-the server's dev script allows both through CORS — that is what the `dev UI` lines are. Both
-:3000 and :3001 are printed; take the one `next dev` actually bound, which it prints on its own
-line.
+the server's dev script allows both through CORS — that is what the `dev UI` lines are. Vite's
+port is pinned (`strictPort`) rather than left to walk to the next free one, because that list of
+allowed origins is fixed: a UI on some other port would fail in the browser, not in the terminal.
 
 Because the API port changes per run, a tab left open from a previous session points at a port
 that is gone — reload it from the fresh URL. To pin the port instead, set `PERCH_DEV_PORT=4600`.
 
 `dev:server` and `dev:ui` run one half each, skipping the launcher; both then default to :4600 —
 the server's `--port ${PERCH_DEV_PORT:-4600}` and `apps/web/.env.development` agree on that number
-so the halves still find each other. Note that `next dev` refuses to start a second server for the
-same directory, so stop any `next dev` you already have running for `apps/web` first.
+so the halves still find each other. `vite dev` exits rather than pick another port if :5173 is
+taken, so stop any dev UI you already have running first.
 
 ## Repo map
 
 ```
 perch/
 ├─ apps/server/        the product: Hono API + `perch` CLI, compiled into the shipped binary
-├─ apps/web/           @perch/web — the UI (Next 16), static-exported into apps/server/ui/
+├─ apps/web/           @perch/web — the UI (TanStack Start, SPA mode), built into apps/server/ui/
 ├─ packages/protocol/  @perch/protocol — the wire contract. Types only, no build step.
 ├─ packages/client/    @perch/client — typed HTTP/NDJSON/SSE client over /api/*
 ├─ packages/ui/        @perch/ui — components + the workspace contract, shipped as raw .tsx
 ├─ packages/sql/       @perch/sql — statement splitter + formatter the frontend needs
 ├─ packages/tsconfig/  @perch/tsconfig — base / node / react presets
-├─ eslint.config.js    one ESLint config for the repo (apps/web pins its own)
+├─ eslint.config.js    one ESLint config for the repo, every workspace                      
 ├─ turbo.json          Turborepo tasks — `dev` and `start`; everything else fans out directly
 ├─ scripts/dev.mjs     picks the API's port, then hands both halves to turbo
 └─ docs/               architecture/, api/, design/
@@ -67,13 +68,13 @@ workspace that does not define the script is skipped rather than failing the run
 
 | Script            | What it does                                                                      |
 | ----------------- | --------------------------------------------------------------------------------- |
-| `dev`             | both halves: `next dev` on :3000 + `perch serve` on a free port (scripts/dev.mjs) |
+| `dev`             | both halves: `vite dev` on :5173 + `perch serve` on a free port (scripts/dev.mjs) |
 | `dev:server`      | just the server (`perch serve --no-open` on :4600, from TypeScript)               |
-| `dev:ui`          | just the UI (`next dev` on :3000, expects the API on :4600)                       |
+| `dev:ui`          | just the UI (`vite dev` on :5173, expects the API on :4600)                       |
 | `build`           | builds every workspace that has a build                                           |
 | `start`           | runs the built app: `perch serve` on :4600, serving the built UI and the API      |
 | `typecheck`       | `tsc --noEmit` across every workspace                                             |
-| `lint`            | ESLint over apps/server and packages/ui, then apps/web's own ESLint 9 pass        |
+| `lint`            | one ESLint run over apps/server, apps/web and packages/ui                         |
 | `smoke`           | end-to-end smoke against a local Postgres (apps/server/scripts/smoke.sh)          |
 | `perch -- <args>` | runs the `perch` binary from the server workspace (needs a build)                 |
 | `clean`           | removes node_modules and all build output                                         |
@@ -103,14 +104,13 @@ repo is private), so check a change that touches process, fs, net or crypto with
   [docs/architecture/server-structure.md](docs/architecture/server-structure.md).
 - **UI** → `apps/web` for anything app-shaped (routing, the provider that picks live data
   vs fixtures), `packages/ui` for anything a second surface could reuse. No component in
-  `packages/ui` may import `@perch/client`; `apps/web/lib` is the only place that does.
+  `packages/ui` may import `@perch/client`; `apps/web/src/lib` is the only place that does.
 
 The frontend does not ship separately: `apps/web` builds its static output into `apps/server/ui/`
 (gitignored), and the single `perch` binary carries both halves.
 
 TypeScript presets live in `packages/tsconfig` and are extended by name — do not add a root
-`tsconfig.json`. ESLint config lives at the repo root and covers every ESLint 10 workspace;
-`apps/web` keeps its own next to it for its pinned ESLint 9.
+`tsconfig.json`. ESLint config lives at the repo root and covers every workspace in one run.
 
 ## What a change has to clear
 

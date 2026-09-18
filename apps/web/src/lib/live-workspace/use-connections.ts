@@ -1,5 +1,3 @@
-"use client";
-
 // Which server the workspace is pointed at, and which database on it.
 //
 // The database is a *pick*, not a copy: `null` means "whatever this connection says", so a

@@ -1,5 +1,3 @@
-"use client";
-
 import type { Column, Table } from "@perch/protocol";
 import { ChevronRightIcon, KeyIcon } from "lucide-react";
 import { motion } from "motion/react";

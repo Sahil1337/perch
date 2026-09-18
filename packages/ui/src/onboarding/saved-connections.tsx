@@ -1,5 +1,3 @@
-"use client";
-
 import type { ConnectionSummary } from "@perch/protocol";
 import type * as React from "react";
 import { Button } from "../ui/button";

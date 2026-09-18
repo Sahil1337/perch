@@ -1,5 +1,3 @@
-"use client";
-
 export const QUERY_WALK_EVENT = "perch:visualise-query";
 
 export type QueryWalkEventDetail = {

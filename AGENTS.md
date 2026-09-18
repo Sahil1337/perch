@@ -17,28 +17,27 @@ Run everything from the repo root. There is one `bun.lock` and one `node_modules
 - **Never** run an install or add a dependency inside `apps/*` or `packages/*` — it creates a
   nested lockfile and a second copy of React or TypeScript. Add the dependency to that
   workspace's `package.json` and install at the root.
-- `build`, `typecheck` and `lint` fan out to every workspace (`--filter '*'`, which skips a
-  workspace that lacks the script). `lint` is the exception: one root ESLint run over
-  `apps/server/src` and `packages/ui/src`, then `bun run --filter @perch/web lint` for the Next
-  app's pinned ESLint 9.
+- `build` and `typecheck` fan out to every workspace (`--filter '*'`, which skips a workspace
+  that lacks the script). `lint` is the exception: one root ESLint run over `apps/server/src`,
+  `apps/web/src` and `packages/ui/src`. There is no per-workspace lint script.
 - Target one workspace with `--filter`: `bun run --filter perch typecheck`,
-  `bun run --filter @perch/web lint`, `bun run --filter @perch/protocol check`.
+  `bun run --filter @perch/web build`, `bun run --filter @perch/protocol check`.
   `bun run perch -- <args>` drives the CLI (the workspace bin, so it needs a `build` first).
-- **Turborepo owns `dev` and `start`, nothing else.** `dev` starts `next dev` (:3000) and
-  `perch serve` (a free port, picked by `scripts/dev.mjs` and passed to both through
-  `PERCH_DEV_PORT` / `NEXT_PUBLIC_PERCH_URL`); `dev:server` and `dev:ui` are the halves, both on
-  :4600. `start` runs the built app, which is one process: there is no production UI server,
-  because `apps/web` static-exports into `apps/server/ui/` and `perch serve` mounts it at `/`.
+- **Turborepo owns `dev` and `start`, nothing else.** `dev` starts `vite dev` (:5173, pinned with
+  `strictPort` because apps/server's dev script allow-lists that exact origin) and `perch serve`
+  (a free port, picked by `scripts/dev.mjs` and passed to both through `PERCH_DEV_PORT` /
+  `VITE_PERCH_URL`); `dev:server` and `dev:ui` are the halves, both on :4600. `start` runs the
+  built app, which is one process: there is no production UI server, because `apps/web` builds
+  into `apps/server/ui/` and `perch serve` mounts it at `/`.
   **Turbo 2 filters the environment** — a new variable either half needs must be added to
   `passThroughEnv` in `turbo.json` or it silently will not arrive. Don't move another task into
   turbo without a reason to want its cache.
 - **Don't break Node.** The server runs on Bun in dev and ships as a Bun binary, but Node 22+ is
   still a supported target: see [CONTRIBUTING.md](CONTRIBUTING.md#scripts) before touching
   process, fs, net or crypto behaviour.
-- **ESLint config lives at the repo root** (`eslint.config.js`) and covers every ESLint 10
-  workspace. `apps/web` keeps its own next to it; see the comment at the top of the root
-  config for why. Do not add a root `tsconfig.json` — tsconfig presets still live in
-  `@perch/tsconfig` and are extended by name.
+- **ESLint config lives at the repo root** (`eslint.config.js`) and covers every workspace in one
+  ESLint 10 run; no workspace nests its own any more. Do not add a root `tsconfig.json` — tsconfig
+  presets still live in `@perch/tsconfig` and are extended by name.
 
 ## Code
 
@@ -76,7 +75,7 @@ Read this before adding to or writing a new component in `apps/web` or `packages
   `no-inline-styles`, `no-unknown-classes`, `no-restyle`) fails `bun run lint` on hand-rolled CSS,
   raw color values, or arbitrary Tailwind values — use theme tokens and real utility classes. Plain
   CSS is only for what Tailwind can't express (keyframes). See the comment at the top of
-  `eslint.config.js` / `apps/web/eslint.config.mjs`.
+  `eslint.config.js`.
 - **Match the existing folder idiom per feature; don't force one shape everywhere.** Co-located
   single files at one level (like `packages/ui/src/ui/`) for a flat set of primitives, or a feature
   subfolder with an index/barrel when a component genuinely decomposes into a family of parts. When
@@ -111,13 +110,16 @@ land is a committed `*.test.ts`.
   Never add an `npm i -g` line to docs — there is no package to install, and the npm names
   `perch`, `sqe` and `sql-engine` all belong to unrelated projects.
 - **The frontend is `apps/web`.** The four layout directions in `apps/mockups` did their job
-  and were deleted; the components they shared now live in `packages/ui`. `apps/web` static-exports into
-  `apps/server/ui/`, which is how the one binary carries both halves.
+  and were deleted; the components they shared now live in `packages/ui`. `apps/web` is TanStack
+  Start in SPA mode: `vite build` prerenders one shell, `scripts/postbuild.mjs` copies
+  `dist/client/` into `apps/server/ui/`, and that is how the one binary carries both halves. The
+  copied tree must keep `index.html` at its root — `apps/server/src/server/routes/ui.ts` returns
+  that file for every unmatched non-`/api/` GET.
 - **MIT licensed.** New workspaces inherit it; `apps/server` keeps its own `LICENSE` copy so the
   shipped half of the repo carries its licence next to it.
 
 ## Don't touch
 
-- `apps/web/AGENTS.md`, if `next dev` writes one — it is generated and carries only Next.js
-  rules. Don't hand-edit it; if it turns up dirty, commit it alongside your work rather than
-  reverting it.
+- `apps/web/src/routeTree.gen.ts` — the TanStack Router plugin rewrites it on every `vite dev`
+  and `vite build`. It is committed so `typecheck` works from a clean checkout without a build
+  first; if it turns up dirty, commit it alongside your work rather than reverting it.

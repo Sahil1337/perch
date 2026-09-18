@@ -1,5 +1,3 @@
-"use client";
-
 // One server-backed value, read when the gate opens and re-read on demand.
 //
 // Three hooks were writing the same eight lines: mark the current value as refetching, await the

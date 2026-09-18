@@ -1,5 +1,3 @@
-"use client";
-
 // The gear.
 //
 // Owns the dialog it opens, so a caller mounts one element and gets both — the alternative is

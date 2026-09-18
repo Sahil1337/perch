@@ -1,5 +1,3 @@
-"use client";
-
 import type { StatementResult } from "@perch/protocol";
 import { DownloadIcon } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";

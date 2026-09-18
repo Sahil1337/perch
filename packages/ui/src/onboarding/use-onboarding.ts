@@ -1,5 +1,3 @@
-"use client";
-
 // Whether the welcome flow has anything to say.
 //
 // Two conditions have to agree. The first is factual: with no connection there is nothing to show

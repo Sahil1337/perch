@@ -1,5 +1,3 @@
-"use client";
-
 // How every table in the walk sizes a column.
 //
 // A column's measured width reaches CSS as the custom property `--w`, so the layout itself stays in

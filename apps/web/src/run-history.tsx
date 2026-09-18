@@ -1,5 +1,3 @@
-"use client";
-
 // Run history: "what did I just run, and did it work" is the question asked most often once the
 // result has scrolled away. Backed by `runs` in the contract, which the live provider seeds from
 // GET /api/history so it survives a reload.

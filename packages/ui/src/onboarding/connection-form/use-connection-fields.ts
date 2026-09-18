@@ -1,5 +1,3 @@
-"use client";
-
 import type { Dialect } from "@perch/protocol";
 import * as React from "react";
 import type { ConnectionInput } from "../../workspace/types";

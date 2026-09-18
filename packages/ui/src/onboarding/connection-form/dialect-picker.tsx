@@ -1,5 +1,3 @@
-"use client";
-
 import type { Dialect } from "@perch/protocol";
 import type * as React from "react";
 import { cn } from "../../lib/utils";

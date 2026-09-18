@@ -1,5 +1,3 @@
-"use client";
-
 // The commands the palette ships with, and the keys that also reach them.
 //
 // A hook rather than a constant, because every action closes over something from the workspace

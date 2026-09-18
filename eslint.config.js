@@ -1,9 +1,8 @@
-// ESLint config for the perch monorepo: one config for every workspace on ESLint 10.
+// ESLint config for the perch monorepo: one config, every workspace, one ESLint 10.
 //
-// apps/web is the exception. eslint-config-next bundles an eslint-plugin-react that still calls the
-// context.getFilename() ESLint 10 removed, so that workspace pins ESLint 9 and keeps its own config;
-// the root `lint` script invokes it separately. packages/ui is linted from here — plain React, no
-// Next.js rules, no pin needed.
+// apps/web used to be the exception — eslint-config-next bundled an eslint-plugin-react that still
+// called the context.getFilename() ESLint 10 removed, so the app pinned ESLint 9 behind a nested
+// config and the root `lint` script shelled out to it. Next is gone and so is the pin.
 //
 // Flat-config `files` globs resolve against this file's directory, so the paths below are
 // repo-relative however eslint is invoked.
@@ -76,7 +75,31 @@ const serverLayering = [
  * Expect false positives for tw-animate-css utilities, which the linter cannot see because
  * packages/ui has no Tailwind entry point of its own.
  */
+const shadcnRules = {
+  // Only layout is a surface's business. Spacing was tried as an allowance and turned out not to
+  // be needed — every violation it would have permitted had a better fix in the primitive's own
+  // size/variant. Colour, shape and effects stay owned by the primitive.
+  "shadcn/no-restyle": ["error", { allow: ["layout"] }],
+  "shadcn/no-raw-colors": "error",
+  "shadcn/no-unknown-classes": "error",
+  "shadcn/require-static-classes": "error",
+  "shadcn/no-arbitrary-values": "error",
+  "shadcn/no-inline-styles": "error",
+};
+
 const designSystem = [
+  {
+    files: ["apps/web/src/**/*.{ts,tsx}"],
+    plugins: { shadcn },
+    settings: {
+      shadcn: {
+        ui: "@perch/ui",
+        // The app only ever reaches primitives by package name.
+        componentImports: ["^@perch/ui(/|$)"],
+      },
+    },
+    rules: shadcnRules,
+  },
   {
     files: ["packages/ui/src/**/*.{ts,tsx}"],
     ignores: ["packages/ui/src/ui/**"],
@@ -95,23 +118,19 @@ const designSystem = [
         ],
       },
     },
-    rules: {
-      // Only layout is a surface's business. Spacing was tried as an allowance and turned out not
-      // to be needed — every violation it would have permitted had a better fix in the primitive's
-      // own size/variant. Colour, shape and effects stay owned by the primitive.
-      "shadcn/no-restyle": ["error", { allow: ["layout"] }],
-      "shadcn/no-raw-colors": "error",
-      "shadcn/no-unknown-classes": "error",
-      "shadcn/require-static-classes": "error",
-      "shadcn/no-arbitrary-values": "error",
-      "shadcn/no-inline-styles": "error",
-    },
+    rules: shadcnRules,
   },
 ];
 
 export default [
   {
-    ignores: ["**/dist/**", "**/node_modules/**", "apps/server/ui/**", "apps/web/**"],
+    ignores: [
+      "**/dist/**",
+      "**/node_modules/**",
+      "apps/server/ui/**",
+      // Written by the TanStack Start plugin on every dev start and build, and gitignored.
+      "apps/web/src/routeTree.gen.ts",
+    ],
   },
   ...base,
   ...serverLayering,

@@ -1,5 +1,3 @@
-"use client";
-
 // The handover screen, available to the running app. The first run gets it from `Onboarding`, which
 // returns it in place of itself; once the workspace is up there is nothing to return it instead of.
 // The events that deserve it invalidate everything on screen — changing connection, or changing

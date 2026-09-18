@@ -1,5 +1,3 @@
-"use client";
-
 // The card under an empty result: the rows that came closest, and how far off each one was.
 //
 // It arrives SETTLED, and that is the whole design rule. Ordering by closeness is a view choice —

@@ -1,5 +1,3 @@
-"use client";
-
 import { KeyRoundIcon, Link2Icon } from "lucide-react";
 import type * as React from "react";
 import { Button } from "../../ui/button";

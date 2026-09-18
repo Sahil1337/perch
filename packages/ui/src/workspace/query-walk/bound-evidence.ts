@@ -1,5 +1,3 @@
-"use client";
-
 // What a bound chapter learned, kept where a later chapter can read it.
 //
 // The per-row ledger's numbers live inside its own view, and a view unmounts the moment playback

@@ -1,5 +1,3 @@
-"use client";
-
 // Which files were open last time, so a reload lands you back in your work rather than in an empty
 // window. Per-machine session state, like panel geometry and for the same reason: which tabs this
 // browser had open is a property of this machine, not of the workspace on disk, and a second

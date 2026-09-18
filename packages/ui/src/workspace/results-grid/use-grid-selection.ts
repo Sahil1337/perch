@@ -1,5 +1,3 @@
-"use client";
-
 import type { Cell, ResultColumn } from "@perch/protocol";
 import * as React from "react";
 import { ROW_HEIGHT } from "./grid-sizing";

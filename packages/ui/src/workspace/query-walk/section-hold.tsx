@@ -1,5 +1,3 @@
-"use client";
-
 // What a section that is real but has no clauses of its own looks like.
 //
 // One of them is left. A section that WRITES — `with d as (delete from takes returning *) …` — has

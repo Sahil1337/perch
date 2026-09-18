@@ -1,5 +1,3 @@
-"use client";
-
 // The result grid, windowed from the start — a design constraint, not an optimisation, since
 // retrofitting windowing onto a table is what breaks sticky headers. Two consequences:
 //

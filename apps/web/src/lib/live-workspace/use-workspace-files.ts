@@ -1,5 +1,3 @@
-"use client";
-
 import type { PerchClient } from "@perch/client";
 import type { FileEntry, Settings } from "@perch/protocol";
 import { asyncError, type Async } from "@perch/ui";

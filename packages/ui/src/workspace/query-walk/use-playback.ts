@@ -1,5 +1,3 @@
-"use client";
-
 // The player's three clocks: the one that starts it, the one that moves it, and the keys that
 // override both.
 //

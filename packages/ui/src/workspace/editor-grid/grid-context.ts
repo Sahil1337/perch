@@ -1,5 +1,3 @@
-"use client";
-
 import * as React from "react";
 import { type EditorLayout, type PaneId } from "../pane-layout";
 import { type DropTarget } from "./dnd";

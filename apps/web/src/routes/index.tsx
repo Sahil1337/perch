@@ -1,5 +1,3 @@
-"use client";
-
 // The workspace shell: three panes, with the results sheet docked below the editor.
 //
 // Everything below is live, always: `useAppWorkspace` is @perch/client against `perch serve` and
@@ -35,13 +33,18 @@ import {
   useWorkspace,
   type SidebarTab,
 } from "@perch/ui";
+import { createFileRoute } from "@tanstack/react-router";
 import { PanelLeftIcon } from "lucide-react";
 import * as React from "react";
 import { useAppWorkspace } from "@/lib/app-workspace";
 import { DEFAULT_PANELS } from "@/lib/use-panels";
-import { RunHistory } from "./run-history";
+import { RunHistory } from "@/run-history";
 
-export default function Page(): React.ReactElement {
+// The only route there is. The server answers every other path with the same shell, so the router
+// is what decides they are not this one — see the root route's `notFoundComponent`.
+export const Route = createFileRoute("/")({ component: Page });
+
+function Page(): React.ReactElement {
   const workspace = useAppWorkspace();
   return (
     <WorkspaceProvider value={workspace}>

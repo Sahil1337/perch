@@ -65,7 +65,7 @@ const child = spawn("turbo", ["run", "dev"], {
     PERCH_DEV_PORT: String(port),
     // Read by apps/web at compile time. An env var set here beats apps/web/.env.development,
     // which is only there for `dev:ui` on its own.
-    NEXT_PUBLIC_PERCH_URL: `http://127.0.0.1:${port}`,
+    VITE_PERCH_URL: `http://127.0.0.1:${port}`,
   },
 });
 

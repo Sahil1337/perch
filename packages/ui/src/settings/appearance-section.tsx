@@ -1,5 +1,3 @@
-"use client";
-
 // Settings → Appearance. Theme is stored on the server, so every browser pointed at this machine
 // agrees; editor font size is a per-browser convenience and is stored locally instead.
 

@@ -1,5 +1,3 @@
-"use client";
-
 // What the round trip came back with. Saving and testing are one action, so there is one place
 // that reports: a latency and a version when the server answered, the failure otherwise.
 

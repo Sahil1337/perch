@@ -1,5 +1,3 @@
-"use client";
-
 // Whether the server answers at all. `GET /api/health` decides between `ready` and `unreachable`,
 // re-probing on a 1s→10s backoff so a server started a minute later is picked up without a reload.
 // Nothing else is requested until it is `ready`, so eleven panels cannot each render their own copy

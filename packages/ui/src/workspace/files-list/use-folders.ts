@@ -1,5 +1,3 @@
-"use client";
-
 import * as React from "react";
 import { messageOf } from "../../lib/errors";
 import { useWorkspace } from "../context";

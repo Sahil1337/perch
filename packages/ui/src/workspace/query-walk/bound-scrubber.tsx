@@ -1,5 +1,3 @@
-"use client";
-
 // The scrubber under a per-row section: one tick per outer row, the bound one raised.
 //
 // It is a slider rather than a strip of buttons because that is what it is — a single value being

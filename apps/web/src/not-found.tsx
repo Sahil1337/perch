@@ -1,12 +1,14 @@
 import { PerchLogo } from "@perch/ui";
-import Link from "next/link";
+import { Link } from "@tanstack/react-router";
+import type * as React from "react";
 
 /**
- * The 404. It matters more here than in a typical app: the UI is static-exported and served by the
- * `perch` server with an SPA fallback, so this is also what a stale bookmark or a mistyped deep link
- * lands on. It stays deliberately plain — no chrome that implies a working connection.
+ * The 404, mounted as the root route's `notFoundComponent`. It matters more here than in a typical
+ * app: the build is static and served by the `perch` server with an SPA fallback, so every stale
+ * bookmark and mistyped deep link is handed this same bundle and lands here. It stays deliberately
+ * plain — no chrome that implies a working connection.
  */
-export default function NotFound(): React.ReactElement {
+export function NotFound(): React.ReactElement {
   return (
     <main className="flex h-svh flex-col items-center justify-center gap-6 px-6 text-center">
       {/* The one piece of chrome this screen gets. A bookmark that lands here should still be able
@@ -23,7 +25,7 @@ export default function NotFound(): React.ReactElement {
 
       <Link
         className="inline-flex h-8 items-center rounded-md bg-primary px-3 font-medium text-primary-foreground text-sm outline-none transition-colors hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-ring"
-        href="/"
+        to="/"
       >
         Back to the workspace
       </Link>

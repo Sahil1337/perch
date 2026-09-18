@@ -1,5 +1,3 @@
-"use client";
-
 import type { ConnectionSummary } from "@perch/protocol";
 import { CheckIcon, PencilIcon, TrashIcon } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";

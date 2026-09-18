@@ -1,5 +1,3 @@
-"use client";
-
 // The command palette: ⌘K, and everything reachable from it.
 //
 // Every group draws from `asyncData` — the last value that loaded, whatever the status — because a

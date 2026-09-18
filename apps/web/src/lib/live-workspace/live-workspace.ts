@@ -1,5 +1,3 @@
-"use client";
-
 // The implementation of WorkspaceApi, backed by `perch serve` through @perch/client. There is no
 // fixture provider and no offline mode, so everything any surface renders came off the wire.
 // Derived-not-stored is the rule throughout: schema staleness is computed from what loaded versus

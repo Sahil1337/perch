@@ -1,47 +1,62 @@
 import { THEME_BOOT_SCRIPT } from "@perch/ui";
-import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
+import { createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import type * as React from "react";
+import { NotFound } from "@/not-found";
+import appCss from "@/styles.css?url";
 
-const geistSans = Geist({ variable: "--font-sans", subsets: ["latin"] });
-const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
-
-// The product is "Perch"; the command, the scopes and `~/.perch` stay lowercase. The title is a
-// template because the tab is the only label a local tool gets — with several windows open on
-// several databases, "perch" on all of them is not a label at all.
+// The product is "Perch"; the command, the scopes and `~/.perch` stay lowercase. The tab is the
+// only label a local tool gets, so a route with something more specific to say — a database name,
+// with several windows open on several databases — sets its own `title` here, which wins over this
+// one. That is also why only the overridable half of the head lives in `head()`; the fixed half is
+// written out in the shell below.
 //
-// No canonical URL, no Open Graph: this is served from loopback by the user's own machine, so
-// there is nothing to link to and nothing to unfurl.
-export const metadata: Metadata = {
-  title: { default: "Perch", template: "%s · Perch" },
-  description: "A fast, local SQL client for Postgres and MySQL.",
-  applicationName: "Perch",
-  // The tab icon is `icon.svg`, next to this file. File-based metadata outranks an `icons` field
-  // here, so declaring it twice would only emit the link twice.
-};
+// No canonical URL, no Open Graph: this is served from loopback by the user's own machine, so there
+// is nothing to link to and nothing to unfurl.
+export const Route = createRootRoute({
+  head: () => ({
+    meta: [
+      { title: "Perch" },
+      { name: "description", content: "A fast, local SQL client for Postgres and MySQL." },
+      { name: "application-name", content: "Perch" },
+    ],
+    links: [
+      // A real <link> in the prerendered shell rather than a stylesheet the bundle injects once it
+      // boots: the latter is a frame of unstyled markup on every cold load.
+      { rel: "stylesheet", href: appCss },
+      { rel: "icon", href: "/icon.svg", type: "image/svg+xml" },
+    ],
+  }),
+  notFoundComponent: NotFound,
+  shellComponent: RootDocument,
+});
 
-/** Matches the app's own surfaces, so the browser chrome does not frame a dark UI in white. */
-export const viewport: Viewport = {
-  colorScheme: "dark light",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
-  ],
-};
-
-export default function RootLayout({ children }: LayoutProps<"/">) {
+function RootDocument({ children }: { children: React.ReactNode }): React.ReactElement {
   return (
     <html
-      className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
+      className="dark h-full antialiased"
       lang="en"
       // The boot script may take `dark` off before React hydrates, which is the point of it.
       suppressHydrationWarning
     >
       <head>
-        {/* Blocking, and first: a theme applied after the first paint is a flash, not a theme. */}
+        <meta charSet="utf-8" />
+        <meta content="width=device-width, initial-scale=1" name="viewport" />
+        {/* The browser chrome, matched to the app's own surfaces so a dark UI is not framed in
+            white. Written here rather than in `head()` because the router keys route meta by
+            `name` and drops the duplicate, and these two differ only by `media`. */}
+        <meta content="dark light" name="color-scheme" />
+        <meta content="#ffffff" media="(prefers-color-scheme: light)" name="theme-color" />
+        <meta content="#0a0a0a" media="(prefers-color-scheme: dark)" name="theme-color" />
+        {/* Blocking, and as early as React will place it: a theme applied after the first paint is
+            a flash, not a theme. React hoists <meta> and <link> above any inline script, so this
+            lands under them — still parsed and run before the body, which is what matters. */}
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
+        <HeadContent />
       </head>
-      <body className="h-full overflow-hidden bg-background text-foreground">{children}</body>
+      <body className="h-full overflow-hidden bg-background text-foreground">
+        {children}
+        <Scripts />
+      </body>
     </html>
   );
 }

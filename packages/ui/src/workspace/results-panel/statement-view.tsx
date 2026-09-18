@@ -1,5 +1,3 @@
-"use client";
-
 import type { StatementResult } from "@perch/protocol";
 import * as React from "react";
 import { Tabs, TabsList, TabsTab } from "../../ui/tabs";

@@ -1,5 +1,3 @@
-"use client";
-
 // The one connection form, shared by onboarding and Settings → Connections: the same job, so the
 // same component.
 //
