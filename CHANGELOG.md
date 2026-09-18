@@ -6,6 +6,9 @@ and versions follow [semantic versioning](https://semver.org/).
 The section matching a release's version becomes that release's notes on GitHub — see
 [CONTRIBUTING.md](CONTRIBUTING.md#cutting-a-release).
 
+[Unreleased]: https://github.com/Sahil1337/perch/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/Sahil1337/perch/releases/tag/v0.1.0
+
 ## [Unreleased]
 
 ## [0.1.0] — 2026-09-19
@@ -35,7 +38,8 @@ binary, around 14 MB, with no runtime to install alongside it and no account or 
 ### Install
 
 `curl -fsSL https://raw.githubusercontent.com/Sahil1337/perch/main/install.sh | sh` on macOS and
-Linux, or download the Windows `.exe` below. See the [README](README.md#install).
+Linux, or download the Windows `.exe` from the assets on this release.
+See the [README](https://github.com/Sahil1337/perch#install).
 
 ### Known limitations
 
@@ -45,6 +49,3 @@ Linux, or download the Windows `.exe` below. See the [README](README.md#install)
   `xattr -d com.apple.quarantine ./perch`. Windows shows a SmartScreen warning: **More info →
   Run anyway**.
 - Result rows are never written to history; only the shape, counts and timing are kept.
-
-[Unreleased]: https://github.com/Sahil1337/perch/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/Sahil1337/perch/releases/tag/v0.1.0
