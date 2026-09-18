@@ -1,124 +1,159 @@
-# perch — server and CLI
+# perch — the server and CLI
 
-The engine room of [perch](../../README.md), a lightweight SQL client for Postgres and MySQL.
-`perch` is a single binary: the CLI starts, stops and inspects the local server, and everything
-else — connections, schema, queries, files, history, settings — is the HTTP API that server
-serves, which the UI is a pure client of.
+The engine room of [Perch](../../README.md), a lightweight SQL workspace for PostgreSQL and MySQL.
 
-> The package is still named `perch` and the binary `perch`; the rename to perch is in
-> progress, docs first. Commands below are what you type today.
+`perch` is one binary with two halves:
 
-## Install
+- **the CLI** starts, stops and inspects a local server — three commands, no configuration;
+- **the server** is everything else. Connections, schema, queries, files, history and settings are
+  an HTTP API bound to `127.0.0.1`, with the web UI embedded in the same binary and served at `/`.
 
-This package lives at `apps/server` in the monorepo; run workspace scripts from the repo root
-with `bun run --filter perch <script>`. It is published to npm and runs on **Node** ≥ 22 —
-Bun is the repo's package manager, not this server's runtime.
+The UI is a pure client of that API. It has no private channel into the server, so anything the
+app can do you can do with `curl`.
 
-```sh
-# Install globally from source (from apps/server)
-npm i -g .
-
-# Or, for development: symlink the `perch` bin into your PATH. The bin is
-# ./dist/cli/main.js, so run `bun run --filter perch build` first and after each edit.
-npm link
-
-# Or, compile a single self-contained binary (no Node required to run it)
-bun run --filter perch compile     # bundles src/cli/main.ts → apps/server/dist/perch
-./apps/server/dist/perch --help
-```
-
-`bun run dev` (root) skips the build and runs the CLI straight from TypeScript on Bun
-(`bun src/cli/main.ts serve --no-open`). `bun run start` runs the built output on Node, which is
-the other runtime this CLI has to work on — see CONTRIBUTING.md.
+[Quick start](#quick-start) · [CLI](#cli) · [HTTP API](#http-api) ·
+[Perch home](#perch-home) · [Security](#security) · [Building from source](#building-from-source)
 
 ## Quick start
 
 ```sh
-perch                       # start the UI + API and open a browser (serve is the default command)
-perch serve --port 4600     # the same thing, explicitly, on a port of your choosing
-perch status                # is a server running, and where
+perch                       # start the server and open the UI — serve is the default command
+perch serve --port 4600     # the same thing, on a port you pick
+perch status                # is a server running, and where?
 perch stop                  # stop it
 ```
 
-Connections, schema, queries, files, history and settings are all reached over the HTTP API below
-(and through the UI that sits on it).
+The first run creates `~/.perch/` and a `queries/` folder inside it, and that folder is the
+workspace until you add another with `--dir`. Nothing is installed, downloaded or bundled — perch
+connects to database servers you already run.
 
-## Commands
+## CLI
 
-| Command                      | Example                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `perch [serve]`              | `perch serve --port 4600 --dir ~/sql --no-open` — starts the local server (default command). Prints `perch v0.1.0 → http://127.0.0.1:4600` and opens it in your browser. If a server is already running (per `server.json`), just prints/opens its URL instead of starting a second one. `--dir` adds a workspace directory the file API may read/write from (repeatable; persisted to settings). `--ui <dir>` serves a prebuilt UI from disk. |
-| `perch stop`                 | `perch stop` — sends `SIGTERM` to the running server (from `server.json`) and clears the file.                                                                                                                                                                                                                                                                                                                                                 |
-| `perch status`               | `perch status --json` — prints the running server's info, or `not running`.                                                                                                                                                                                                                                                                                                                                                                    |
-| `perch --version`            | prints the installed version                                                                                                                                                                                                                                                                                                                                                                                                                   |
+Every command takes `--help`. `perch --version` prints the version the binary was built with.
 
-Every command accepts `--help`, and `perch status` accepts `--json` for machine-readable output.
-Both are handled by the one scaffold every command is built on, which also means a command called
-without a required argument exits 1 with `missing <name>` and its usage line.
+### `perch [serve]`
 
-## HTTP API (`perch serve`)
+Starts the local server and opens the UI in your browser. It is the default command, so bare
+`perch` is `perch serve`. On start it prints where it landed:
 
-There is no authentication: the server binds to `127.0.0.1`, and that loopback binding is the
-only boundary.
+```
+perch v0.1.0 → http://127.0.0.1:4600
+```
 
-| Path                                                     | Purpose                                                  |
-| -------------------------------------------------------- | -------------------------------------------------------- |
-| `GET /api/health`                                        | Server identity/version; the liveness probe.             |
-| `GET /api/connections`                                   | List saved connections with live status.                 |
-| `POST /api/connections`                                  | Create a connection (by URL or discrete fields).         |
-| `PUT /api/connections/:id`                               | Update a connection.                                     |
-| `DELETE /api/connections/:id`                            | Remove a connection.                                     |
-| `POST /api/connections/:id/test`                         | Round-trip test; returns server version + latency.       |
-| `POST /api/connections/:id/connect` \| `.../disconnect`  | Open/close the pooled driver.                            |
-| `GET /api/connections/:id/databases`                     | List databases.                                          |
-| `GET /api/connections/:id/schema`                        | Schema tree (cached 30s; `?refresh=1` bypasses).         |
-| `POST /api/query`                                        | Run SQL, streaming NDJSON `RunEvent`s as they happen.    |
-| `POST /api/query/sync`                                   | Run SQL, return the full `RunRecord` once finished.      |
-| `POST /api/runs/:id/cancel`                              | Cancel an in-flight run.                                 |
-| `GET /api/runs` \| `GET /api/runs/:id`                   | List/inspect runs kept in memory.                        |
-| `GET /api/runs/:id/export`                               | Download a statement's results as CSV or JSON.           |
-| `GET /api/history`                                       | Past runs from disk (survives restarts).                 |
-| `GET /api/settings` \| `PUT /api/settings`               | Read/update local settings.                              |
-| `GET /api/files` \| `.../content`                        | Browse/read `.sql` files inside configured workspaces.   |
-| `PUT /api/files/content`                                 | Save a file (optimistic-concurrency via `ifModifiedAt`). |
-| `POST /api/files` \| `DELETE /api/files` \| `.../rename` | Create/delete/rename `.sql` files.                       |
-| `GET /`                                                  | The UI (if built and present), or an API index page.     |
+If a server is already running — `~/.perch/server.json` names one and it answers `/api/health` —
+`serve` prints and opens that URL instead of starting a second one. A `server.json` left behind by
+a crash is detected and cleared rather than believed.
 
-## Layout
+| Flag                      | Default     | What it does                                                                       |
+| ------------------------- | ----------- | ---------------------------------------------------------------------------------- |
+| `--port <n>`              | `4600`      | Port to listen on.                                                                 |
+| `--host <addr>`           | `127.0.0.1` | Address to bind. Anything past loopback publishes the API — see [Security](#security). |
+| `--no-open`               | off         | Don't open a browser.                                                              |
+| `--dir <path>`            | —           | Add a workspace directory the file API may read and write. Repeatable, and persisted to settings; `~/.perch/queries` is always there. |
+| `--ui <dir>`              | —           | Serve a built UI from this directory instead of the embedded one.                  |
+| `--allow-origin <origin>` | —           | Let a UI dev server on another origin call the API (plain CORS, no credentials). Repeatable, and meant for development. |
 
-`src/` is layered: `cli/` (the `perch` binary) → `server/` (the Hono API) → `db/` (the drivers) →
-`core/`, with `storage/` (everything under `~/.perch`) shared by the CLI and the server and
-`util/` leaf-level. The dialect-independent half of a driver lives in `db/base-driver.ts` and
-`db/statement-sink.ts`; the server's long-lived services (`pool`, `runLog`, `runner`) are wired in
-`server/services/create-services.ts` and handed to the routes as one `RouteDeps`. The full
-commented tree, the import rules ESLint enforces, and the build are in
-[docs/architecture/server-structure.md](../../docs/architecture/server-structure.md).
+Without `--ui`, a `ui/` directory sitting next to the binary still wins over the embedded bundle:
+whatever was copied in beside the executable is newer than whatever was compiled into it.
 
-There is no test suite in this repo. What a change has to clear instead — typecheck, lint, build,
-a CLI smoke on the Node/OS matrix, and `scripts/smoke.sh` against a real Postgres, the only
-end-to-end exercise of the HTTP API — is described there and in
-[docs/architecture/monorepo.md](../../docs/architecture/monorepo.md).
+### `perch stop`
 
-## perch home
+Sends `SIGTERM` to the running server (the pid in `server.json`) and clears the file. Prints
+`not running` when there is no server, and says so when the file turned out to be stale.
 
-Everything perch keeps on your machine lives under `~/.perch` and nowhere else (override with
-`PERCH_HOME`):
+### `perch status`
+
+```
+running · pid 51234 · http://127.0.0.1:4600 · started 2026-09-18T09:12:04Z
+```
+
+…or `not running`. `--json` prints the same record as JSON (or `null`), for scripts. Status is a
+real request to `/api/health`, not a look at `server.json`, so a server that died without cleaning
+up reports `not running` rather than a pid that no longer exists.
+
+## HTTP API
+
+Served by `perch serve` at `http://127.0.0.1:<port>`. Routes are registered per group in
+[`server/`](server); the browser-side wrapper is [`@perch/client`](../../packages/client), and
+every request and response shape is named by [`@perch/protocol`](../../packages/protocol).
+
+| Area            | Routes                                                                        | What it covers                                                                                    |
+| --------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Health          | `GET /api/health`                                                             | Name, version, pid, URL, start time, perch home. The liveness probe.                              |
+| Events          | `GET /api/events`                                                             | One long-lived SSE stream per UI: file changes, finished runs, workspace-root changes.            |
+| Connections     | `GET POST /api/connections`, `PUT DELETE /api/connections/{id}`, `.../test`, `.../connect`, `.../disconnect`, `.../databases`, `.../schema` | Saved connections and their live status, round-trip tests, the pooled driver, and the schema tree (cached 30s; `?refresh=1` bypasses). |
+| Discovery       | `GET /api/discover`                                                           | PostgreSQL and MySQL servers already running on this machine.                                     |
+| Queries and runs | `POST /api/query`, `POST /api/query/sync`, `GET /api/runs`, `GET /api/runs/{id}`, `POST /api/runs/{id}/cancel`, `GET /api/runs/{id}/export`, `GET /api/history` | Run SQL as a stream of NDJSON `RunEvent`s or as one `RunRecord`; cancel an in-flight run, inspect the in-memory run log, export a statement as CSV or JSON, and read past runs back from disk. |
+| Files           | `GET /api/browse`, `GET PUT /api/files/content`, `GET POST DELETE /api/files`, `POST /api/files/rename` | Browse the filesystem and read, write, create, rename and delete `.sql` files inside the configured workspace roots. Writes carry `ifModifiedAt` and fail with a `stale_write` 409 rather than clobber. |
+| Settings        | `GET PUT /api/settings`                                                       | Autosave, max rows, workspace roots, theme.                                                       |
+| UI              | `GET /`                                                                       | The embedded web bundle — or a notice, if the binary was built without one.                       |
+
+Every failure is `{ "error": { "message": string, "code"?: string } }` with a fitting status.
+**[`docs/api/http.md`](../../docs/api/http.md) is the full reference** — one row per route, with
+bodies, responses and the table of error codes.
+
+## Perch home
+
+Everything perch keeps on your machine lives under `~/.perch` and nowhere else. `PERCH_HOME`
+relocates the whole directory.
 
 ```
 ~/.perch/
-  connections.json   saved connections, incl. passwords (mode 0600)
-  settings.json      autosave, maxRows, workspaces, theme, ...
-  history.jsonl      append-only run history (no result rows kept on disk)
-  server.json        pid/url of the currently running server (mode 0600), if any
-  queries/           the default workspace: created on first server start and set as the only
-                     workspace root when settings name none. `serve --dir` adds more.
+  connections.json   saved connections, passwords included (mode 0600)
+  settings.json      autosave, maxRows, workspaces, theme, …
+  history.jsonl      append-only run history — SQL and outcome, never result rows
+  server.json        pid and url of the running server, if any (mode 0600)
+  queries/           the default workspace, created on first start. `serve --dir` adds more.
 ```
 
-## Security notes
+## Security
 
-- The server binds to `127.0.0.1` by default and has no authentication — that loopback binding is
-  the only boundary. `serve --host <addr>` past localhost lets anyone who can reach the address
-  run queries, and prints a warning saying so.
-- `connections.json` and `server.json` are written with mode `0600`.
-- Passwords are currently stored **in plain JSON** in `connections.json` — do not commit or share
-  that file. This is fine for a local dev tool but is not a secrets vault.
+There is **no authentication**. The loopback binding is the entire boundary, which is fine for a
+tool that talks to your own databases and worth knowing exactly:
+
+- `--host` past `127.0.0.1` lets anyone who can route to that address run queries against your
+  connections. The server prints a warning line saying so, and keeps running.
+- `connections.json` and `server.json` are written `0600`.
+- **Passwords are stored in plain JSON** in `connections.json`. Don't commit or sync that file.
+  This is a local dev tool, not a secrets vault.
+
+## Building from source
+
+A Go module (`perch`) at `apps/server`, needing **Go 1.25+** and nothing else. It has no npm
+dependencies; `package.json` exists only so turbo and `bun run --filter perch <script>` keep
+reaching the scripts in [`scripts/`](scripts).
+
+```sh
+# Build the UI first, or you get an API-only binary that says as much at /.
+bun run --filter @perch/web build
+bun run --filter perch build        # -> apps/server/dist/perch
+./apps/server/dist/perch --help
+
+# Every release target from this one machine — CGO is off and every dependency is pure Go.
+bun run --filter perch build:all    # -> apps/server/dist/perch-<os>-<arch>
+```
+
+`bun run dev` from the repo root skips the build entirely and runs the server from source with
+`go run`, allow-listing the Vite dev server's origin. See
+[`CONTRIBUTING.md`](../../CONTRIBUTING.md) for the rest of the development setup.
+
+Three dependencies — `pgx/v5`, `go-sql-driver/mysql`, `fsnotify` — and the standard library for
+everything else.
+
+## Inside the binary
+
+`main.go` (the CLI) → `server/` (the HTTP API, one file per route group) → `db/` (the drivers),
+with `storage/` (everything under `~/.perch`) shared, and `protocol/`, `httpx/`, `fsx/` and
+`sqlscript/` at the leaves. `db/` must not import `server/`: the HTTP error envelope belongs to
+the server, so drivers return plain errors and `server/pool.go` is the seam that turns them into
+answerable failures. The dialect-independent half of a driver is `db/driver.go` and `db/sink.go`.
+
+The server's long-lived state — the connection pool, the run log, the runner, the event bus, the
+file watcher — are fields on `*Server`, so routes are methods rather than closures over a
+dependency bag. The commented tree is in
+[`docs/architecture/server-structure.md`](../../docs/architecture/server-structure.md).
+
+**There is no test suite, by choice.** What a change has to clear instead: `gofmt -l .`,
+`go vet ./...`, `go build ./...`, a CLI smoke on the Linux/macOS/Windows matrix, and
+[`scripts/smoke.sh`](scripts/smoke.sh) against a real PostgreSQL — the only end-to-end exercise of
+the HTTP API, so please don't remove it. It drives the compiled binary, so build first.

@@ -17,9 +17,10 @@ Run everything from the repo root. There is one `bun.lock` and one `node_modules
 - **Never** run an install or add a dependency inside `apps/*` or `packages/*` — it creates a
   nested lockfile and a second copy of React or TypeScript. Add the dependency to that
   workspace's `package.json` and install at the root.
-- `build` and `typecheck` fan out to every workspace (`--filter '*'`, which skips a workspace
-  that lacks the script). `lint` is the exception: one root ESLint run over `apps/server/src`,
-  `apps/web/src` and `packages/ui/src`. There is no per-workspace lint script.
+- `build` is ordered, not fanned out: `@perch/web` first, then `perch`, because the binary embeds
+  the web bundle. `typecheck` fans out (`--filter '*'`, which skips a workspace that lacks the
+  script); for the Go server it is `go build ./...`. `lint` is one root ESLint run over
+  `apps/web/src` and `packages/ui/src`, then `go vet ./...` in `apps/server`.
 - Target one workspace with `--filter`: `bun run --filter perch typecheck`,
   `bun run --filter @perch/web build`, `bun run --filter @perch/protocol check`.
   `bun run perch -- <args>` drives the CLI (the workspace bin, so it needs a `build` first).
@@ -32,15 +33,22 @@ Run everything from the repo root. There is one `bun.lock` and one `node_modules
   **Turbo 2 filters the environment** — a new variable either half needs must be added to
   `passThroughEnv` in `turbo.json` or it silently will not arrive. Don't move another task into
   turbo without a reason to want its cache.
-- **Don't break Node.** The server runs on Bun in dev and ships as a Bun binary, but Node 22+ is
-  still a supported target: see [CONTRIBUTING.md](CONTRIBUTING.md#scripts) before touching
-  process, fs, net or crypto behaviour.
+- **The server is Go**; everything else is TypeScript on Bun. It needs Go 1.25+ and no Node at
+  all. `apps/server/package.json` exists only so turbo and `--filter perch` keep working: every
+  script in it shells out to `scripts/*.sh`, and the module has no npm dependencies.
+- **Keep `CGO_ENABLED=0`.** Every Go dependency is pure Go, which is the only reason one machine
+  cross-compiles all five release targets. A cgo dependency would cost that, so adding one is a
+  decision, not a detail. CI's `cross-compile` job is what catches it.
 - **ESLint config lives at the repo root** (`eslint.config.js`) and covers every workspace in one
   ESLint 10 run; no workspace nests its own any more. Do not add a root `tsconfig.json` — tsconfig
   presets still live in `@perch/tsconfig` and are extended by name.
 
 ## Code
 
+- **`apps/server/protocol` and `@perch/protocol` are the same contract, twice.** The Go structs
+  are what the server marshals; the TypeScript is what the UI parses. They are kept in step by
+  hand, so a change to a wire type is a change to both files. The Go package doc lists the three
+  places Go's JSON defaults differ from TypeScript's.
 - **`@perch/protocol` is types only.** Every export must be a `type`. A `const`, `function`,
   `class` or `enum` there fails `bun run --filter @perch/protocol check`
   (`scripts/assert-types-only.mjs`),
@@ -49,12 +57,12 @@ Run everything from the repo root. There is one `bun.lock` and one `node_modules
   or `@perch/client`.
 - **Anything that crosses the wire goes in `@perch/protocol`.** Server-internal types (the `Driver`
   interface, `ConnectionPoolOptions`, `RouteDeps`) stay next to their implementation.
-- **Import direction inside `apps/server`** — `cli → server → db → core`, with `storage/`
-  (on-disk state) shared by `cli/` and `server/`, and `util/` leaf-level. `core/` imports no other
-  layer; `db/` and `storage/` may import only `core/` and `util/`; `server/` may not import `cli/`
-  (shared helpers go in `src/util/`); `util/` imports nothing. Nothing in `apps/server` may import
-  `@perch/client`. ESLint enforces all of this via `serverLayering` in the root `eslint.config.js` —
-  it will fail you. The tree itself is in `docs/architecture/server-structure.md`.
+- **Import direction inside `apps/server`** — `main → server → db`, with `storage/` (on-disk
+  state) shared, and `protocol/`, `httpx/`, `fsx/`, `sqlscript/` leaf-level. `db/` must not import
+  `server/`: the HTTP error envelope is the server's, which is why the driver layer returns plain
+  errors and `server/pool.go` is the seam that turns them into answerable failures. Go's compiler
+  rejects an import cycle, which covers most of this for free; the rest is convention. The tree is
+  in `docs/architecture/server-structure.md`.
 - **Nothing depends on `apps/server`.** Frontends talk to it over HTTP through `@perch/client`.
 - `apps/server/ui/` is build output (the frontend bundle the package ships); it is gitignored.
 
@@ -85,9 +93,10 @@ Read this before adding to or writing a new component in `apps/web` or `packages
 ## Verifying a change
 
 **The repo carries no test suite, and none gets committed.** The gate is
-typecheck + lint + build + a CLI smoke on the Node/OS matrix, plus
-`apps/server/scripts/smoke.sh` against a real Postgres, which is the only end-to-end exercise of
-the HTTP API. Do not remove it. See `docs/architecture/monorepo.md`.
+typecheck + lint + build + a CLI smoke on the OS matrix, plus `apps/server/scripts/smoke.sh`
+against a real Postgres, which is the only end-to-end exercise of the HTTP API. Do not remove it.
+It drives the compiled binary, so `bun run --filter perch build` has to run first. See
+`docs/architecture/monorepo.md`.
 
 Before handing work back, run:
 
@@ -106,15 +115,28 @@ land is a committed `*.test.ts`.
   workspace — **nothing perch writes belongs anywhere else**. The earlier `sql-engine` / `sqe`
   names are gone; if you find one, it is a leftover, not a convention.
 - **Nothing is published to a registry.** `apps/server` is `private` and distribution is a single
-  self-contained binary (`bun build --compile`, one per platform, attached to a GitHub release).
+  self-contained binary (`scripts/build.sh --all`, one per platform).
+  `.github/workflows/release.yml` is **manual only** (Actions -> release -> Run workflow, with a
+  tag): it builds all five targets, ships Windows as a bare `.exe` and the rest as tarballs with
+  `LICENSE`/`README.md`, checksums them, and opens a **draft** release. It re-checks nothing, so
+  run it only against a tag whose `server` workflow is green — being manual is what makes that
+  enforceable. The binaries are unsigned, so macOS needs notarization and Windows a cert before
+  anyone can download them without a warning.
+- **`install.sh` at the repo root and the release workflow are coupled.** The installer builds
+  the asset name (`perch-<version>-<os>-<arch>.tar.gz`) and reads `checksums.txt`; changing how
+  `release.yml` names or packages assets breaks `curl … | sh` for everyone. Change both, and
+  test the installer against a local directory with `PERCH_DOWNLOAD_BASE=file:///path`.
   Never add an `npm i -g` line to docs — there is no package to install, and the npm names
   `perch`, `sqe` and `sql-engine` all belong to unrelated projects.
 - **The frontend is `apps/web`.** The four layout directions in `apps/mockups` did their job
   and were deleted; the components they shared now live in `packages/ui`. `apps/web` is TanStack
   Start in SPA mode: `vite build` prerenders one shell, `scripts/postbuild.mjs` copies
   `dist/client/` into `apps/server/ui/`, and that is how the one binary carries both halves. The
-  copied tree must keep `index.html` at its root — `apps/server/src/server/routes/ui.ts` returns
-  that file for every unmatched non-`/api/` GET.
+  copied tree must keep `index.html` at its root — `apps/server/server/ui.go` returns that file
+  for every unmatched non-`/api/` GET. `scripts/build.sh` then stages `apps/server/ui/` into
+  `apps/server/webui/static/`, which is the directory `//go:embed` reads. Both are build output
+  and gitignored; `webui/static/.gitkeep` is committed because the embed needs the directory to
+  exist in a clean checkout.
 - **MIT licensed.** New workspaces inherit it; `apps/server` keeps its own `LICENSE` copy so the
   shipped half of the repo carries its licence next to it.
 

@@ -21,49 +21,6 @@ const base = tseslint.config(js.configs.recommended, ...tseslint.configs.recomme
   },
 });
 
-// @perch/client is the browser-side API client; nothing in the server may reach for it.
-const noClient = {
-  group: ["@perch/client", "@perch/client/**"],
-  message: "@perch/client is the browser-side API client; the server must not depend on it.",
-};
-
-// Flat config replaces rule options wholesale for a matching file rather than merging them,
-// so every block below must restate `noClient` instead of relying on a broader block.
-const restrict = (files, ...patterns) => ({
-  files,
-  rules: { "no-restricted-imports": ["error", { patterns: [...patterns, noClient] }] },
-});
-
-/**
- * apps/server import direction: cli → server → db → core, with storage/ (on-disk state) shared
- * by cli and server. A layer may only import downward; util/ is leaf-level and importable by
- * anyone. Documented in docs/architecture/server-structure.md.
- */
-const serverLayering = [
-  restrict(["apps/server/src/core/**/*.ts"], {
-    group: ["**/db/**", "**/server/**", "**/storage/**", "**/cli/**"],
-    message:
-      "core/ is the bottom layer: it may import @perch/protocol, node builtins and util/ only.",
-  }),
-  restrict(["apps/server/src/db/**/*.ts"], {
-    group: ["**/server/**", "**/cli/**", "**/storage/**"],
-    message: "db/ is a driver layer: it may only import core/ and util/.",
-  }),
-  restrict(["apps/server/src/storage/**/*.ts"], {
-    group: ["**/server/**", "**/cli/**", "**/db/**"],
-    message: "storage/ is on-disk state: it may only import core/ and util/.",
-  }),
-  restrict(["apps/server/src/server/**/*.ts"], {
-    group: ["**/cli/**"],
-    message: "server/ must not import cli/. Shared helpers belong in src/util/.",
-  }),
-  restrict(["apps/server/src/util/**/*.ts"], {
-    group: ["**/core/**", "**/server/**", "**/cli/**", "**/db/**", "**/storage/**"],
-    message: "util/ is leaf-level: it may not import any other layer.",
-  }),
-  restrict(["apps/server/src/cli/**/*.ts", "apps/server/src/index.ts"]),
-];
-
 /**
  * The design system, enforced. Tailwind first: theme tokens rather than raw colors, real utilities
  * rather than arbitrary values, and plain CSS only for what Tailwind cannot express (keyframes).
@@ -127,12 +84,13 @@ export default [
     ignores: [
       "**/dist/**",
       "**/node_modules/**",
+      // The web bundle the server ships, and the copy staged for embedding.
       "apps/server/ui/**",
+      "apps/server/webui/static/**",
       // Written by the TanStack Start plugin on every dev start and build, and gitignored.
       "apps/web/src/routeTree.gen.ts",
     ],
   },
   ...base,
-  ...serverLayering,
   ...designSystem,
 ];

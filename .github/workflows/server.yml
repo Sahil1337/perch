@@ -6,47 +6,70 @@ on:
     paths:
       - "apps/server/**"
       - "packages/**"
-      - "bun.lock"
       - ".github/workflows/server.yml"
   pull_request:
     paths:
       - "apps/server/**"
       - "packages/**"
-      - "bun.lock"
       - ".github/workflows/server.yml"
+
+env:
+  GO_VERSION: "1.25"
 
 jobs:
   check:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/server
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-go@v5
         with:
-          bun-version: latest
-      - run: bun install --frozen-lockfile
-      - run: bun run --filter perch typecheck
-      - run: bun run --filter perch lint
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: apps/server/go.sum
+      - run: go build ./...
+      - run: go vet ./...
+      - name: gofmt
+        run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
 
   cli:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
-        node: [22, 24]
+        os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: apps/server
+        shell: bash
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-go@v5
         with:
-          node-version: ${{ matrix.node }}
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-      - run: bun install --frozen-lockfile
-      - run: bun run --filter perch build
-      - run: node apps/server/dist/cli/main.js --version && node apps/server/dist/cli/main.js status
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: apps/server/go.sum
+      # No UI is built here: the binary serves the API and says the UI is missing, which is the
+      # behaviour this job is checking does not crash.
+      - run: bash scripts/build.sh
+      - run: ./dist/perch --version && ./dist/perch status
         env:
           PERCH_HOME: ${{ runner.temp }}/perch-home
+
+  # Every release target builds from one machine, because CGO is off and every dependency is
+  # pure Go. This is the job that would fail if that ever stopped being true.
+  cross-compile:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: apps/server/go.sum
+      - run: bash scripts/build.sh --all
 
   postgres:
     runs-on: ubuntu-latest
@@ -62,15 +85,19 @@ jobs:
           --health-cmd "pg_isready -U perch" --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       PERCH_SMOKE_PG: postgres://perch:perch@localhost:5432/perch
+    defaults:
+      run:
+        working-directory: apps/server
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: apps/server/go.sum
+      # smoke.sh asserts its JSON answers with `node -e`.
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-      - run: bun install --frozen-lockfile
-      - run: bun run --filter perch build
-      - run: psql "$PERCH_SMOKE_PG" -f apps/server/scripts/smoke-fixtures.sql
-      - run: bun run --filter perch smoke
+      - run: bash scripts/build.sh
+      - run: psql "$PERCH_SMOKE_PG" -f scripts/smoke-fixtures.sql
+      - run: bash scripts/smoke.sh

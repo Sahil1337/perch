@@ -1,15 +1,15 @@
 # HTTP API
 
 Everything the UI and the CLI can ask the server for. Served by `perch serve`: the routes are
-registered in
-[`apps/server/src/server/create-server.ts`](../../apps/server/src/server/create-server.ts) and
-implemented one group per file under
-[`apps/server/src/server/routes/`](../../apps/server/src/server/routes); the browser-side wrapper
-is [`@perch/client`](../../packages/client).
+registered in [`apps/server/server/server.go`](../../apps/server/server/server.go) and
+implemented one group per file alongside it in
+[`apps/server/server/`](../../apps/server/server); the browser-side wrapper is
+[`@perch/client`](../../packages/client).
 
 All response and request shapes name types from
 [`@perch/protocol`](../../packages/protocol/src) rather than restating their fields — the package
-is the contract, this page is the index.
+is the contract, this page is the index. The server marshals the Go half of the same contract,
+[`apps/server/protocol`](../../apps/server/protocol); the two are kept in step by hand.
 
 ## Access
 
@@ -22,9 +22,10 @@ API from a browser (plain CORS, no credentials).
 ## Errors
 
 Every failure is `{ "error": { "message": string, "code"?: string } }` with an appropriate
-status. A route throws an `HttpError`
-([`server/http/errors.ts`](../../apps/server/src/server/http/errors.ts)) and the error handler
-turns it into that envelope; Hono's own `HTTPException` answers with its status and no code.
+status. A route returns an `*httpx.Error`
+([`apps/server/httpx/errors.go`](../../apps/server/httpx/errors.go)) and `httpx.Wrap` turns it
+into that envelope; anything else is a bug, is logged, and answers 500 with a message and no
+code.
 
 | Code             | Status | Raised by                                                                           |
 | ---------------- | ------ | ----------------------------------------------------------------------------------- |
@@ -36,8 +37,8 @@ turns it into that envelope; Hono's own `HTTPException` answers with its status 
 | `connect_failed` | 400    | the pooled driver could not connect                                                 |
 | `test_failed`    | 400    | `POST /api/connections/:id/test` could not round-trip                               |
 
-Anything else reaching the handler is a bug: it is logged server-side and answered 500 with a
-message and no code.
+A `conflict` carries its extra fields *beside* the envelope rather than inside it, which is how
+the stale-write 409 returns the file as it is on disk now.
 
 ## Health
 

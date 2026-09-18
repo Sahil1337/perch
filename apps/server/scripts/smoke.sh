@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# End-to-end smoke test against a local Postgres. This is the only automated exercise of the CLI
+# End-to-end smoke test against a local Postgres. Run `bun run --filter perch build` first:
+# this drives the compiled binary, not the source. This is the only automated exercise of the CLI
 # and the HTTP API, so every step asserts its answer: a wrong status code or a missing field fails
 # the run. The CLI is serve/stop/status only, so everything else runs over the API.
 # Usage: bash scripts/smoke.sh   (override the database with PERCH_SMOKE_PG=<url>)
@@ -11,7 +12,7 @@ export PERCH_HOME="$(mktemp -d)"
 PG_URL="${PERCH_SMOKE_PG:-postgres://postgres@localhost:5432/perch_demo}"
 PG_DB="${PG_URL##*/}"; PG_DB="${PG_DB%%\?*}"
 PORT="${PERCH_SMOKE_PORT:-4699}"
-CLI="node dist/cli/main.js"
+CLI="./dist/perch"
 B="http://127.0.0.1:$PORT/api"
 FAILED=0
 SERVER_PID=""
