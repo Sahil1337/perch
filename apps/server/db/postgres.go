@@ -59,15 +59,10 @@ func (d *postgresDriver) poolConfig(database string, max int32) (*pgxpool.Config
 	if v, ok := d.config.Options["application_name"].(string); ok && v != "" {
 		appName = v
 	}
-	sslMode := "disable"
-	if d.config.SSL {
-		// The TypeScript driver passed rejectUnauthorized:false, which is prefer/require without
-		// verification; require is the closest sslmode that still refuses plaintext.
-		sslMode = "require"
-	}
 	dsn := fmt.Sprintf(
-		"host=%s port=%d user=%s dbname=%s application_name=%s sslmode=%s",
-		d.config.Host, d.config.Port, d.config.User, database, appName, sslMode,
+		"host=%s port=%d user=%s dbname=%s application_name=%s sslmode=%s connect_timeout=%d",
+		d.config.Host, d.config.Port, d.config.User, database, appName,
+		sslModeFor(d.config), int(connectTimeout.Seconds()),
 	)
 	cfg, err := pgxpool.ParseConfig(dsn)
 	if err != nil {

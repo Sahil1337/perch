@@ -87,19 +87,24 @@ export function SqlEditor({
     run: () => {},
     setCursor: () => {},
   });
-  bridge.current = {
-    applyChange: (next: string) => {
-      if (controlled) controlledOnChange?.(next);
-      else if (fileId) editBuffer(fileId, next);
-    },
-    dialect,
-    keywordCase,
-    run: (sql: string) => {
-      if (onRunStatement) onRunStatement(sql);
-      else void run(sql);
-    },
-    setCursor,
-  };
+  /* Refilled after the commit rather than in render: React may discard a render, and the keymap
+     holds this ref for the life of the view — a callback from UI that never shipped would keep
+     firing. */
+  React.useEffect(() => {
+    bridge.current = {
+      applyChange: (next: string) => {
+        if (controlled) controlledOnChange?.(next);
+        else if (fileId) editBuffer(fileId, next);
+      },
+      dialect,
+      keywordCase,
+      run: (sql: string) => {
+        if (onRunStatement) onRunStatement(sql);
+        else void run(sql);
+      },
+      setCursor,
+    };
+  });
 
   const language = React.useMemo(
     () =>
@@ -140,7 +145,11 @@ export function SqlEditor({
   const viewRef = React.useRef<EditorView | null>(null);
   const reported = React.useRef<CursorPosition>({ col: 1, line: 1 });
   const initial = React.useRef({ autoFocus, gutter, language, minimal, value });
-  initial.current = { autoFocus, gutter, language, minimal, value };
+  /* After the commit, and declared above the effect that builds the view, so the view is always
+     created from props that actually rendered. */
+  React.useEffect(() => {
+    initial.current = { autoFocus, gutter, language, minimal, value };
+  });
 
   const commands = useEditorCommands(viewRef, bridge);
 

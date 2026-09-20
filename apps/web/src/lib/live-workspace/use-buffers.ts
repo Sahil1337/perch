@@ -40,7 +40,8 @@ export type BuffersApi = {
   cursor: CursorPosition;
   setCursor: (cursor: CursorPosition) => void;
   newScratch: () => string;
-  openFile: (path: string) => Promise<string>;
+  /** The buffer id, or null when the file could not be read and no tab was opened. */
+  openFile: (path: string) => Promise<string | null>;
   closeBuffer: (id: string) => void;
   focusBuffer: (id: string | null) => void;
   editBuffer: (id: string, content: string) => void;
@@ -152,7 +153,7 @@ export function useBuffers(
   }, []);
 
   const openFile = React.useCallback(
-    async (path: string): Promise<string> => {
+    async (path: string): Promise<string | null> => {
       const id = bufferIdFor(path);
       if (buffers.some((b) => b.id === id)) {
         dispatch({ type: "focus", id });
@@ -167,7 +168,7 @@ export function useBuffers(
         return openedId;
       } catch (error) {
         reportFileError(messageOf(error));
-        return id;
+        return null;
       }
     },
     [buffers, getClient, reportFileError],

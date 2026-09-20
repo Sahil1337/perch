@@ -82,8 +82,14 @@ export function useGridRun(
     setOutcome(null);
     setPicked(null);
     setCells(new Map());
-    flying.current = new Set();
   }
+
+  // The in-flight set is swapped after the commit, not in render: a render React discards would
+  // otherwise strand probes that are still running. A fresh Set rather than `clear()`, so a late
+  // answer from the previous build deletes from the set it joined and never from this one.
+  React.useEffect(() => {
+    flying.current = new Set();
+  }, [grid]);
 
   React.useEffect(() => {
     if (grid === null) return;

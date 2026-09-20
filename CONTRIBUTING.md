@@ -173,6 +173,10 @@ is what preserves the executable bit; a raw download needs a `chmod`), writes `c
 and opens a **draft** release for you to publish. Re-running against an existing tag re-uploads
 the assets rather than failing.
 
+Publishing is what makes a release exist for everyone else: `install.sh` and `perch update` both
+read `releases/latest`, which does not see a draft. Until you publish, `perch update` on an older
+binary reports the previous release as the newest one.
+
 The binaries are unsigned. Until there is an Apple Developer certificate and a Windows signing
 cert, a downloaded copy trips Gatekeeper on macOS and SmartScreen on Windows.
 

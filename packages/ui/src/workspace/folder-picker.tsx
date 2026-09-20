@@ -52,8 +52,11 @@ export function FolderPicker({
 
   // Held in a ref so a provider that rebuilds its action closures each render cannot re-trigger
   // the listing; it runs when the dialog opens and when the user navigates, and at no other time.
+  // Written after the commit: a render React discards must not leave its closure behind here.
   const list = React.useRef(browse);
-  list.current = browse;
+  React.useEffect(() => {
+    list.current = browse;
+  });
 
   const go = React.useCallback((path?: string) => {
     setListing(asyncRefreshing);

@@ -1,6 +1,6 @@
 // Package storage owns everything perch keeps on disk. One directory holds all of it (default
 // ~/.perch, override with PERCH_HOME): connections.json (0600), settings.json, history.jsonl,
-// server.json, plus queries/, the workspace created on first run.
+// server.json, update.json, plus queries/, the workspace created on first run.
 package storage
 
 import (
@@ -13,6 +13,7 @@ const (
 	SettingsFile    = "settings.json"
 	HistoryFile     = "history.jsonl"
 	ServerInfoFile  = "server.json"
+	UpdateCheckFile = "update.json"
 	QueriesDirName  = "queries"
 )
 

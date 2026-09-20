@@ -60,7 +60,10 @@ apps/server/
 │   └── url.go                postgres:// and mysql:// parsing, and the driver factory
 │
 ├── storage/                  ~/.perch: connections.json (0600), settings.json, history.jsonl,
-│                             server.json, and the queries/ workspace made on first run
+│                             server.json, update.json, and the queries/ workspace made on
+│                             first run
+├── update/                   `perch update`: the releases API, the checksum gate, and the
+│                             rename over the running binary. Asset names are install.sh's
 ├── sqlscript/                statement splitting; mirrored by packages/sql/src/split.ts
 ├── discover/                 local database discovery: ports, binaries, docker, services
 ├── watch/                    fsnotify, with the recursion Go does not give you
@@ -73,7 +76,8 @@ apps/server/
 ## Import direction
 
 `main → server → db`, with `storage/` shared, and `protocol/`, `httpx/`, `fsx/`, `sqlscript/`
-leaf-level.
+leaf-level. `update/` hangs off `main` alone — replacing the binary is a CLI job, and the server
+has no business reaching for it.
 
 The rule with teeth is that **`db/` must not import `server/`**. The HTTP error envelope belongs
 to the server, so drivers return plain errors and `server/pool.go` is the one place that turns a

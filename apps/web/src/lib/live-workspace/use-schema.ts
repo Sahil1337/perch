@@ -37,23 +37,24 @@ export function useSchema(
     fetching.current = { key: schemaKey, nonce };
 
     const controller = new AbortController();
-    void (async () => {
-      try {
-        const value = await getClient().connections.schema(connectionId, {
-          database,
-          refresh: refreshCache,
-          signal: controller.signal,
-        });
+    void getClient()
+      .connections.schema(connectionId, {
+        database,
+        refresh: refreshCache,
+        signal: controller.signal,
+      })
+      .then((value) => {
+        if (controller.signal.aborted) return;
         setLoaded({ key: schemaKey, nonce, value: asyncReady(value) });
-      } catch (error) {
-        if (aborted(error)) return;
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted || aborted(error)) return;
         setLoaded((prev) => ({
           key: schemaKey,
           nonce,
           value: asyncError(messageOf(error), prev?.key === schemaKey ? prev.value : undefined),
         }));
-      }
-    })();
+      });
     return () => controller.abort();
   }, [enabled, schemaKey, connectionId, database, nonce, getClient]);
 

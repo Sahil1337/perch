@@ -56,13 +56,19 @@ export function ResultsGrid({
   });
 
   // A first-paint flourish, not a scroll effect: only the window rendered on the frame the result
-  // appeared animates, or the grid shimmers every time you drag it. Compared in render, so the
-  // decision lands on the same frame as the rows it applies to.
-  const stagger = React.useRef<{ result: StatementResult; ceiling: number } | null>(null);
-  if (animateRows && stagger.current?.result !== result) {
-    stagger.current = { result, ceiling: items.at(-1)?.index ?? -1 };
-  }
-  const staggerCeiling = animateRows && !reduced ? (stagger.current?.ceiling ?? -1) : -1;
+  // appeared animates, or the grid shimmers every time you drag it. The decision has to land on the
+  // same frame as the rows it applies to, so it is computed here and stored on the way past — as
+  // state rather than a ref, because state React throws away with a discarded render goes with it.
+  const [stagger, setStagger] = React.useState<{
+    result: StatementResult;
+    ceiling: number;
+  } | null>(null);
+  const window_ =
+    animateRows && stagger?.result !== result
+      ? { result, ceiling: items.at(-1)?.index ?? -1 }
+      : stagger;
+  if (window_ !== stagger) setStagger(window_);
+  const staggerCeiling = animateRows && !reduced ? (window_?.ceiling ?? -1) : -1;
 
   return (
     <div

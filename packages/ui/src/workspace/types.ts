@@ -172,8 +172,10 @@ export type ServerState = {
 export type CursorPosition = { readonly line: number; readonly col: number };
 
 /**
- * What every workspace surface is given. Actions return a promise so a caller can sequence work,
- * but failures surface as state rather than as a rejection every call site has to catch.
+ * What every workspace surface is given. Actions return a promise so a caller can sequence work.
+ * A write that only changes the list surfaces its failure as state, because the surface showing
+ * that list is what reports it; `connect`, `testConnection` and `discoverServers` reject, because
+ * their result is the answer the caller asked for and there is nothing to degrade to.
  */
 export type WorkspaceApi = {
   /* connections */
@@ -182,6 +184,11 @@ export type WorkspaceApi = {
   readonly connection: ConnectionSummary | undefined;
   readonly database: string | null;
   readonly databases: Async<readonly string[]>;
+  /**
+   * Opens a connection and points the workspace at it. Rejects with a {@link ConnectFailed}
+   * carrying the reason — a caller that is about to cover the screen with a handover animation has
+   * to know the dial did not land.
+   */
   connect(connectionId: string, database?: string): Promise<void>;
   selectDatabase(database: string): Promise<void>;
   /** Saves a new connection and returns it. Does not connect; call `testConnection` or `connect`. */
@@ -208,8 +215,11 @@ export type WorkspaceApi = {
   readonly saveState: SaveState;
   /** A throwaway query tab. Returns its id so the caller can configure what it just made. */
   newScratch(): string;
-  /** Opens a path from the workspace, or focuses it when already open. Returns the buffer id. */
-  openFile(path: string): Promise<string>;
+  /**
+   * Opens a path from the workspace, or focuses it when already open. Returns the buffer id, or
+   * null when the file could not be read — the failure is reported into the Files tab, not thrown.
+   */
+  openFile(path: string): Promise<string | null>;
   closeBuffer(id: string): void;
   focusBuffer(id: string): void;
   editBuffer(id: string, content: string): void;

@@ -11,6 +11,48 @@ The section matching a release's version becomes that release's notes on GitHub 
 
 ## [Unreleased]
 
+### Added
+
+- **`perch update`** — replaces the running binary with the latest release: downloads this
+  platform's asset, verifies it against the release's `checksums.txt`, and renames it into place.
+  `--check` reports without installing, `--version <tag>` pins an exact tag (including an older
+  one), and nothing under `~/.perch` is touched. A download that cannot be verified is refused.
+- `perch serve` looks for a newer release in the background, at most once a day, and prints one
+  line when there is one. It never delays startup or installs anything on its own;
+  `PERCH_NO_UPDATE_CHECK=1` turns it off.
+
+### Added
+
+- **Password prompts on the connection you were opening.** A server that answers but asks for a
+  password now grows a password field on its own row — in the first-run screen and on saved
+  connections alike — instead of throwing you back to a blank form.
+- **A "Paste a connection URL" way in** on the first-run screen, and a **Connect over TLS** switch
+  in the connection form, for databases discovery cannot find: Neon, Supabase, RDS and anything
+  else reached over the network.
+
+### Changed
+
+- **Connection failures say which of the six things went wrong** — no password, wrong password,
+  unknown user, unknown database, nothing listening, or a TLS disagreement — in place of the
+  driver's own text with its SQLSTATE attached.
+- **TLS is on by default for a database that is not on this machine**, and its certificate is
+  verified. A `sslmode` in a pasted URL is honoured as written rather than flattened to "on",
+  and connections now time out instead of hanging on an unreachable host.
+- **Docker containers are offered with the login the image was started with** (`POSTGRES_USER`,
+  `POSTGRES_DB`, `MYSQL_DATABASE`), not the OS user, which no container has an account for. The
+  probe also finds the CLI outside `PATH`, reads podman and nerdctl, and handles a database
+  published on a non-default port.
+
+### Fixed
+
+- **Connect from the first-run screen silently opening the wrong connection.** A failed dial
+  reported success, played the handover animation and landed in the workspace pointed at whatever
+  was already selected. It now reports the failure and stays put.
+- **A second press of Connect failing with "a connection named postgres-local already exists".**
+  Discovered servers are named after the container or the port, and a row whose address is already
+  saved reuses that connection rather than saving another.
+- **The saved-connections list vanishing when a dial failed**, at the moment it was needed.
+
 ## [0.1.0] — 2026-09-19
 
 First release. Perch is a local SQL workspace for PostgreSQL and MySQL: one self-contained

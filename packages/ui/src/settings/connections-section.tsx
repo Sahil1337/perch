@@ -14,11 +14,12 @@ import { AnimatePresence, motion } from "motion/react";
 import * as React from "react";
 import { useSpring } from "../lib/motion";
 import { ConnectionForm } from "../onboarding/connection-form";
+import { suggestedName } from "../onboarding/connection-name";
 import { DiscoveredServers } from "../onboarding/discovered-servers";
 import { Button } from "../ui/button";
 import { Separator } from "../ui/separator";
 import { useWorkspace } from "../workspace/context";
-import type { ConnectionInput } from "../workspace/types";
+import { asyncData, type ConnectionInput } from "../workspace/types";
 import { SavedConnectionsList } from "./connections/saved-connections-list";
 import { useConnectionActions } from "./connections/use-connection-actions";
 
@@ -78,11 +79,14 @@ export function ConnectionsSection(): React.ReactElement {
 
       <Separator />
 
+      {/* Settings opens the form rather than dialling: this pane is for keeping connections, and
+          the person who came here to add one is already looking at the thing that adds one. The
+          name is picked here because only this side can see what is already taken. */}
       <DiscoveredServers
-        onSelect={(input) =>
+        onSelect={(input, server) =>
           setEditor((previous) => ({
             kind: "add",
-            initial: input,
+            initial: { ...input, name: suggestedName(server, asyncData(connections) ?? []) },
             seq: (previous.kind === "add" ? previous.seq : 0) + 1,
           }))
         }

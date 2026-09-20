@@ -2,7 +2,8 @@
 
 The [Perch](../../README.md) binary: the `perch` CLI, and the local server it starts.
 
-- **The CLI** starts, stops and inspects that server — three commands, no configuration.
+- **The CLI** starts, stops and inspects that server, and updates itself — four commands, no
+  configuration.
 - **The server** is everything else. Connections, schema, queries, files, history and settings are
   an HTTP API bound to `127.0.0.1`, with the web UI embedded in the same binary and served at `/`.
 
@@ -19,6 +20,7 @@ perch                       # start the server and open the UI — serve is the 
 perch serve --port 4600     # the same thing, on a port you pick
 perch status                # is a server running, and where?
 perch stop                  # stop it
+perch update                # replace this binary with the latest release
 ```
 
 Every command takes `--help`. `perch --version` prints the version the binary was built with.
@@ -63,6 +65,37 @@ running · pid 51234 · http://127.0.0.1:4600 · started 2026-09-18T09:12:04Z
 real request to `/api/health`, not a look at `server.json`, so a server that died without cleaning
 up reports `not running` rather than a pid that no longer exists.
 
+### `perch update`
+
+```
+perch v0.1.0 → v0.2.0
+  downloading perch-0.2.0-darwin-arm64.tar.gz
+  checksum ok
+  replaced ~/.local/bin/perch
+```
+
+Downloads this platform's asset from the latest release, checks it against the release's
+`checksums.txt`, and renames it over the running binary — following a symlink first, so a linked
+install stays a link. Nothing under `~/.perch` is touched. A running server is still the old
+version until it restarts, and `update` says so when it finds one.
+
+| Flag               | What it does                                                            |
+| ------------------ | ------------------------------------------------------------------------ |
+| `--check`          | Report what is available and install nothing.                           |
+| `--version <tag>`  | Install this tag instead of the latest, including an older one.          |
+
+A download that cannot be verified is refused rather than installed — unlike a first install,
+this one overwrites a binary that already works. `PERCH_DOWNLOAD_BASE` points the fetch somewhere
+other than GitHub, including a `file://` directory, which is how it is tested.
+
+`perch serve` runs the same check in the background, at most once a day (remembered in
+`update.json`), and prints one line when a newer release exists. It never delays startup, never
+installs anything by itself, and stays quiet about every failure — `PERCH_NO_UPDATE_CHECK=1`
+turns it off. An explicit `perch update` ignores both the cache and the opt-out.
+
+On Windows the running `.exe` cannot be deleted, so it is moved to `perch.exe.old` and removed on
+the next update.
+
 ## HTTP API
 
 Served by `perch serve` at `http://127.0.0.1:<port>`. Routes are registered per group in
@@ -94,6 +127,7 @@ What the server reads and writes, all of it under `~/.perch` (`PERCH_HOME` reloc
   settings.json      autosave, maxRows, workspaces, theme, …
   history.jsonl      append-only run history — SQL and outcome, never result rows
   server.json        pid and url of the running server, if any (mode 0600)
+  update.json        the last release `serve` saw, so it asks GitHub once a day, not every start
   queries/           the default workspace, created on first start. `serve --dir` adds more.
 ```
 

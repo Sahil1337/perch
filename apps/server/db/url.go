@@ -25,8 +25,11 @@ var urlSchemes = map[string]protocol.Dialect{
 	"mariadb":    protocol.DialectMySQL,
 }
 
-// Query parameters that configure the connection rather than the driver options bag.
-var reservedParams = map[string]bool{"ssl": true, "sslmode": true, "dialect": true}
+// Query parameters that configure the connection rather than the driver options bag. `sslmode`
+// is not among them: it sets the SSL flag *and* stays in Options, because "on" is not the whole
+// answer — a pasted hosted-Postgres URL says which of the five modes it wants, and dropping that
+// silently downgrades verify-full to an unverified tunnel.
+var reservedParams = map[string]bool{"ssl": true, "dialect": true}
 
 // NewDriver builds the driver for a connection's dialect.
 func NewDriver(config protocol.ConnectionConfig) (Driver, error) {

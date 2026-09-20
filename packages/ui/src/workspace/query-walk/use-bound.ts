@@ -62,8 +62,14 @@ export function useBoundRun(plan: BoundPlan, probe: Probe): BoundRun {
     setOuter(null);
     setRowResults(new Map());
     setWanted(0);
-    flying.current = new Set();
   }
+
+  // The in-flight set is swapped after the commit, not in render: a render React discards would
+  // otherwise strand probes that are still running. A fresh Set rather than `clear()`, so a late
+  // answer from the previous plan deletes from the set it joined and never from this one.
+  React.useEffect(() => {
+    flying.current = new Set();
+  }, [plan]);
 
   React.useEffect(() => {
     let cancelled = false;

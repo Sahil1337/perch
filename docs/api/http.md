@@ -72,11 +72,21 @@ not drop it. Detection is push-based (OS file watching); the ping is pure keep-a
 
 `:id` accepts either the connection id or its name.
 
+A failed `connect` or `test` answers `400` with a `code` naming the reason, which is what the UI
+branches on: `password_required`, `auth_failed`, `unknown_user`, `unknown_database`, `unreachable`,
+`tls_required`, or `connect_failed` for anything else. `password_required` and `auth_failed` are
+the same rejection on the wire; they are told apart by whether the stored connection had a password
+to offer.
+
+`ssl` defaults to on for a host that is not loopback. An `sslmode` carried in a posted `url` is
+kept in `options` and used verbatim, so a pasted hosted-database string keeps the mode it asked
+for; otherwise TLS to a remote host is `verify-full` and to loopback is `require`.
+
 ## Discovery
 
 | Method | Path            | Body | Response          | Purpose                                                                                                                                                                                                                                                 |
 | ------ | --------------- | ---- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| GET    | `/api/discover` | —    | `DiscoveryResult` | Postgres/MySQL servers already on this machine — open ports, binaries, brew/systemd/Windows services, docker containers — merged by dialect+host+port. Best-effort and never fails; the result is memoised for 30s and `?rescan=1` forces a fresh scan. |
+| GET    | `/api/discover` | —    | `DiscoveryResult` | Postgres/MySQL servers already on this machine — open ports, binaries, brew/systemd/Windows services, docker/podman/nerdctl containers — merged by dialect+host+port. A container's `suggestedUrl` carries the login from its image environment (never the password). Best-effort and never fails; the result is memoised for 30s and `?rescan=1` forces a fresh scan. |
 
 ## Queries and runs
 

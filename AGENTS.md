@@ -122,10 +122,12 @@ land is a committed `*.test.ts`.
   run it only against a tag whose `server` workflow is green — being manual is what makes that
   enforceable. The binaries are unsigned, so macOS needs notarization and Windows a cert before
   anyone can download them without a warning.
-- **`install.sh` at the repo root and the release workflow are coupled.** The installer builds
-  the asset name (`perch-<version>-<os>-<arch>.tar.gz`) and reads `checksums.txt`; changing how
-  `release.yml` names or packages assets breaks `curl … | sh` for everyone. Change both, and
-  test the installer against a local directory with `PERCH_DOWNLOAD_BASE=file:///path`.
+- **`install.sh`, `apps/server/update/` and the release workflow are coupled.** The installer and
+  `perch update` both build the asset name (`perch-<version>-<os>-<arch>.tar.gz`, a bare `.exe`
+  on Windows) and read `checksums.txt`; changing how `release.yml` names or packages assets
+  breaks `curl … | sh` for everyone and `perch update` for everyone already on an older binary,
+  which no later release can fix. Change all three, and test both against a local directory with
+  `PERCH_DOWNLOAD_BASE=file:///path` — `update` speaks `file://` for exactly that.
   Never add an `npm i -g` line to docs — there is no package to install, and the npm names
   `perch`, `sqe` and `sql-engine` all belong to unrelated projects.
 - **The frontend is `apps/web`.** The four layout directions in `apps/mockups` did their job

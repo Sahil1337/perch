@@ -115,7 +115,9 @@ export function CommandPalette(): React.ReactElement {
       {
         value: "Connections",
         items: connectionItems(loadedConnections, (id) => {
-          void connect(id);
+          // The palette has nowhere to put a message; the picker and the status dot both read the
+          // failure out of `connections`, which the dial records either way.
+          void connect(id).catch(() => {});
           close();
         }),
       },

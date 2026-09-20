@@ -52,10 +52,8 @@ func (d *mysqlDriver) dsn(database string) string {
 	cfg.MultiStatements = false
 	// Timestamps arrive as time.Time and leave as ISO strings, matching mysql2's dateStrings:false.
 	cfg.ParseTime = true
-	if d.config.SSL {
-		// The TypeScript driver passed rejectUnauthorized:false.
-		cfg.TLSConfig = "skip-verify"
-	}
+	cfg.TLSConfig = mysqlTLSFor(d.config)
+	cfg.Timeout = connectTimeout
 	return cfg.FormatDSN()
 }
 

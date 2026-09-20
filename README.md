@@ -230,13 +230,39 @@ paste into the terminal you already have open. New terminals need nothing.
 perch          # starts the server and opens the UI
 perch status   # is it running, and where
 perch stop     # stop it
+perch update   # install the latest release over this one
 ```
 
-| Variable               | What it does                                             |
-| ---------------------- | -------------------------------------------------------- |
-| `PERCH_VERSION`        | install a specific tag, e.g. `v0.1.0`, instead of latest |
-| `PERCH_INSTALL_DIR`    | install somewhere else, e.g. `~/bin`                     |
-| `PERCH_NO_MODIFY_PATH` | leave the shell profile alone and just print the line    |
+| Variable                | What it does                                             |
+| ----------------------- | -------------------------------------------------------- |
+| `PERCH_VERSION`         | install a specific tag, e.g. `v0.1.0`, instead of latest |
+| `PERCH_INSTALL_DIR`     | install somewhere else, e.g. `~/bin`                     |
+| `PERCH_NO_MODIFY_PATH`  | leave the shell profile alone and just print the line    |
+| `PERCH_NO_UPDATE_CHECK` | don't look for a newer release on start                  |
+
+### Updating
+
+```sh
+perch update           # download the latest release and replace this binary
+perch update --check   # just say whether there is a newer one
+```
+
+`update` fetches the release for your platform, verifies it against the release's checksum, and
+replaces the binary in place — the same file `perch` already runs from, wherever the installer
+put it. Nothing else on disk is touched: connections, settings and history stay where they are.
+
+A server that is already running keeps the old version until you restart it (`perch stop`, then
+`perch`), and `perch update` says so when it finds one.
+
+`perch serve` also looks for a newer release once a day, in the background, and prints a single
+line when there is one. It never blocks startup and never updates anything on its own; set
+`PERCH_NO_UPDATE_CHECK=1` to turn the look off entirely.
+
+`perch update --version v0.1.0` installs that exact tag, which is how you go back a version.
+
+On Windows, `perch update` replaces the `.exe` you ran it from. Windows will not delete a file
+that is open, so the previous version is left beside it as `perch.exe.old` and cleared on the
+next update — deleting it by hand is fine too.
 
 ### Windows
 
@@ -262,7 +288,9 @@ xattr -d com.apple.quarantine ./perch
 
 On first launch, choose a workspace, connection, and database.
 
-Perch can discover database servers already running on your machine, including PostgreSQL and MySQL installations exposed through local ports, binaries on `PATH`, Homebrew, systemd, Windows services, and Docker.
+Perch can discover database servers already running on your machine, including PostgreSQL and MySQL installations exposed through local ports, binaries on `PATH`, Homebrew, systemd, Windows services, and Docker. A container is offered with the login its image was started with, and a server that asks for a password asks for it on the row you pressed.
+
+For a database somewhere else — Neon, Supabase, RDS, or any other host — paste its connection URL on the same screen. TLS is on by default for anything that is not this machine, and the certificate is verified; a `sslmode` in the URL is used as written.
 
 Perch never installs or bundles a database server.
 

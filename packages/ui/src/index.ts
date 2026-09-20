@@ -5,7 +5,7 @@ export { cn } from "./lib/utils";
 
 // Cross-feature helpers. Named rather than starred: these are small, generic words
 // (`remove`, `indent`, `toggle`) and a flat barrel is the wrong place to spend them.
-export { messageOf } from "./lib/errors";
+export { ConnectFailed, failureCodeOf, isPasswordFailure, messageOf } from "./lib/errors";
 export { clockOf, plural } from "./lib/format";
 export { baseName, dirName, isUnder, joinPath, tilde } from "./lib/paths";
 export { readJson, readRaw, writeJson, writeRaw } from "./lib/storage";

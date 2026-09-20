@@ -4,7 +4,8 @@
 //
 // The scan is the async thing, so it carries the states: skeletons while it runs, an error with a
 // retry, an empty state naming what was looked for. A server that answers a TCP probe still has to
-// accept a password, so the caller falls back to the form when it will not.
+// accept a password, and that is not a reason to leave: the row that was refused grows a password
+// field. Only a failure a password cannot fix falls back to the form.
 
 import type { DiscoveredServer, DiscoveryResult, DiscoverySource } from "@perch/protocol";
 import { RefreshCwIcon, SearchXIcon, TriangleAlertIcon } from "lucide-react";
@@ -26,13 +27,25 @@ import {
   type Async,
   type ConnectionInput,
 } from "../workspace/types";
+import { ROW_COLUMN } from "./column";
 import { DIALECT_DEFAULTS, DialectMark } from "./dialect-mark";
+import { PasswordPrompt, type PasswordChallenge } from "./password-prompt";
 
 /**
- * A starting point for the connection form, from a server already there. Named `<dialect>-local`,
- * which is what it is; no password, because none was discovered and inventing one moves the failure.
+ * Everything but the name, which belongs to whoever is about to save it: the name has to be one
+ * nothing else on disk is using, and this file cannot see the list.
  */
-function connectionInputFromServer(server: DiscoveredServer, osUser: string): ConnectionInput {
+export type DiscoveredInput = Omit<ConnectionInput, "name">;
+
+/**
+ * A starting point, from a server already there. No password — none was discovered, and inventing
+ * one only moves the failure.
+ *
+ * The login comes out of `suggestedUrl` rather than being assumed, because the server knows things
+ * this side does not: a container's database has no account named after the person running it, so
+ * the probe that found it reads the login off the image and puts it in the URL.
+ */
+function connectionInputFromServer(server: DiscoveredServer, osUser: string): DiscoveredInput {
   const fallback = DIALECT_DEFAULTS[server.dialect];
   let user = osUser;
   let database = fallback.database;
@@ -48,7 +61,6 @@ function connectionInputFromServer(server: DiscoveredServer, osUser: string): Co
   }
 
   return {
-    name: `${server.dialect}-local`,
     dialect: server.dialect,
     host: server.host,
     port: server.port,
@@ -89,10 +101,17 @@ export function serverKey(server: DiscoveredServer): string {
 }
 
 export type DiscoveredServersProps = {
-  /** Called with a filled-in `ConnectionInput` when the row's Connect button is pressed. */
-  onSelect: (input: ConnectionInput, server: DiscoveredServer) => void;
+  /**
+   * Called when the row's Connect button is pressed, and again with a password when the row's
+   * prompt is answered.
+   */
+  onSelect: (input: DiscoveredInput, server: DiscoveredServer, password?: string) => void;
   /** `serverKey` of the row currently being connected, if any — it shows the spinner. */
   pending?: string | null;
+  /** The row whose server asked for a password, if any, and what to say about it. */
+  challenge?: PasswordChallenge | null;
+  /** Closes the prompt without dialling. */
+  onDismissChallenge?: () => void;
   /**
    * What a finished scan found, reported upward: with nothing on the machine there is no fast path,
    * and the manual form should already be open rather than folded behind a disclosure.
@@ -104,6 +123,8 @@ export type DiscoveredServersProps = {
 export function DiscoveredServers({
   onSelect,
   pending = null,
+  challenge = null,
+  onDismissChallenge,
   onResult,
   className,
 }: DiscoveredServersProps): React.ReactElement {
@@ -114,11 +135,14 @@ export function DiscoveredServers({
   const [scanned, setScanned] = React.useState<Async<DiscoveryResult>>(asyncLoading);
 
   // In a ref, so a provider rebuilding its closures each render cannot restart the scan: it runs
-  // on mount and when asked, and at no other time.
+  // on mount and when asked, and at no other time. Written after the commit, because a render React
+  // discards must not be able to leave a callback behind for the scan below to find.
   const scan = React.useRef(discoverServers);
-  scan.current = discoverServers;
   const report = React.useRef(onResult);
-  report.current = onResult;
+  React.useEffect(() => {
+    scan.current = discoverServers;
+    report.current = onResult;
+  });
 
   const run = React.useCallback(() => {
     let cancelled = false;
@@ -151,11 +175,11 @@ export function DiscoveredServers({
 
   return (
     <section className={cn("flex flex-col gap-2", className)}>
-      <header className="flex h-6 items-center justify-between gap-2">
+      <header className={cn(ROW_COLUMN, "flex h-6 items-center justify-between gap-2")}>
         <h3 className="font-medium text-muted-foreground text-xs">Found on this machine</h3>
         <Button
           aria-label="Rescan for database servers"
-          // Shares the card's right-hand edge with the Skip button at the foot of the screen.
+          // Shares the column's right-hand edge with the Skip button at the foot of the screen.
           className="-mr-2"
           disabled={scanning}
           loading={scanning && !first}
@@ -201,9 +225,11 @@ export function DiscoveredServers({
         <ul className="flex flex-col gap-1">
           {servers.map((server) => (
             <ServerRow
+              challenge={challenge?.target === serverKey(server) ? challenge : null}
               key={serverKey(server)}
-              onSelect={() =>
-                onSelect(connectionInputFromServer(server, result?.osUser ?? ""), server)
+              onDismissChallenge={onDismissChallenge}
+              onSelect={(password) =>
+                onSelect(connectionInputFromServer(server, result?.osUser ?? ""), server, password)
               }
               pending={pending === serverKey(server)}
               server={server}
@@ -219,36 +245,55 @@ function ServerRow({
   server,
   onSelect,
   pending,
+  challenge,
+  onDismissChallenge,
 }: {
   server: DiscoveredServer;
-  onSelect: () => void;
+  onSelect: (password?: string) => void;
   pending: boolean;
+  challenge: PasswordChallenge | null;
+  onDismissChallenge?: () => void;
 }): React.ReactElement {
   const source = primarySource(server);
   return (
     // The address identifies the row and must never truncate. The binary path says how the server
     // was found, not which server it is, so it lives in the tooltip.
-    <li
-      className="flex h-9 items-center gap-2 rounded-md border border-border px-2"
-      title={server.label ?? undefined}
-    >
-      <DialectMark className="shrink-0 text-muted-foreground" dialect={server.dialect} />
-      <StatusDot
-        label={server.reachable ? "Reachable" : "Not answering"}
-        status={server.reachable ? "connected" : "idle"}
-      />
-      <span className="shrink-0 font-mono text-xs">
-        {server.host}:{server.port}
-      </span>
-      {server.version !== undefined && (
-        <span className="min-w-0 flex-1 truncate text-muted-foreground text-xs">
-          {server.version}
+    <li className="rounded-md border border-border" title={server.label ?? undefined}>
+      <div className="flex h-9 items-center gap-2 px-2">
+        <DialectMark className="shrink-0 text-muted-foreground" dialect={server.dialect} />
+        <StatusDot
+          label={server.reachable ? "Reachable" : "Not answering"}
+          status={server.reachable ? "connected" : "idle"}
+        />
+        <span className="shrink-0 font-mono text-xs">
+          {server.host}:{server.port}
         </span>
+        {server.version !== undefined && (
+          <span className="min-w-0 flex-1 truncate text-muted-foreground text-xs">
+            {server.version}
+          </span>
+        )}
+        <span className="ml-auto shrink-0 text-muted-foreground text-xs">{source}</span>
+        <Button
+          className="shrink-0"
+          loading={pending}
+          onClick={() => onSelect()}
+          size="xs"
+          variant="outline"
+        >
+          Connect
+        </Button>
+      </div>
+
+      {challenge !== null && (
+        <PasswordPrompt
+          onCancel={() => onDismissChallenge?.()}
+          onSubmit={(password) => onSelect(password)}
+          pending={pending}
+          refused={challenge.refused}
+          user={challenge.user}
+        />
       )}
-      <span className="ml-auto shrink-0 text-muted-foreground text-xs">{source}</span>
-      <Button className="shrink-0" loading={pending} onClick={onSelect} size="xs" variant="outline">
-        Connect
-      </Button>
     </li>
   );
 }

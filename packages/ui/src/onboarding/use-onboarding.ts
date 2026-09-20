@@ -63,15 +63,17 @@ export function useOnboardingFlow(): { readonly open: boolean; readonly done: ()
   const markOnboarded = useMarkOnboarded();
   const [finished, setFinished] = React.useState(false);
 
-  // A ref, not state: latching must be visible on the render that first needed it, and an effect
-  // would leave one frame with the flow needed and nothing mounted.
-  const started = React.useRef(false);
-  if (needed) started.current = true;
+  // Latched, because the derived value only ever starts the flow. State rather than a ref: the
+  // latch has to be visible on the render that first needed it — hence `needed ||` below rather
+  // than an effect, which would leave a frame with the flow needed and nothing mounted — and a
+  // render React discards must not be able to latch a flow the user never saw.
+  const [started, setStarted] = React.useState(false);
+  if (needed && !started) setStarted(true);
 
   const done = React.useCallback((): void => {
     markOnboarded();
     setFinished(true);
   }, [markOnboarded]);
 
-  return { open: started.current && !finished, done };
+  return { open: (needed || started) && !finished, done };
 }
