@@ -45,12 +45,18 @@ export function useMarkOnboarded(): () => void {
   }, [updateSettings]);
 }
 
-/** Clears the flag. For the "Show welcome again" affordance a menu may want. */
-export function useResetOnboarded(): () => void {
-  const { updateSettings } = useWorkspace();
-  return React.useCallback(() => {
-    void updateSettings({ onboarded: false }).catch(() => {});
-  }, [updateSettings]);
+/** Dispatch on `window` to reopen the setup screen over the workspace. */
+const CONNECT_SETUP_EVENT = "perch:connect-setup";
+
+/**
+ * The way back to the setup screen — what the connection picker's "Connect a database…" calls.
+ *
+ * An event, not a settings write. Clearing `onboarded` to reopen the screen said something false
+ * about the installation (this one has seen the welcome flow) and left it saying so on disk if the
+ * window closed before the screen was dismissed. Wanting a second server is not un-onboarding.
+ */
+export function requestConnectSetup(): void {
+  window.dispatchEvent(new CustomEvent(CONNECT_SETUP_EVENT));
 }
 
 /**
@@ -69,6 +75,18 @@ export function useOnboardingFlow(): { readonly open: boolean; readonly done: ()
   // render React discards must not be able to latch a flow the user never saw.
   const [started, setStarted] = React.useState(false);
   if (needed && !started) setStarted(true);
+
+  // Asked for from the workspace, which is the one thing the latch above cannot express: the flow
+  // is finished and the flag is set, and the answer to "connect another database" is still this
+  // screen. It reopens without touching settings, and `done` closes it again.
+  React.useEffect(() => {
+    const listener = (): void => {
+      setStarted(true);
+      setFinished(false);
+    };
+    window.addEventListener(CONNECT_SETUP_EVENT, listener);
+    return () => window.removeEventListener(CONNECT_SETUP_EVENT, listener);
+  }, []);
 
   const done = React.useCallback((): void => {
     markOnboarded();

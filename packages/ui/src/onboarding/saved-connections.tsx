@@ -37,8 +37,15 @@ export function SavedConnections({
             <div className="flex h-9 items-center gap-2 px-2">
               <DialectMark className="text-muted-foreground" dialect={item.dialect} />
               <span className="min-w-0 flex-1 truncate text-sm">{item.name}</span>
-              <span className="shrink-0 font-mono text-muted-foreground text-xs">
-                {item.host}:{item.port}
+              {/* A hosted address (Neon, Supabase, RDS) is long enough to push Connect off the
+                  row, so the host truncates. The port stays: it is the half of an address that
+                  tells two rows on one server apart. */}
+              <span
+                className="flex min-w-0 max-w-48 shrink-0 font-mono text-muted-foreground text-xs"
+                title={`${item.host}:${item.port}`}
+              >
+                <span className="min-w-0 truncate">{item.host}</span>
+                <span className="shrink-0">:{item.port}</span>
               </span>
               <Button
                 className="shrink-0"

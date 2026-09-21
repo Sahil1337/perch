@@ -10,7 +10,11 @@ import * as React from "react";
 import { Button } from "../ui/button";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { useHotkey } from "../workspace/use-hotkey";
-import { SettingsDialog } from "./settings-dialog";
+import {
+  SETTINGS_EVENT,
+  SettingsDialog,
+  type SettingsPane,
+} from "./settings-dialog";
 
 export type SettingsButtonProps = {
   /** Matches the surrounding bar; the topbar uses "icon-sm". */
@@ -23,8 +27,21 @@ export function SettingsButton({
   className,
 }: SettingsButtonProps): React.ReactElement {
   const [open, setOpen] = React.useState(false);
+  const [pane, setPane] = React.useState<SettingsPane>("editor");
 
   useHotkey({ key: ",", mod: true }, () => setOpen(true));
+
+  // Both halves of the request land here, because both are this component's state: the gear owns
+  // the dialog, and which pane it opens on is the same kind of answer as whether it is open.
+  React.useEffect(() => {
+    const listener = (event: Event): void => {
+      const target = (event as CustomEvent<{ pane?: SettingsPane }>).detail?.pane;
+      if (target) setPane(target);
+      setOpen(true);
+    };
+    window.addEventListener(SETTINGS_EVENT, listener);
+    return () => window.removeEventListener(SETTINGS_EVENT, listener);
+  }, []);
 
   return (
     <>
@@ -45,7 +62,12 @@ export function SettingsButton({
         <TooltipPopup>Settings ⌘,</TooltipPopup>
       </Tooltip>
 
-      <SettingsDialog onOpenChange={setOpen} open={open} />
+      <SettingsDialog
+        onOpenChange={setOpen}
+        onPaneChange={setPane}
+        open={open}
+        pane={pane}
+      />
     </>
   );
 }

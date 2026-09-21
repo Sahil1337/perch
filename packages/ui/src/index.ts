@@ -58,6 +58,7 @@ export * from "./workspace/folder-picker";
 export * from "./workspace/query-walk";
 export * from "./workspace/schema-diagram";
 export * from "./workspace/schema-tree";
+export * from "./workspace/sidebar-tabs";
 export * from "./workspace/sql-editor";
 export * from "./workspace/use-hotkey";
 

@@ -6,52 +6,47 @@ and versions follow [semantic versioning](https://semver.org/).
 The section matching a release's version becomes that release's notes on GitHub — see
 [CONTRIBUTING.md](CONTRIBUTING.md#cutting-a-release).
 
-[Unreleased]: https://github.com/Sahil1337/perch/compare/v0.1.0...HEAD
+[0.2.0]: https://github.com/Sahil1337/perch/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Sahil1337/perch/releases/tag/v0.1.0
 
-## [Unreleased]
+## [0.2.0] — 2026-09-22
 
 ### Added
 
-- **`perch update`** — replaces the running binary with the latest release: downloads this
-  platform's asset, verifies it against the release's `checksums.txt`, and renames it into place.
-  `--check` reports without installing, `--version <tag>` pins an exact tag (including an older
-  one), and nothing under `~/.perch` is touched. A download that cannot be verified is refused.
-- `perch serve` looks for a newer release in the background, at most once a day, and prints one
-  line when there is one. It never delays startup or installs anything on its own;
-  `PERCH_NO_UPDATE_CHECK=1` turns it off.
-
-### Added
-
-- **Password prompts on the connection you were opening.** A server that answers but asks for a
-  password now grows a password field on its own row — in the first-run screen and on saved
-  connections alike — instead of throwing you back to a blank form.
-- **A "Paste a connection URL" way in** on the first-run screen, and a **Connect over TLS** switch
-  in the connection form, for databases discovery cannot find: Neon, Supabase, RDS and anything
-  else reached over the network.
+- **`perch update`** — updates the binary in place from the latest release, verified against its
+  checksum. `--check` reports without installing, `--version <tag>` pins one. `perch serve` also
+  mentions a newer release once a day; `PERCH_NO_UPDATE_CHECK=1` turns that off.
+- **Password prompts on the row you pressed.** A server that asks for a password gets a password
+  field in place, rather than sending you back to an empty form.
+- **Paste a connection URL** on the first-run screen, and a **Connect over TLS** switch in the
+  connection form — for Neon, Supabase, RDS and anything else discovery cannot find.
+- **Run history keeps results.** Settings → History chooses what a run leaves behind: nothing, the
+  query, or the query and its rows. Kept rows mean an old run reopens with its data and a working
+  export, instead of a row count and a dead link.
+- **History is scoped to the folder you are working in**, with a picker for this folder, every run,
+  or the ones belonging to no folder.
+- The query that produced a result is shown above it; right-clicking a history row offers Run again
+  and Copy SQL.
 
 ### Changed
 
-- **Connection failures say which of the six things went wrong** — no password, wrong password,
-  unknown user, unknown database, nothing listening, or a TLS disagreement — in place of the
-  driver's own text with its SQLSTATE attached.
-- **TLS is on by default for a database that is not on this machine**, and its certificate is
-  verified. A `sslmode` in a pasted URL is honoured as written rather than flattened to "on",
-  and connections now time out instead of hanging on an unreachable host.
-- **Docker containers are offered with the login the image was started with** (`POSTGRES_USER`,
-  `POSTGRES_DB`, `MYSQL_DATABASE`), not the OS user, which no container has an account for. The
-  probe also finds the CLI outside `PATH`, reads podman and nerdctl, and handles a database
-  published on a non-default port.
+- Connection failures say which of six things went wrong: no password, wrong password, unknown
+  user, unknown database, nothing listening, or a TLS disagreement.
+- TLS is on and verified by default for a database that is not on this machine, and an `sslmode` in
+  a pasted URL is honoured as written. Connections time out rather than hanging.
+- Docker containers are offered with the login their image was started with instead of your OS
+  user, which no container has an account for. podman and nerdctl are read too.
+- Run history is kept in `history.db` rather than an ever-growing `history.jsonl`, which is
+  imported the first time the new store opens.
 
 ### Fixed
 
-- **Connect from the first-run screen silently opening the wrong connection.** A failed dial
-  reported success, played the handover animation and landed in the workspace pointed at whatever
-  was already selected. It now reports the failure and stays put.
-- **A second press of Connect failing with "a connection named postgres-local already exists".**
-  Discovered servers are named after the container or the port, and a row whose address is already
-  saved reuses that connection rather than saving another.
-- **The saved-connections list vanishing when a dial failed**, at the moment it was needed.
+- Connect on the first-run screen silently opening a different connection.
+- A second press of Connect failing with "a connection named postgres-local already exists".
+- The saved-connections list vanishing when a dial failed.
+- A long hostname pushing Connect off the end of a saved-connection row.
+- "Connect a database…" in the connection picker doing nothing after the first run.
+- The wire on the first-run screen sitting slightly below the marks it joins.
 
 ## [0.1.0] — 2026-09-19
 

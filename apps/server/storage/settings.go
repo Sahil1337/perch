@@ -17,6 +17,11 @@ func DefaultSettings() protocol.Settings {
 		KeywordCase:      protocol.KeywordLower,
 		Onboarded:        false,
 		RecentWorkspaces: []string{},
+		// Queries, not results: perch has never kept a row on disk, and starting to without being
+		// asked would copy a database's contents somewhere the user did not choose.
+		HistoryMode:  protocol.HistoryQueries,
+		HistoryLimit: 500,
+		HistoryMaxMB: 200,
 	}
 }
 
@@ -37,6 +42,11 @@ func GetSettings() (protocol.Settings, error) {
 	}
 	if s.RecentWorkspaces == nil {
 		s.RecentWorkspaces = []string{}
+	}
+	// A settings.json written before history had a mode has none; it gets the default rather than
+	// the empty string, which would read as "not a valid mode" and record nothing.
+	if !s.HistoryMode.Valid() {
+		s.HistoryMode = protocol.HistoryQueries
 	}
 	return s, nil
 }

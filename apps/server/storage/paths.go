@@ -1,5 +1,5 @@
 // Package storage owns everything perch keeps on disk. One directory holds all of it (default
-// ~/.perch, override with PERCH_HOME): connections.json (0600), settings.json, history.jsonl,
+// ~/.perch, override with PERCH_HOME): connections.json (0600), settings.json, history.db,
 // server.json, update.json, plus queries/, the workspace created on first run.
 package storage
 
@@ -11,10 +11,12 @@ import (
 const (
 	ConnectionsFile = "connections.json"
 	SettingsFile    = "settings.json"
-	HistoryFile     = "history.jsonl"
-	ServerInfoFile  = "server.json"
-	UpdateCheckFile = "update.json"
-	QueriesDirName  = "queries"
+	HistoryFile     = "history.db"
+	// The JSONL history this replaced. Read once, then renamed; see importLegacyHistory.
+	legacyHistoryFile = "history.jsonl"
+	ServerInfoFile    = "server.json"
+	UpdateCheckFile   = "update.json"
+	QueriesDirName    = "queries"
 )
 
 func ConfigDir() string {

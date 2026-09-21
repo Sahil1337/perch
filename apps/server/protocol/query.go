@@ -76,7 +76,22 @@ type RunRecord struct {
 	Results      []StatementResult `json:"results,omitempty"`
 	Error        *QueryError       `json:"error,omitempty"`
 	Source       RunSource         `json:"source"`
+	// The workspace root the query came from, when it came from a file in one. Empty means the
+	// run belongs to no folder — an untitled buffer, perch's own queries directory, or the CLI —
+	// which the History tab calls global.
+	Workspace string `json:"workspace,omitempty"`
 }
+
+// Which runs a history page is asking for. `workspace` means this root and the global ones, which
+// is the view that matches how people work: the project in front of them, plus the scratch queries
+// that belong to no project.
+type HistoryScope string
+
+const (
+	ScopeAll       HistoryScope = "all"
+	ScopeWorkspace HistoryScope = "workspace"
+	ScopeGlobal    HistoryScope = "global"
+)
 
 // A discriminated union on TypeScript's side. The constructors are the only supported way to
 // build one: an event with an empty Type is undispatchable at the client.
@@ -192,6 +207,8 @@ type QueryOptions struct {
 	// Pointer because the default is true: an absent field must not read as false.
 	Record   *bool `json:"record,omitempty"`
 	ReadOnly bool  `json:"readOnly,omitempty"`
+	// The workspace root this run belongs to; see RunRecord.Workspace.
+	Workspace string `json:"workspace,omitempty"`
 }
 
 func (o QueryOptions) ShouldRecord() bool { return o.Record == nil || *o.Record }

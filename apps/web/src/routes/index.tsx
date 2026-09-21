@@ -17,11 +17,10 @@ import {
   SaveIndicator,
   SchemaTree,
   ServerGate,
+  SidebarTabs,
   SettingsButton,
   ThemeSync,
   StatusBar,
-  ToggleGroup,
-  ToggleGroupItem,
   WorkspaceProvider,
   useHotkey,
   ConnectingProvider,
@@ -31,7 +30,6 @@ import {
   SaveQueryDialog,
   SchemaDiagramDialog,
   useWorkspace,
-  type SidebarTab,
 } from "@perch/ui";
 import { createFileRoute } from "@tanstack/react-router";
 import { PanelLeftIcon } from "lucide-react";
@@ -150,40 +148,14 @@ function Workspace(): React.ReactElement {
   );
 }
 
-const TABS: readonly { value: SidebarTab; label: string }[] = [
-  { value: "schema", label: "Schema" },
-  { value: "files", label: "Files" },
-  { value: "history", label: "History" },
-];
-
 function Sidebar(): React.ReactElement {
   const { panels, setPanel } = useWorkspace();
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="shrink-0 p-2">
-        <ToggleGroup
-          className="w-full"
-          onValueChange={(value: string[]) => {
-            const next = value[0] as SidebarTab | undefined;
-            if (next) setPanel("sidebarTab", next);
-          }}
-          value={[panels.sidebarTab]}
-          variant="outline"
-        >
-          {TABS.map((tab) => (
-            <ToggleGroupItem className="flex-1" key={tab.value} size="sm" value={tab.value}>
-              {tab.label}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
-      </div>
-
-      <div className="min-h-0 flex-1 overflow-hidden">
-        {panels.sidebarTab === "schema" && <SchemaTree className="h-full" />}
-        {panels.sidebarTab === "files" && <FilesList className="h-full" />}
-        {panels.sidebarTab === "history" && <RunHistory />}
-      </div>
-    </div>
+    <SidebarTabs onTabChange={(tab) => setPanel("sidebarTab", tab)} tab={panels.sidebarTab}>
+      {panels.sidebarTab === "schema" && <SchemaTree className="h-full" />}
+      {panels.sidebarTab === "files" && <FilesList className="h-full" />}
+      {panels.sidebarTab === "history" && <RunHistory />}
+    </SidebarTabs>
   );
 }

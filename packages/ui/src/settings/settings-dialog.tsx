@@ -1,6 +1,6 @@
 // Settings.
 //
-// Five panes behind a left nav, at a fixed 720×520 so the dialog never resizes under the cursor
+// Six panes behind a left nav, at a fixed size so the dialog never resizes under the cursor
 // when you switch sections — a preferences window that changes shape as you browse it is one you
 // stop trusting to stay where you put it. The active pane is marked by one indicator that slides
 // (`layoutId`) rather than by five that blink, which is the difference between "this moved" and
@@ -9,7 +9,14 @@
 // There is no Save button; see saved-tick.tsx for why, and for the receipt that replaces it.
 
 import type { Settings } from "@perch/protocol";
-import { DatabaseIcon, FolderIcon, PaletteIcon, SquareTerminalIcon, TableIcon } from "lucide-react";
+import {
+  DatabaseIcon,
+  FolderIcon,
+  HistoryIcon,
+  PaletteIcon,
+  SquareTerminalIcon,
+  TableIcon,
+} from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import * as React from "react";
 import { useFade, useSpring } from "../lib/motion";
@@ -22,30 +29,54 @@ import { asyncData } from "../workspace/types";
 import { ErrorText } from "../workspace/error-text";
 import { ConnectionsSection } from "./connections-section";
 import { SavedTick, useSettingsWriter } from "./saved-tick";
-import { AppearanceSection, EditorSection, FilesSection, QuerySection } from "./sections";
+import {
+  AppearanceSection,
+  EditorSection,
+  FilesSection,
+  HistorySection,
+  QuerySection,
+} from "./sections";
 
 const PANES = [
   { id: "editor", title: "Editor", icon: SquareTerminalIcon },
   { id: "query", title: "Query", icon: TableIcon },
+  { id: "history", title: "History", icon: HistoryIcon },
   { id: "files", title: "Files", icon: FolderIcon },
   { id: "connections", title: "Connections", icon: DatabaseIcon },
   { id: "appearance", title: "Appearance", icon: PaletteIcon },
 ] as const;
 
-type PaneId = (typeof PANES)[number]["id"];
+export type SettingsPane = (typeof PANES)[number]["id"];
+
+/** Dispatch on `window` to open Settings, on a named pane when one is given. */
+export const SETTINGS_EVENT = "perch:settings";
+
+/**
+ * Open Settings from anywhere. A surface that explains a setting should be able to hand you the
+ * setting — the History panel, off because history recording is off, is the first caller.
+ */
+export function requestSettings(pane?: SettingsPane): void {
+  window.dispatchEvent(new CustomEvent(SETTINGS_EVENT, { detail: { pane } }));
+}
 
 export type SettingsDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Which pane is showing. Owned by the button, like `open`, so an event can aim at one. */
+  pane: SettingsPane;
+  onPaneChange: (pane: SettingsPane) => void;
 };
 
-export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps): React.ReactElement {
+export function SettingsDialog({
+  open,
+  onOpenChange,
+  pane,
+  onPaneChange,
+}: SettingsDialogProps): React.ReactElement {
   const { settings } = useWorkspace();
   const writer = useSettingsWriter();
   const spring = useSpring();
   const fade = useFade();
-
-  const [pane, setPane] = React.useState<PaneId>("editor");
 
   const value = asyncData(settings);
   const active = PANES.find((item) => item.id === pane) ?? PANES[0];
@@ -68,7 +99,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps): Rea
                   : "text-muted-foreground hover:text-foreground",
               )}
               key={item.id}
-              onClick={() => setPane(item.id)}
+              onClick={() => onPaneChange(item.id)}
               type="button"
             >
               {pane === item.id && (
@@ -129,12 +160,13 @@ function Panes({
   settings,
   writer,
 }: {
-  pane: PaneId;
+  pane: SettingsPane;
   settings: Settings;
   writer: ReturnType<typeof useSettingsWriter>;
 }): React.ReactElement | null {
   if (pane === "editor") return <EditorSection settings={settings} writer={writer} />;
   if (pane === "query") return <QuerySection settings={settings} writer={writer} />;
+  if (pane === "history") return <HistorySection settings={settings} writer={writer} />;
   if (pane === "files") return <FilesSection settings={settings} writer={writer} />;
   if (pane === "appearance") return <AppearanceSection settings={settings} writer={writer} />;
   return null;

@@ -10,6 +10,8 @@ import type {
   Dialect,
   DiscoveryResult,
   FileEntry,
+  HistoryScope,
+  HistoryStats,
   RunRecord,
   Settings,
   StatementResult,
@@ -248,10 +250,16 @@ export type WorkspaceApi = {
   /** Runs `sql`, or the active buffer when omitted. Resolves with the run's id once it settles. */
   run(sql?: string): Promise<string | undefined>;
   cancelRun(runId: string): Promise<void>;
+  /**
+   * Points the results pane at a run, fetching its rows if they are not already here. A run older
+   * than the server's in-memory window still has them when history was recording results, which is
+   * the whole point of recording them.
+   */
   selectRun(runId: string): void;
   /**
-   * A URL that downloads one statement's rows, or null when the run has aged out of server memory.
-   * Rendered as a link so the browser handles the download.
+   * A URL that downloads one statement's rows, or null when the rows are gone: the run aged out of
+   * server memory and history was not keeping them. Rendered as a link so the browser handles the
+   * download.
    */
   exportUrl(
     runId: string,
@@ -264,6 +272,13 @@ export type WorkspaceApi = {
    * and statement results.
    */
   probe(sql: string, options?: { maxRows?: number }): Promise<RunRecord>;
+  /** What the run history is costing on disk, for the pane that offers to clear it. */
+  historyStats(): Promise<HistoryStats>;
+  /** Drops every recorded run and its rows. Not undoable; the caller confirms. */
+  clearHistory(): Promise<void>;
+  /** Which runs History is showing: this folder plus the global ones, everything, or only global. */
+  readonly historyScope: HistoryScope;
+  setHistoryScope(scope: HistoryScope): void;
 
   /* settings */
   readonly settings: Async<Settings>;

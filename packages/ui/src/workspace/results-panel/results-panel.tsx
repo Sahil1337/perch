@@ -20,6 +20,7 @@ import { useFade } from "../../lib/motion";
 import { useWorkspace } from "../context";
 import { type ResultsView, type Run, runStatements } from "../types";
 import { summaryOf } from "./format";
+import { QueryLine } from "./query-line";
 import { RunningRows } from "./skeletons";
 import { ResultBody, StatementStrip } from "./statement-view";
 
@@ -109,6 +110,12 @@ export function ResultsPanel({
           )}
         </div>
       </div>
+
+      {/* The query these results answer. It reads as a restatement when you just pressed Run, and
+          as the only answer to "what am I looking at" when the run came from History — which is the
+          case it is here for. The selected statement's SQL, not the run's, so a multi-statement run
+          shows the one whose rows are on screen. */}
+      {current && <QueryLine sql={statement?.sql ?? current.sql} />}
 
       {statements.length > 1 && (
         <StatementStrip
