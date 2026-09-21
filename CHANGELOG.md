@@ -15,40 +15,60 @@ The section matching a release's version becomes that release's notes on GitHub 
 
 - **`perch update`** — Update Perch to the latest release from the command line. The update is
   verified using a checksum before installing. Use `--check` to only check for updates or
-  `--version <tag>` to install a specific version. `perch serve` also checks for new releases once
-  a day. Set `PERCH_NO_UPDATE_CHECK=1` to disable this.
-- **Easier database connections** — You can now paste a connection URL on the first-run screen and
-  use the **Connect over TLS** option when connecting to databases such as Neon, Supabase, or RDS.
-- **Inline password prompts** — If a database asks for a password, the password field now appears
-  directly on the connection you selected.
-- **Better run history** — You can choose what Perch saves for each run: nothing, the query, or the
+  `--version <tag>` to install a specific version. `perch serve` also checks for new releases
+  once a day. Set `PERCH_NO_UPDATE_CHECK=1` to disable this.
+
+- **Smarter autocomplete** — Autocomplete now understands the SQL you are writing. It suggests
+  columns from the tables in your `FROM` and `JOIN` clauses and only shows suggestions that
+  make sense at the current position. Joined tables get qualified suggestions like
+  `students.name` and `c.title`. SQL keywords are also filtered based on what can come next,
+  and foreign keys between joined tables can be suggested as `ON` conditions.
+
+  Settings → Editor → **Autocomplete** lets you choose between:
+  **Smart** (default), **Basic** (all keywords and schema objects), or **Off**.
+
+  The suggestion list was redesigned too: roomier rows, a marker for what each suggestion is, the
+  type and table lined up in their own column, and no more underlined text.
+
+- **Easier database connections** — You can paste a connection URL on the first-run screen and
+  use **Connect over TLS** when connecting to databases such as Neon, Supabase, or RDS.
+
+- **Inline password prompts** — If a database asks for a password, the password field now
+  appears directly on the connection you selected.
+
+- **Better run history** — Choose what Perch saves for each run: nothing, the query, or the
   query and its results. Saved results can be opened and exported again later.
-- **Folder-based history** — History can now be filtered to the current folder, all folders, or
-  runs that don't belong to a folder.
+
+- **Folder-based history** — Filter history by the current folder, all folders, or runs that
+  don't belong to a folder.
+
 - **History actions** — The SQL query that produced a result is shown above it. You can also
   right-click a history item to **Run again** or **Copy SQL**.
 
 ### Changed
 
-- **Clearer connection errors** — Connection errors now explain what went wrong, such as a missing
-  or wrong password, unknown user or database, no server listening, or a TLS problem.
+- **Clearer connection errors** — Connection errors now explain what went wrong, such as a
+  missing or wrong password, unknown user or database, no server listening, or a TLS problem.
+
 - **Safer remote connections** — TLS is now enabled and verified by default for databases running
   on another machine. If a connection URL includes `sslmode`, Perch follows that setting.
   Connections also time out instead of waiting forever.
+
 - **Better container connections** — Docker, Podman, and nerdctl connections now use the username
   configured for the container instead of your OS username.
+
 - **Better history storage** — Run history is now stored in `history.db` instead of
-  `history.jsonl`. Existing history is automatically imported the first time the new database is
-  opened.
+  `history.jsonl`. Existing history is automatically imported the first time the new database
+  is opened.
 
 ### Fixed
 
 - Connecting from the first-run screen could open a different connection than the one selected.
-- Pressing **Connect** a second time could fail with `a connection named postgres-local already
-  exists`.
+- Pressing **Connect** a second time could fail with
+  `a connection named postgres-local already exists`.
 - Saved connections could disappear after a failed connection attempt.
-- Long hostnames could push the **Connect** button off the edge of a saved connection.
 - **Connect a database…** stopped working after the first run.
+- Long hostnames could push the **Connect** button off the connection row.
 - The connection wire on the first-run screen was slightly misaligned with the marks it connects.
 
 ## [0.1.0] — 2026-09-19

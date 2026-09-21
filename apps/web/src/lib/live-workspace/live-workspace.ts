@@ -180,6 +180,7 @@ export function useLiveWorkspace(options: LiveWorkspaceOptions = {}): WorkspaceA
 
     runs: runs.runs,
     activeRun: runs.activeRun,
+    activeRunFromHistory: runs.activeRunFromHistory,
     run: runs.run,
     exportUrl: runs.exportUrl,
     cancelRun: runs.cancelRun,

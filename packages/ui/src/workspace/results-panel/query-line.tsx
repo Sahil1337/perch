@@ -1,8 +1,9 @@
 // What produced these results.
 //
-// Obvious when you just pressed Run — the query is in the editor above. Not obvious at all when the
-// run came from History: you clicked a time and a row count in a 180px sidebar, the pane filled
-// with rows, and nothing on screen said which query they answered.
+// Rendered only for a run opened from History; see the call site. When you pressed Run the query is
+// in the editor directly above and this would be the pane repeating it back. From History it is the
+// only answer there is: you clicked a time and a row count in a 180px sidebar, the pane filled with
+// rows, and nothing on screen said which query they belonged to.
 //
 // One line, because that is what a `select … from … where …` needs nine times out of ten, and a
 // chevron for the tenth. Collapsed it truncates; open it wraps and scrolls, capped so a 200-line

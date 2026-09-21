@@ -92,6 +92,9 @@ func applyPatch(st *protocol.Settings, p protocol.SettingsPatch) {
 			st.KeywordCase = *p.KeywordCase
 		}
 	}
+	if p.Completion != nil && p.Completion.Valid() {
+		st.Completion = *p.Completion
+	}
 	if p.Onboarded != nil {
 		st.Onboarded = *p.Onboarded
 	}

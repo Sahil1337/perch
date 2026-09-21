@@ -15,6 +15,7 @@ func DefaultSettings() protocol.Settings {
 		Workspaces:       []string{},
 		Theme:            protocol.ThemeDark,
 		KeywordCase:      protocol.KeywordLower,
+		Completion:       protocol.CompletionSmart,
 		Onboarded:        false,
 		RecentWorkspaces: []string{},
 		// Queries, not results: perch has never kept a row on disk, and starting to without being
@@ -47,6 +48,11 @@ func GetSettings() (protocol.Settings, error) {
 	// the empty string, which would read as "not a valid mode" and record nothing.
 	if !s.HistoryMode.Valid() {
 		s.HistoryMode = protocol.HistoryQueries
+	}
+	// Same for a settings.json written before the editor's completion had a mode: the empty
+	// string is not one, and reading it as `off` would silently turn autocomplete off.
+	if !s.Completion.Valid() {
+		s.Completion = protocol.CompletionSmart
 	}
 	return s, nil
 }

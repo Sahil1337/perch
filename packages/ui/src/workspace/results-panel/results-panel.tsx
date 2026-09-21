@@ -32,7 +32,8 @@ export function ResultsPanel({
   run?: Run;
   className?: string;
 }): React.ReactElement {
-  const { activeRun, cancelRun, exportUrl, panels, setPanel } = useWorkspace();
+  const { activeRun, activeRunFromHistory, cancelRun, exportUrl, panels, setPanel } =
+    useWorkspace();
   const fade = useFade();
   const current = run ?? activeRun;
 
@@ -111,11 +112,16 @@ export function ResultsPanel({
         </div>
       </div>
 
-      {/* The query these results answer. It reads as a restatement when you just pressed Run, and
-          as the only answer to "what am I looking at" when the run came from History — which is the
-          case it is here for. The selected statement's SQL, not the run's, so a multi-statement run
-          shows the one whose rows are on screen. */}
-      {current && <QueryLine sql={statement?.sql ?? current.sql} />}
+      {/* Only for a run opened from History, which is the one case where nothing else on screen
+          says which query these rows answer. After pressing Run the query is in the editor directly
+          above, and captioning the results with it is the pane repeating what you are looking at.
+          A pinned run belongs to its caller, which shows its own SQL — see the notebook's cells.
+
+          The selected statement's SQL, not the run's, so a multi-statement run shows the one whose
+          rows are on screen. */}
+      {current && run === undefined && activeRunFromHistory && (
+        <QueryLine sql={statement?.sql ?? current.sql} />
+      )}
 
       {statements.length > 1 && (
         <StatementStrip

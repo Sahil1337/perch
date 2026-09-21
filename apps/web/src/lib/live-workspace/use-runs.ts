@@ -30,6 +30,7 @@ export type RunsOptions = {
 export type RunsState = {
   runs: readonly Run[];
   activeRun: Run | undefined;
+  activeRunFromHistory: boolean;
   run: (sql?: string) => Promise<string | undefined>;
   exportUrl: (
     runId: string,
@@ -53,7 +54,15 @@ export function useRuns(
     options;
 
   const [runs, setRuns] = React.useState<readonly Run[]>([]);
-  const [selectedRunId, setSelectedRunId] = React.useState<string | null>(null);
+  /**
+   * Which run the results pane is showing, and how it got there. One value rather than two,
+   * because an id and a separate "was this picked from History" flag could disagree, and the
+   * only way to notice would be a pane captioning a query you are looking at in the editor.
+   */
+  const [selected, setSelected] = React.useState<{
+    readonly id: string;
+    readonly fromHistory: boolean;
+  } | null>(null);
   /**
    * Runs the server has already been asked about: `rows` means its result rows were fetched and
    * merged in, `none` means they are gone — it aged out of memory and history was not recording
@@ -115,7 +124,7 @@ export function useRuns(
         ...(workspace ? { workspace } : {}),
       };
       setRuns((prev) => [pending, ...prev].slice(0, RUN_CAP));
-      setSelectedRunId(runId);
+      setSelected({ id: runId, fromHistory: false });
       openOutput();
 
       try {
@@ -186,7 +195,7 @@ export function useRuns(
    */
   const selectRun = React.useCallback(
     (runId: string): void => {
-      setSelectedRunId(runId);
+      setSelected({ id: runId, fromHistory: true });
       const held = runs.find((r) => r.id === runId);
       if (!held || held.status !== "done" || resolved.has(runId)) return;
       if ((held.results ?? []).some((result) => result.rows.length > 0)) return;
@@ -229,7 +238,7 @@ export function useRuns(
     await getClient().history.clear();
     setRuns([]);
     setResolved(new Map());
-    setSelectedRunId(null);
+    setSelected(null);
   }, [getClient]);
 
   const cancelRun = React.useCallback(
@@ -250,9 +259,15 @@ export function useRuns(
     [getClient],
   );
 
+  // The newest run when nothing has been picked, which is what the pane opens on after a reload.
+  // That run came off the wire rather than out of this session, so it counts as history: the
+  // editor below it is empty or holding something else entirely.
+  const selectedRun = selected ? runs.find((r) => r.id === selected.id) : undefined;
+
   return {
     runs,
-    activeRun: runs.find((r) => r.id === selectedRunId) ?? runs[0],
+    activeRun: selectedRun ?? runs[0],
+    activeRunFromHistory: selectedRun ? selected!.fromHistory : true,
     run,
     exportUrl,
     cancelRun,

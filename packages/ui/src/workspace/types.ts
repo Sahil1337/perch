@@ -247,6 +247,12 @@ export type WorkspaceApi = {
   /* runs */
   readonly runs: readonly Run[];
   readonly activeRun: Run | undefined;
+  /**
+   * Whether `activeRun` was picked out of History rather than just run. The results pane captions
+   * itself with the query only in the first case: when you pressed Run, the query is in the editor
+   * directly above the results and repeating it is noise.
+   */
+  readonly activeRunFromHistory: boolean;
   /** Runs `sql`, or the active buffer when omitted. Resolves with the run's id once it settles. */
   run(sql?: string): Promise<string | undefined>;
   cancelRun(runId: string): Promise<void>;
