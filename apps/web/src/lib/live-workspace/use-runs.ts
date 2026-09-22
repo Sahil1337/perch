@@ -54,6 +54,9 @@ export function useRuns(
     options;
 
   const [runs, setRuns] = React.useState<readonly Run[]>([]);
+  /** Read by `clearHistory`, which decides what to keep after an await — by then `runs` is stale. */
+  const runsRef = React.useRef(runs);
+  runsRef.current = runs;
   /**
    * Which run the results pane is showing, and how it got there. One value rather than two,
    * because an id and a separate "was this picked from History" flag could disagree, and the
@@ -197,7 +200,9 @@ export function useRuns(
     (runId: string): void => {
       setSelected({ id: runId, fromHistory: true });
       const held = runs.find((r) => r.id === runId);
-      if (!held || held.status !== "done" || resolved.has(runId)) return;
+      // Any status but `running` is worth asking about. A run that failed or was cancelled on its
+      // third statement still has the rows the first two returned, and the server stored them.
+      if (!held || held.status === "running" || resolved.has(runId)) return;
       if ((held.results ?? []).some((result) => result.rows.length > 0)) return;
 
       void getClient()
@@ -233,12 +238,17 @@ export function useRuns(
     [getClient],
   );
 
-  /** Clears the store and the list it feeds, so the History tab empties with it. */
+  /**
+   * Clears the store and the list it feeds, so the History tab empties with it. A run still in
+   * flight stays: it is not in the store to be cleared, and `run` finishes by mapping over this
+   * list — dropped from it, the result it is about to return would have nowhere to land.
+   */
   const clearHistory = React.useCallback(async (): Promise<void> => {
     await getClient().history.clear();
-    setRuns([]);
+    const running = new Set(runsRef.current.filter((r) => r.status === "running").map((r) => r.id));
+    setRuns((prev) => prev.filter((r) => r.status === "running"));
     setResolved(new Map());
-    setSelected(null);
+    setSelected((prev) => (prev && running.has(prev.id) ? prev : null));
   }, [getClient]);
 
   const cancelRun = React.useCallback(

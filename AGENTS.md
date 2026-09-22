@@ -111,7 +111,7 @@ land is a committed `*.test.ts`.
 
 - **It is perch all the way down.** Product, package, binary, internal scopes (`@perch/*`), env
   vars (`PERCH_HOME`, `PERCH_DEV_PORT`, `PERCH_SMOKE_PG`) and the on-disk home: `~/.perch` holds
-  connections.json, settings.json, history.jsonl, server.json and `queries/`, the default
+  connections.json, settings.json, history.db, server.json and `queries/`, the default
   workspace — **nothing perch writes belongs anywhere else**. The earlier `sql-engine` / `sqe`
   names are gone; if you find one, it is a leftover, not a convention.
 - **Nothing is published to a registry.** `apps/server` is `private` and distribution is a single

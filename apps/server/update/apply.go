@@ -185,8 +185,13 @@ func replaceWindows(binaryPath string, binary []byte) error {
 	if err := os.Rename(binaryPath, previous); err != nil {
 		return writeError(binaryPath, err)
 	}
-	if err := os.WriteFile(binaryPath, binary, 0o755); err != nil {
-		_ = os.Rename(previous, binaryPath)
+	// Staged in the target directory and renamed into place: a write that dies halfway would
+	// otherwise leave a truncated perch.exe where the binary belongs.
+	if err := fsx.WriteAtomic(binaryPath, binary, 0o755); err != nil {
+		if restore := os.Rename(previous, binaryPath); restore != nil {
+			return fmt.Errorf("could not replace %s: %w — the previous binary is still at %s",
+				binaryPath, err, previous)
+		}
 		return writeError(binaryPath, err)
 	}
 	_ = os.Remove(previous)

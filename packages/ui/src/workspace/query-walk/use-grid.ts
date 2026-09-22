@@ -126,7 +126,11 @@ export function useGridRun(
   React.useEffect(() => {
     if (!cellParams || cached !== undefined || flying.current.has(cellParams.key)) return;
     const { key, sql } = cellParams;
-    flying.current.add(key);
+    // The set this probe joined, not whichever one is current when it lands: `flying.current` is
+    // replaced on a build change, so comparing the two keeps the previous grid's answer out of
+    // the cells this one cleared.
+    const joined = flying.current;
+    joined.add(key);
     void (async () => {
       let result: QueryOutcome;
       try {
@@ -134,8 +138,10 @@ export function useGridRun(
       } catch (error) {
         result = { ok: false, error: messageOf(error), skipped: false };
       }
-      flying.current.delete(key);
-      if (alive.current) setCells((previous) => new Map(previous).set(key, result));
+      joined.delete(key);
+      if (alive.current && flying.current === joined) {
+        setCells((previous) => new Map(previous).set(key, result));
+      }
     })();
   }, [cached, cellParams, probe]);
 

@@ -37,6 +37,7 @@ import (
 	"time"
 
 	bolt "go.etcd.io/bbolt"
+	bolterr "go.etcd.io/bbolt/errors"
 
 	"perch/protocol"
 )
@@ -278,7 +279,7 @@ func ClearHistory() error {
 	}
 	return db.Update(func(tx *bolt.Tx) error {
 		for _, name := range [][]byte{runsBucket, fullBucket} {
-			if err := tx.DeleteBucket(name); err != nil && !errors.Is(err, bolt.ErrBucketNotFound) {
+			if err := tx.DeleteBucket(name); err != nil && !errors.Is(err, bolterr.ErrBucketNotFound) {
 				return err
 			}
 			if _, err := tx.CreateBucketIfNotExists(name); err != nil {
@@ -416,10 +417,14 @@ func importLegacyHistory(db *bolt.DB, dir string) error {
 			if err != nil {
 				continue
 			}
-			if err := runs.Put(runKey(record), header); err != nil {
+			// A key already present is replaced, not appended, so only the difference is new —
+			// a re-run import would otherwise inflate the counter the trim budget reads.
+			key := runKey(record)
+			replaced := int64(len(runs.Get(key)))
+			if err := runs.Put(key, header); err != nil {
 				return err
 			}
-			added += int64(len(header))
+			added += int64(len(header)) - replaced
 		}
 		if err := scanner.Err(); err != nil {
 			return err

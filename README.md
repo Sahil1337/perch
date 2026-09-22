@@ -257,7 +257,7 @@ perch update   # install the latest release over this one
 
 | Variable                | What it does                                             |
 | ----------------------- | -------------------------------------------------------- |
-| `PERCH_VERSION`         | install a specific tag, e.g. `v0.1.0`, instead of latest |
+| `PERCH_VERSION`         | install a specific tag, e.g. `vX.Y.Z`, instead of latest |
 | `PERCH_INSTALL_DIR`     | install somewhere else, e.g. `~/bin`                     |
 | `PERCH_NO_MODIFY_PATH`  | leave the shell profile alone and just print the line    |
 | `PERCH_NO_UPDATE_CHECK` | don't look for a newer release on start                  |

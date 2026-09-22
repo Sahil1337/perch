@@ -178,7 +178,10 @@ function qualifiedColumn(column: Column, prefix: string, detail: string): Comple
  * prefix and its dot are the whole offset.
  */
 function shiftMatch(completion: Completion, matched?: readonly number[]): readonly number[] {
-  if (!matched || !completion.displayLabel) return [];
+  if (!matched) return [];
+  // `getMatch` is set on the whole result, so most of what arrives here is a plain label whose
+  // ranges already point at the text CodeMirror will render. Returning [] would un-bold them all.
+  if (!completion.displayLabel) return matched;
   const shift = completion.displayLabel.length - completion.label.length;
   return matched.map((index) => index + shift);
 }

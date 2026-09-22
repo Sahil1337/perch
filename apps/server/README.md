@@ -31,7 +31,7 @@ Starts the server and opens the UI in your browser. It is the default command, s
 `perch serve`. On start it prints where it landed:
 
 ```
-perch v0.1.0 → http://127.0.0.1:4600
+perch v0.2.0 → http://127.0.0.1:4600
 ```
 
 If a server is already running — `~/.perch/server.json` names one and it answers `/api/health` —
@@ -125,7 +125,7 @@ What the server reads and writes, all of it under `~/.perch` (`PERCH_HOME` reloc
 ~/.perch/
   connections.json   saved connections, passwords included (mode 0600)
   settings.json      autosave, maxRows, workspaces, theme, …
-  history.jsonl      append-only run history — SQL and outcome, never result rows
+  history.db         run history on bbolt — SQL, outcome, and result rows when recorded
   server.json        pid and url of the running server, if any (mode 0600)
   update.json        the last release `serve` saw, so it asks GitHub once a day, not every start
   queries/           the default workspace, created on first start. `serve --dir` adds more.

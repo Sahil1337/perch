@@ -109,7 +109,11 @@ export function useBoundRun(plan: BoundPlan, probe: Probe): BoundRun {
   React.useEffect(() => {
     if (innerSql === null || cached !== undefined || flying.current.has(current)) return;
     const index = current;
-    flying.current.add(index);
+    // The set this probe joined, not whichever one is current when it lands. `flying.current` is
+    // replaced on a plan change, so comparing the two is what makes "nowhere" above true: row 3
+    // of the section that just closed is not row 3 of the one that replaced it.
+    const joined = flying.current;
+    joined.add(index);
     void (async () => {
       let outcome: QueryOutcome;
       try {
@@ -117,8 +121,10 @@ export function useBoundRun(plan: BoundPlan, probe: Probe): BoundRun {
       } catch (error) {
         outcome = { ok: false, error: messageOf(error), skipped: false };
       }
-      flying.current.delete(index);
-      if (alive.current) setRowResults((previous) => new Map(previous).set(index, outcome));
+      joined.delete(index);
+      if (alive.current && flying.current === joined) {
+        setRowResults((previous) => new Map(previous).set(index, outcome));
+      }
     })();
   }, [cached, current, innerSql, probe]);
 

@@ -21,8 +21,11 @@ import (
 	"perch/update"
 )
 
-// Overridden at build time with -ldflags "-X main.Version=…".
-var Version = "0.1.0"
+// Set by the linker from apps/server/package.json, the one place the version lives — see
+// scripts/build.sh. Deliberately not a number here: a literal would be a second copy, free to
+// disagree with the first. A build without the flag says "dev", which names no release at all
+// rather than claiming the wrong one.
+var Version = "dev"
 
 const help = `perch v%s — a tiny local SQL client
 
@@ -266,7 +269,7 @@ func openBrowser(url string) {
 func cmdUpdate(args []string) error {
 	flags := flag.NewFlagSet("update", flag.ExitOnError)
 	checkOnly := flags.Bool("check", false, "report whether a newer release exists, and install nothing")
-	pin := flags.String("version", "", "install this tag instead of the latest (e.g. v0.1.0)")
+	pin := flags.String("version", "", "install this tag instead of the latest (e.g. vX.Y.Z)")
 	flags.Usage = func() {
 		fmt.Print(`usage: perch update [--check] [--version <tag>]
 

@@ -59,7 +59,7 @@ apps/server/
 │   ├── mysqlintrospect.go    the schema tree from information_schema
 │   └── url.go                postgres:// and mysql:// parsing, and the driver factory
 │
-├── storage/                  ~/.perch: connections.json (0600), settings.json, history.jsonl,
+├── storage/                  ~/.perch: connections.json (0600), settings.json, history.db,
 │                             server.json, update.json, and the queries/ workspace made on
 │                             first run
 ├── update/                   `perch update`: the releases API, the checksum gate, and the
@@ -127,7 +127,8 @@ because `CGO_ENABLED=0` is what lets one machine build all five targets.
 ## The build
 
 `scripts/build.sh` empties `webui/static`, copies `apps/server/ui` (written by
-`@perch/web`'s build) into it, and runs `go build -trimpath -ldflags="-s -w -X main.Version=…"`.
+`@perch/web`'s build) into it, and runs `go build -trimpath -ldflags="-s -w -X main.Version=…"`,
+with the version read out of `apps/server/package.json` — the only place it is written down.
 Emptying first matters: asset filenames are hashed, so a stale file would never be overwritten
 and would ride into the binary alongside its replacement.
 

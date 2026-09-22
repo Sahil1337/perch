@@ -15,8 +15,11 @@ cd "$GO_DIR"
 
 UI_SRC="$REPO/apps/server/ui"
 UI_DEST="$GO_DIR/webui/static"
-VERSION="${PERCH_VERSION:-$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' "$REPO/apps/server/package.json" | head -1)}"
-LDFLAGS="-s -w -X main.Version=${VERSION:-0.0.0}"
+# apps/server/package.json is the only place the version is written down; the linker carries it
+# into the binary so the Go source never repeats it.
+VERSION="$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' "$REPO/apps/server/package.json" | head -1)"
+[ -n "$VERSION" ] || { echo "apps/server/package.json declares no version" >&2; exit 1; }
+LDFLAGS="-s -w -X main.Version=$VERSION"
 
 # Replace the embedded bundle wholesale: a stale asset from a previous build would otherwise be
 # carried into the binary alongside the new ones, and the filenames are hashed so it would never

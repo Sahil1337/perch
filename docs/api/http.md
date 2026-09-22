@@ -34,8 +34,7 @@ code.
 | `not_found`      | 404    | an unknown connection, run or file — and any unmatched route                        |
 | `conflict`       | 409    | a duplicate connection name, a file that already exists, a run id already executing |
 | `stale_write`    | 409    | `PUT /api/files/content` when `ifModifiedAt` does not match disk                    |
-| `connect_failed` | 400    | the pooled driver could not connect                                                 |
-| `test_failed`    | 400    | `POST /api/connections/:id/test` could not round-trip                               |
+| `connect_failed` | 400    | the fallback when a connect or test fails for a reason with no code of its own      |
 
 A `conflict` carries its extra fields *beside* the envelope rather than inside it, which is how
 the stale-write 409 returns the file as it is on disk now.
@@ -74,7 +73,8 @@ not drop it. Detection is push-based (OS file watching); the ping is pure keep-a
 
 A failed `connect` or `test` answers `400` with a `code` naming the reason, which is what the UI
 branches on: `password_required`, `auth_failed`, `unknown_user`, `unknown_database`, `unreachable`,
-`tls_required`, or `connect_failed` for anything else. `password_required` and `auth_failed` are
+`tls_required`, or `connect_failed` for anything else. Both routes classify through the same
+function, so `test` returns these codes and no others. `password_required` and `auth_failed` are
 the same rejection on the wire; they are told apart by whether the stored connection had a password
 to offer.
 

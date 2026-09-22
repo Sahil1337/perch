@@ -15,7 +15,8 @@
       "cache": false,
       "persistent": true,
       "passThroughEnv": [
-        "PERCH_HOME"
+        "PERCH_HOME",
+        "PERCH_NO_UPDATE_CHECK"
       ]
     }
   }
