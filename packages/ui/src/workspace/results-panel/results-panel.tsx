@@ -59,15 +59,22 @@ export function ResultsPanel({
       ? exportUrl(current.id, { statement: index })
       : null;
 
-  // Each finished run gets one say in which half you are looking at: failures go to Messages,
-  // successes to Results. Once per run id, so clicking between them afterwards sticks.
+  // A run that only spoke has nothing for the grid to hold: a `DO` block's `RAISE NOTICE`, a
+  // `CALL`. Its notices are the result. Keyed on `columns`, not `rows` — a SELECT that matched
+  // nothing still answered the question, and pulling the view off that empty grid would hide it.
+  const spoke = statements.some((result) => result.notices.length > 0);
+  const showed = statements.some((result) => result.columns.length > 0);
+
+  // Each finished run gets one say in which half you are looking at: failures and notices-only
+  // runs go to Messages, everything else to Results. Once per run id, so clicking between them
+  // afterwards sticks.
   const announced = React.useRef<string | null>(null);
   React.useEffect(() => {
     if (!current || current.status === "running") return;
     if (announced.current === current.id) return;
     announced.current = current.id;
-    setView(current.status === "error" ? "messages" : "results");
-  }, [current, setView]);
+    setView(current.status === "error" || (spoke && !showed) ? "messages" : "results");
+  }, [current, setView, spoke, showed]);
 
   const running = current?.status === "running";
 
@@ -92,7 +99,11 @@ export function ResultsPanel({
             </Button>
           )}
 
-          <ViewToggle failed={Boolean(current?.error)} onChange={setView} value={view} />
+          <ViewToggle
+            mark={current?.error ? "error" : spoke ? "notice" : null}
+            onChange={setView}
+            value={view}
+          />
 
           {/* A real link: the browser downloads it, and the provider decides whether one exists. */}
           {exportHref ? (
@@ -185,29 +196,48 @@ const VIEWS: readonly {
  */
 function ViewToggle({
   value,
-  failed,
+  mark,
   onChange,
 }: {
   value: ResultsView;
-  /** Puts a dot on Messages, since that is where the error actually is. */
-  failed: boolean;
+  /** A dot on Messages, since that is where the output actually is. */
+  mark: "error" | "notice" | null;
   onChange: (next: ResultsView) => void;
 }): React.ReactElement {
   return (
     <Tabs onValueChange={(next) => onChange(next as ResultsView)} value={value}>
       <TabsList size="sm">
-        {VIEWS.map(({ id, label, Icon }) => (
-          <TabsTab aria-label={label} key={id} title={label} value={id}>
-            <Icon />
-            {id === "messages" && failed && (
-              <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-destructive" />
-            )}
-          </TabsTab>
-        ))}
+        {VIEWS.map(({ id, label, Icon }) => {
+          const dot = id === "messages" ? mark : null;
+          return (
+            <TabsTab
+              aria-label={dot ? `${label}, ${MARK_LABEL[dot]}` : label}
+              key={id}
+              title={label}
+              value={id}
+            >
+              <Icon />
+              {dot && (
+                <span
+                  aria-hidden
+                  className={cn(
+                    "size-1.5 shrink-0 rounded-full",
+                    dot === "error" ? "bg-destructive" : "bg-info",
+                  )}
+                />
+              )}
+            </TabsTab>
+          );
+        })}
       </TabsList>
     </Tabs>
   );
 }
+
+const MARK_LABEL: Record<"error" | "notice", string> = {
+  error: "has an error",
+  notice: "has output",
+};
 
 function EmptyState(): React.ReactElement {
   return (

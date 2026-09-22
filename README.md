@@ -35,7 +35,7 @@ Perch is a lightweight SQL workspace for developers who spend their time **writi
 
 It brings schema exploration, SQL editing, query execution, results, and database visualization into one focused workspace.
 
-Perch works with PostgreSQL and MySQL databases already running on your machine. Your SQL files stay on disk as normal `.sql` files, while Perch provides the tools around them.
+Perch works with PostgreSQL and MySQL — running on your machine, in a container, or hosted somewhere like Neon, Supabase, or RDS. Your SQL files stay on disk as normal `.sql` files, while Perch provides the tools around them.
 
 **No account. No cloud service. No bundled database.**
 
@@ -48,7 +48,7 @@ alongside it.
 
 Write SQL with your database schema directly in context.
 
-The schema sidebar shows tables, views, materialized views, columns, types, nullability, primary keys, and row estimates. The editor uses the same metadata for completions and dialect-aware syntax highlighting.
+The schema sidebar shows tables, views, materialized views, columns, types, nullability, primary keys, and row estimates. The editor uses the same metadata for dialect-aware syntax highlighting and for completion.
 
 Database errors are mapped back to the exact location in your query.
 
@@ -57,6 +57,21 @@ Database errors are mapped back to the exact location in your query.
 </p>
 
 Run the statement under your cursor with <kbd>⌘</kbd><kbd>↵</kbd>, or the entire file with <kbd>⌘</kbd><kbd>⇧</kbd><kbd>↵</kbd>.
+
+---
+
+### Completion that reads your query
+
+Perch suggests what can actually go where your cursor is, not everything in the database.
+
+Inside a `SELECT` it offers the columns of the tables you have joined so far — not every column in every table. Where a table can go, it offers tables, and after `JOIN` the ones related to what is already in the statement come first. Type `ON` and the join condition is offered already written, straight from the foreign key. Keywords are only suggested where they are legal, and rank below your own tables and columns, because the keyword you want is usually one you can already spell.
+
+It works on half-written SQL, which is the only kind that needs it.
+
+<!-- TODO: screenshot — completion popup mid-JOIN, showing related tables and the suggested ON clause -->
+<p align="center">
+  <img src="docs/assets/completion.png" alt="Perch suggesting a join and its ON clause" width="748">
+</p>
 
 ---
 
@@ -181,14 +196,23 @@ Inspect query results in a fast, virtualized grid.
 
 ### Query history
 
-Every query you run is stored in local history.
+Every query you run is kept, grouped by day, and survives restarts.
 
-History survives restarts and records the SQL, outcome, row count, and execution time.
+**History is split by folder.** The queries you ran while working in one project stay separate from the rest, and you can switch between the current folder, everything, and queries that were not run in a folder at all.
 
-**Result rows are never stored in history.**
+**You choose what is kept.** Settings → History saves nothing, just the queries you ran, or the queries and their results. Saving results is off by default — it puts a copy of what your database returned on disk, so it is yours to turn on. With it on, a query from last week reopens with the rows it returned, and exports again.
+
+Opening a query from history shows the SQL above its results. Right-click any entry to run it again or copy it.
+
+Old runs are dropped once you pass the limits you set, and **Clear history** empties the lot.
 
 <p align="center">
   <img src="docs/assets/history.png" alt="Perch query history" width="355">
+</p>
+
+<!-- TODO: screenshot — Settings → History, showing the three modes and the size limits -->
+<p align="center">
+  <img src="docs/assets/history-settings.png" alt="Perch history settings" width="748">
 </p>
 
 ---
@@ -288,9 +312,9 @@ xattr -d com.apple.quarantine ./perch
 
 On first launch, choose a workspace, connection, and database.
 
-Perch can discover database servers already running on your machine, including PostgreSQL and MySQL installations exposed through local ports, binaries on `PATH`, Homebrew, systemd, Windows services, and Docker. A container is offered with the login its image was started with, and a server that asks for a password asks for it on the row you pressed.
+Perch finds the databases already on your machine — on their usual ports, installed through Homebrew or systemd, running as a Windows service, or in a Docker, Podman or nerdctl container — and offers to connect to each one. Containers are offered with the username they were set up with. If a database needs a password, Perch asks for it there and then.
 
-For a database somewhere else — Neon, Supabase, RDS, or any other host — paste its connection URL on the same screen. TLS is on by default for anything that is not this machine, and the certificate is verified; a `sslmode` in the URL is used as written.
+For a database somewhere else, paste the connection string your provider gave you — Neon, Supabase, RDS, or anything else. Connections that leave your machine use TLS and their certificate is checked; if your connection string sets `sslmode`, Perch uses that instead.
 
 Perch never installs or bundles a database server.
 
@@ -318,8 +342,9 @@ Perch runs locally and keeps your workspace on your machine.
 ~/.perch/
 ├── connections.json
 ├── settings.json
-├── history.jsonl
+├── history.db
 ├── server.json
+├── update.json
 └── queries/
 ```
 

@@ -70,6 +70,9 @@ The section matching a release's version becomes that release's notes on GitHub 
 - **Connect a database…** stopped working after the first run.
 - Long hostnames could push the **Connect** button off the connection row.
 - The connection wire on the first-run screen was slightly misaligned with the marks it connects.
+- Code inside a `$$ ... $$` block is now syntax highlighted instead of painted as one long string.
+- A run that only prints notices, such as a `DO` block, now opens the Messages view, and the
+  Messages icon carries a dot whenever a run has notices to read.
 
 ## [0.1.0] — 2026-09-19
 

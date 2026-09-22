@@ -8,7 +8,7 @@
 // highlighting maps to theme-token classes and the chrome reads `var(--color-*)`.
 
 import { autocompletion } from "@codemirror/autocomplete";
-import { MySQL, PostgreSQL, sql } from "@codemirror/lang-sql";
+import { sql } from "@codemirror/lang-sql";
 import { setDiagnostics, type Diagnostic } from "@codemirror/lint";
 import type { Extension } from "@codemirror/state";
 import { highlightActiveLineGutter, lineNumbers, type EditorView } from "@codemirror/view";
@@ -29,6 +29,7 @@ import { asyncData, type CursorPosition } from "../types";
 import { hotkeyLabel } from "../use-hotkey";
 import { completionNamespace, defaultSchemaName } from "./completion";
 import { completionConf, createEditorView, gutterConf, languageConf } from "./create-view";
+import { dialectFor } from "./dialect";
 import { useEditorCommands, type EditorBridge } from "./editor-commands";
 import {
   formatDocument,
@@ -115,7 +116,7 @@ export function SqlEditor({
     () =>
       sql({
         defaultSchema: defaultSchemaName(schemaData, dialect),
-        dialect: dialect === "mysql" ? MySQL : PostgreSQL,
+        dialect: dialectFor(dialect),
         schema: completionNamespace(schemaData),
         upperCaseKeywords: false,
       }),
