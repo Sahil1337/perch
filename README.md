@@ -68,7 +68,6 @@ Inside a `SELECT` it offers the columns of the tables you have joined so far —
 
 It works on half-written SQL, which is the only kind that needs it.
 
-<!-- TODO: screenshot — completion popup mid-JOIN, showing related tables and the suggested ON clause -->
 <p align="center">
   <img src="docs/assets/completion.png" alt="Perch suggesting a join and its ON clause" width="748">
 </p>
@@ -210,7 +209,6 @@ Old runs are dropped once you pass the limits you set, and **Clear history** emp
   <img src="docs/assets/history.png" alt="Perch query history" width="355">
 </p>
 
-<!-- TODO: screenshot — Settings → History, showing the three modes and the size limits -->
 <p align="center">
   <img src="docs/assets/history-settings.png" alt="Perch history settings" width="748">
 </p>
