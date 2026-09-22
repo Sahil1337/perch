@@ -92,11 +92,24 @@ func applyPatch(st *protocol.Settings, p protocol.SettingsPatch) {
 			st.KeywordCase = *p.KeywordCase
 		}
 	}
+	if p.Completion != nil && p.Completion.Valid() {
+		st.Completion = *p.Completion
+	}
 	if p.Onboarded != nil {
 		st.Onboarded = *p.Onboarded
 	}
 	if p.RecentWorkspaces != nil {
 		st.RecentWorkspaces = *p.RecentWorkspaces
+	}
+	if p.HistoryMode != nil && p.HistoryMode.Valid() {
+		st.HistoryMode = *p.HistoryMode
+	}
+	// Zero is "no cap" for both, so the floor is zero rather than one.
+	if p.HistoryLimit != nil {
+		st.HistoryLimit = min(max(*p.HistoryLimit, 0), 100000)
+	}
+	if p.HistoryMaxMB != nil {
+		st.HistoryMaxMB = min(max(*p.HistoryMaxMB, 0), 10000)
 	}
 }
 

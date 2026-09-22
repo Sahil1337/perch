@@ -25,6 +25,8 @@ type StartRunInput struct {
 	Record   *bool
 	ReadOnly bool
 	Source   protocol.RunSource
+	// The workspace root the SQL came from, for History's per-folder view. Empty is global.
+	Workspace string
 }
 
 // Runner runs SQL on behalf of a client: it builds the RunRecord, forwards every driver event to
@@ -92,6 +94,7 @@ func (r *Runner) StartRun(ctx context.Context, input StartRunInput, emit func(pr
 		SQL:          input.SQL,
 		Status:       protocol.RunRunning,
 		StartedAt:    protocol.ISOTime(startedAt),
+		Workspace:    input.Workspace,
 		Results:      []protocol.StatementResult{},
 		Source:       input.Source,
 	}
@@ -144,8 +147,8 @@ func (r *Runner) StartRun(ctx context.Context, input StartRunInput, emit func(pr
 	if input.Record != nil && !*input.Record {
 		return *record, nil
 	}
-	// History is best-effort: never fail a run because the log could not be written.
-	_ = storage.AppendHistory(*record)
+	// History is best-effort throughout: never fail a run because the log could not be written.
+	recordHistory(*record)
 
 	r.mu.Lock()
 	listeners := append([]func(protocol.RunRecord){}, r.listeners...)
@@ -154,6 +157,22 @@ func (r *Runner) StartRun(ctx context.Context, input StartRunInput, emit func(pr
 		listener(*record)
 	}
 	return *record, nil
+}
+
+// recordHistory writes the finished run and applies the retention caps, as the settings ask. Off
+// means off: no header, no rows, nothing to trim.
+//
+// Settings are read per run rather than cached because turning history off has to take effect on
+// the next run, not on the next restart — and a run is not a hot path.
+func recordHistory(record protocol.RunRecord) {
+	settings, err := storage.GetSettings()
+	if err != nil || settings.HistoryMode == protocol.HistoryOff {
+		return
+	}
+	if err := storage.AppendRun(record, settings.HistoryMode.KeepsRows()); err != nil {
+		return
+	}
+	_ = storage.TrimHistory(settings.HistoryLimit, int64(settings.HistoryMaxMB)*1024*1024)
 }
 
 func (r *Runner) CancelRun(runID string) bool {

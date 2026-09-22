@@ -1,3 +1,5 @@
+import type { ConnectFailureCode } from "@perch/protocol";
+
 // One error type for every failure that came back from the server, so a caller never has to
 // sniff a bare Error's message to find out what happened.
 
@@ -76,3 +78,23 @@ export function staleWrite(err: unknown): StaleWriteBody | undefined {
   if (!isPerchError(err) || err.status !== 409 || err.code !== "stale_write") return undefined;
   return err.body as StaleWriteBody;
 }
+
+/**
+ * The reason a connect or test failed, when the server classified it. `undefined` for anything
+ * that is not one of those two routes failing — a 404 for a deleted connection, a malformed body,
+ * or a rejection this package raised itself.
+ */
+export function connectFailureCode(err: unknown): ConnectFailureCode | undefined {
+  if (!isPerchError(err) || err.code === undefined) return undefined;
+  return CONNECT_FAILURE_CODES.has(err.code) ? (err.code as ConnectFailureCode) : undefined;
+}
+
+const CONNECT_FAILURE_CODES = new Set<string>([
+  "password_required",
+  "auth_failed",
+  "unknown_user",
+  "unknown_database",
+  "unreachable",
+  "tls_required",
+  "connect_failed",
+] satisfies ConnectFailureCode[]);

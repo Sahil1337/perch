@@ -57,7 +57,20 @@ export type RunRecord = {
   error?: QueryError;
   /** Set for CLI runs vs UI runs; purely informational. */
   source: "ui" | "cli";
+  /**
+   * The workspace root the query came from, when it came from a file in one. Absent means the run
+   * belongs to no folder — an untitled buffer, perch's own queries directory, or the CLI — which
+   * the History tab calls global.
+   */
+  workspace?: string;
 };
+
+/**
+ * Which runs a history page is asking for. `workspace` means this root *and* the global ones,
+ * which is the view that matches how people work: the project in front of them, plus the scratch
+ * queries that belong to no project.
+ */
+export type HistoryScope = "all" | "workspace" | "global";
 
 /** Events streamed (NDJSON) while a run executes. */
 export type RunEvent =
@@ -90,4 +103,6 @@ export type QueryOptions = {
    * `set session transaction_read_only = 1`. Default false.
    */
   readOnly?: boolean;
+  /** The workspace root this run belongs to; see `RunRecord.workspace`. */
+  workspace?: string;
 };

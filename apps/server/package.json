@@ -1,6 +1,6 @@
 {
   "name": "perch",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "The perch server and CLI: connections, schema, queries, files, history. The UI is a pure client.",
   "private": true,
   "license": "MIT",

@@ -16,12 +16,13 @@ import { cn } from "../../lib/utils";
 import { Button } from "../../ui/button";
 import { Field, FieldDescription, FieldLabel } from "../../ui/field";
 import { Input } from "../../ui/input";
+import { Switch } from "../../ui/switch";
 import { useWorkspace } from "../../workspace/context";
 import type { ConnectionInput, ConnectionTest } from "../../workspace/types";
 import { AddressFields } from "./address-fields";
 import { DialectPicker } from "./dialect-picker";
 import { TestError, TestOk, type Phase } from "./form-status";
-import { useConnectionFields } from "./use-connection-fields";
+import { useConnectionFields, type Mode } from "./use-connection-fields";
 
 /** Shown when a rejection carries no readable message: this form only ever fails at the wire. */
 const UNREACHABLE = "The connection could not be reached.";
@@ -49,6 +50,8 @@ export type ConnectionFormProps = {
   onDialectChange?: (dialect: Dialect) => void;
   /** Which card starts pressed without an `initial`, so a MySQL-only machine does not open on Postgres. */
   defaultDialect?: Dialect;
+  /** Which half of the address the form opens on. "Paste a connection URL" starts on the URL. */
+  defaultMode?: Mode;
   className?: string;
 };
 
@@ -61,10 +64,11 @@ export function ConnectionForm({
   trailing,
   onDialectChange,
   defaultDialect = "postgres",
+  defaultMode,
   className,
 }: ConnectionFormProps): React.ReactElement {
   const { addConnection, updateConnection, testConnection } = useWorkspace();
-  const fields = useConnectionFields(initial, defaultDialect, onDialectChange);
+  const fields = useConnectionFields(initial, defaultDialect, onDialectChange, defaultMode);
 
   const [phase, setPhase] = React.useState<Phase>({ kind: "idle" });
   // The id of the row this form has already created, so a second attempt edits it instead of
@@ -119,6 +123,25 @@ export function ConnectionForm({
       </Field>
 
       <AddressFields fields={fields} />
+
+      {/* One line, and on the same grid as the Address header above it: label left, control right.
+          Only in fields mode — a URL carries its own sslmode, and a switch beside it would be a
+          second answer to a question already answered. It follows the host until touched, because
+          hosted Postgres requires TLS and a server on this machine does not offer it, and the
+          alternative is a first run that fails on a setting nobody knew to look for. */}
+      {fields.mode === "fields" && (
+        <Field>
+          <div className="flex items-center justify-between gap-2">
+            <FieldLabel htmlFor="connection-ssl">
+              Connect over TLS
+              <span className="font-normal text-muted-foreground">
+                — required by hosted databases
+              </span>
+            </FieldLabel>
+            <Switch checked={fields.ssl} id="connection-ssl" onCheckedChange={fields.setSSL} />
+          </div>
+        </Field>
+      )}
 
       <Field>
         <FieldLabel>Password</FieldLabel>

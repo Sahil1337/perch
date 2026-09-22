@@ -10,6 +10,8 @@ import type {
   Dialect,
   DiscoveryResult,
   FileEntry,
+  HistoryScope,
+  HistoryStats,
   RunRecord,
   Settings,
   StatementResult,
@@ -172,8 +174,10 @@ export type ServerState = {
 export type CursorPosition = { readonly line: number; readonly col: number };
 
 /**
- * What every workspace surface is given. Actions return a promise so a caller can sequence work,
- * but failures surface as state rather than as a rejection every call site has to catch.
+ * What every workspace surface is given. Actions return a promise so a caller can sequence work.
+ * A write that only changes the list surfaces its failure as state, because the surface showing
+ * that list is what reports it; `connect`, `testConnection` and `discoverServers` reject, because
+ * their result is the answer the caller asked for and there is nothing to degrade to.
  */
 export type WorkspaceApi = {
   /* connections */
@@ -182,6 +186,11 @@ export type WorkspaceApi = {
   readonly connection: ConnectionSummary | undefined;
   readonly database: string | null;
   readonly databases: Async<readonly string[]>;
+  /**
+   * Opens a connection and points the workspace at it. Rejects with a {@link ConnectFailed}
+   * carrying the reason — a caller that is about to cover the screen with a handover animation has
+   * to know the dial did not land.
+   */
   connect(connectionId: string, database?: string): Promise<void>;
   selectDatabase(database: string): Promise<void>;
   /** Saves a new connection and returns it. Does not connect; call `testConnection` or `connect`. */
@@ -208,8 +217,11 @@ export type WorkspaceApi = {
   readonly saveState: SaveState;
   /** A throwaway query tab. Returns its id so the caller can configure what it just made. */
   newScratch(): string;
-  /** Opens a path from the workspace, or focuses it when already open. Returns the buffer id. */
-  openFile(path: string): Promise<string>;
+  /**
+   * Opens a path from the workspace, or focuses it when already open. Returns the buffer id, or
+   * null when the file could not be read — the failure is reported into the Files tab, not thrown.
+   */
+  openFile(path: string): Promise<string | null>;
   closeBuffer(id: string): void;
   focusBuffer(id: string): void;
   editBuffer(id: string, content: string): void;
@@ -235,13 +247,25 @@ export type WorkspaceApi = {
   /* runs */
   readonly runs: readonly Run[];
   readonly activeRun: Run | undefined;
+  /**
+   * Whether `activeRun` was picked out of History rather than just run. The results pane captions
+   * itself with the query only in the first case: when you pressed Run, the query is in the editor
+   * directly above the results and repeating it is noise.
+   */
+  readonly activeRunFromHistory: boolean;
   /** Runs `sql`, or the active buffer when omitted. Resolves with the run's id once it settles. */
   run(sql?: string): Promise<string | undefined>;
   cancelRun(runId: string): Promise<void>;
+  /**
+   * Points the results pane at a run, fetching its rows if they are not already here. A run older
+   * than the server's in-memory window still has them when history was recording results, which is
+   * the whole point of recording them.
+   */
   selectRun(runId: string): void;
   /**
-   * A URL that downloads one statement's rows, or null when the run has aged out of server memory.
-   * Rendered as a link so the browser handles the download.
+   * A URL that downloads one statement's rows, or null when the rows are gone: the run aged out of
+   * server memory and history was not keeping them. Rendered as a link so the browser handles the
+   * download.
    */
   exportUrl(
     runId: string,
@@ -254,6 +278,13 @@ export type WorkspaceApi = {
    * and statement results.
    */
   probe(sql: string, options?: { maxRows?: number }): Promise<RunRecord>;
+  /** What the run history is costing on disk, for the pane that offers to clear it. */
+  historyStats(): Promise<HistoryStats>;
+  /** Drops every recorded run and its rows. Not undoable; the caller confirms. */
+  clearHistory(): Promise<void>;
+  /** Which runs History is showing: this folder plus the global ones, everything, or only global. */
+  readonly historyScope: HistoryScope;
+  setHistoryScope(scope: HistoryScope): void;
 
   /* settings */
   readonly settings: Async<Settings>;

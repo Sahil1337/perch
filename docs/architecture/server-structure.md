@@ -59,8 +59,11 @@ apps/server/
 │   ├── mysqlintrospect.go    the schema tree from information_schema
 │   └── url.go                postgres:// and mysql:// parsing, and the driver factory
 │
-├── storage/                  ~/.perch: connections.json (0600), settings.json, history.jsonl,
-│                             server.json, and the queries/ workspace made on first run
+├── storage/                  ~/.perch: connections.json (0600), settings.json, history.db,
+│                             server.json, update.json, and the queries/ workspace made on
+│                             first run
+├── update/                   `perch update`: the releases API, the checksum gate, and the
+│                             rename over the running binary. Asset names are install.sh's
 ├── sqlscript/                statement splitting; mirrored by packages/sql/src/split.ts
 ├── discover/                 local database discovery: ports, binaries, docker, services
 ├── watch/                    fsnotify, with the recursion Go does not give you
@@ -73,7 +76,8 @@ apps/server/
 ## Import direction
 
 `main → server → db`, with `storage/` shared, and `protocol/`, `httpx/`, `fsx/`, `sqlscript/`
-leaf-level.
+leaf-level. `update/` hangs off `main` alone — replacing the binary is a CLI job, and the server
+has no business reaching for it.
 
 The rule with teeth is that **`db/` must not import `server/`**. The HTTP error envelope belongs
 to the server, so drivers return plain errors and `server/pool.go` is the one place that turns a
@@ -123,7 +127,8 @@ because `CGO_ENABLED=0` is what lets one machine build all five targets.
 ## The build
 
 `scripts/build.sh` empties `webui/static`, copies `apps/server/ui` (written by
-`@perch/web`'s build) into it, and runs `go build -trimpath -ldflags="-s -w -X main.Version=…"`.
+`@perch/web`'s build) into it, and runs `go build -trimpath -ldflags="-s -w -X main.Version=…"`,
+with the version read out of `apps/server/package.json` — the only place it is written down.
 Emptying first matters: asset filenames are hashed, so a stale file would never be overwritten
 and would ride into the binary alongside its replacement.
 

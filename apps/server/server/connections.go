@@ -82,13 +82,24 @@ func connectionFromBody(body connectionBody, existing *protocol.ConnectionConfig
 	if body.Password != nil {
 		merged.Password = *body.Password
 	}
-	if body.SSL != nil {
-		merged.SSL = *body.SSL
-	}
+	// Before the SSL default below, which reads the merged options to find an explicit sslmode.
 	if body.Options != nil {
 		merged.Options = body.Options
 	}
+	if body.SSL != nil {
+		merged.SSL = *body.SSL
+	} else if existing == nil && !merged.SSL && !hasSSLMode(merged.Options) {
+		// Nobody said either way, and this is a new connection. A database reached over the
+		// network wants TLS — every hosted provider requires it — and a local one does not offer
+		// it, so the host is the answer. An explicit sslmode in a pasted URL outranks this.
+		merged.SSL = db.RemoteDefaultSSL(merged.Host)
+	}
 	return merged, nil
+}
+
+func hasSSLMode(options map[string]any) bool {
+	mode, ok := options["sslmode"].(string)
+	return ok && mode != ""
 }
 
 func (s *Server) registerConnections() {

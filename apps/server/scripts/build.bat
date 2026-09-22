@@ -6,7 +6,6 @@ setlocal
 set HERE=%~dp0
 set GO_DIR=%HERE%..
 set REPO=%GO_DIR%\..\..
-if "%PERCH_VERSION%"=="" set PERCH_VERSION=0.1.0
 
 if exist "%REPO%\apps\server\ui\index.html" (
   del /q "%GO_DIR%\ui\static\*" 2>nul
@@ -14,6 +13,14 @@ if exist "%REPO%\apps\server\ui\index.html" (
   echo ui: copied from apps\server\ui
 ) else (
   echo ui: none found at apps\server\ui - building an API-only binary
+)
+
+REM Same single source as scripts/build.sh. PowerShell parses the JSON properly, which beats
+REM teaching batch to split on quotes.
+for /f "usebackq delims=" %%v in (`powershell -NoProfile -Command "(Get-Content -Raw '%REPO%\apps\server\package.json' ^| ConvertFrom-Json).version"`) do set PERCH_VERSION=%%v
+if "%PERCH_VERSION%"=="" (
+  echo apps\server\package.json declares no version
+  exit /b 1
 )
 
 pushd "%GO_DIR%"

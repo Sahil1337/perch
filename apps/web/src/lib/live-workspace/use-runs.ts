@@ -1,8 +1,9 @@
 import type { PerchClient } from "@perch/client";
-import type { RunRecord, Settings } from "@perch/protocol";
+import type { HistoryScope, HistoryStats, RunRecord, Settings } from "@perch/protocol";
 import type { Run } from "@perch/ui";
 import * as React from "react";
 import { messageOf } from "./helpers";
+import { inScope } from "./run-scope";
 import { useAbortable } from "./use-async-resource";
 
 /** In-memory runs. History on disk is the long tail; this is what the History tab scrolls. */
@@ -19,6 +20,8 @@ export type RunsOptions = {
   /** The text to run when the caller does not pass any: whatever is in the active buffer. */
   activeSql: string | undefined;
   settings: Settings | undefined;
+  /** The workspace root the active buffer belongs to; "" for a scratch tab or the CLI. */
+  workspace: string;
   /** DDL moves the ground under the schema tree, so it is re-introspected after a run. */
   onSchemaChanged: () => void;
   openOutput: () => void;
@@ -27,6 +30,7 @@ export type RunsOptions = {
 export type RunsState = {
   runs: readonly Run[];
   activeRun: Run | undefined;
+  activeRunFromHistory: boolean;
   run: (sql?: string) => Promise<string | undefined>;
   exportUrl: (
     runId: string,
@@ -35,6 +39,10 @@ export type RunsState = {
   cancelRun: (runId: string) => Promise<void>;
   selectRun: (runId: string) => void;
   probe: (sql: string, options?: { maxRows?: number }) => Promise<RunRecord>;
+  historyStats: () => Promise<HistoryStats>;
+  clearHistory: () => Promise<void>;
+  historyScope: HistoryScope;
+  setHistoryScope: (scope: HistoryScope) => void;
 };
 
 export function useRuns(
@@ -42,24 +50,63 @@ export function useRuns(
   enabled: boolean,
   options: RunsOptions,
 ): RunsState {
-  const { connectionId, database, activeSql, settings, onSchemaChanged, openOutput } = options;
+  const { connectionId, database, activeSql, settings, workspace, onSchemaChanged, openOutput } =
+    options;
 
   const [runs, setRuns] = React.useState<readonly Run[]>([]);
-  const [selectedRunId, setSelectedRunId] = React.useState<string | null>(null);
+  /** Read by `clearHistory`, which decides what to keep after an await — by then `runs` is stale. */
+  const runsRef = React.useRef(runs);
+  runsRef.current = runs;
+  /**
+   * Which run the results pane is showing, and how it got there. One value rather than two,
+   * because an id and a separate "was this picked from History" flag could disagree, and the
+   * only way to notice would be a pane captioning a query you are looking at in the editor.
+   */
+  const [selected, setSelected] = React.useState<{
+    readonly id: string;
+    readonly fromHistory: boolean;
+  } | null>(null);
+  /**
+   * Runs the server has already been asked about: `rows` means its result rows were fetched and
+   * merged in, `none` means they are gone — it aged out of memory and history was not recording
+   * results. Without this a run that legitimately returned no rows would be re-fetched on every
+   * click, and a run whose rows are gone would keep a dead export link.
+   */
+  const [resolved, setResolved] = React.useState<ReadonlyMap<string, "rows" | "none">>(new Map());
+  /** Which runs History is showing. Defaults to the folder in front of you, plus the global ones. */
+  const [historyScope, setHistoryScope] = React.useState<HistoryScope>("workspace");
 
   const loadHistory = React.useCallback(
     async (signal: AbortSignal): Promise<void> => {
       try {
-        const history = await getClient().history.list({ limit: HISTORY_LIMIT, signal });
-        // Rows are not kept on disk, so these records are headers only.
-        setRuns((prev) => (prev.length > 0 ? prev : history.slice(0, RUN_CAP)));
+        const history = await getClient().history.list({
+          limit: HISTORY_LIMIT,
+          scope: historyScope,
+          workspace,
+          signal,
+        });
+        // Headers only. Rows are fetched per run, when one is selected: a page of fifty runs with
+        // their rows would be megabytes to render three lines of SQL each.
+        //
+        // Merged rather than replaced, and this session's runs are filtered by the same rule the
+        // server used: with history recording off nothing comes back from disk, and replacing
+        // would wipe the runs you can still see from this session.
+        setRuns((prev) => {
+          const live = prev.filter((item) => inScope(item, historyScope, workspace));
+          const seen = new Set(live.map((item) => item.id));
+          const merged = [...live, ...history.filter((item) => !seen.has(item.id))];
+          merged.sort((a, b) => b.startedAt.localeCompare(a.startedAt));
+          return merged.slice(0, RUN_CAP);
+        });
       } catch {
         /* history is a nicety; an empty list is a fine outcome */
       }
     },
-    [getClient],
+    [getClient, historyScope, workspace],
   );
 
+  // Re-reads when the scope or the folder changes, which is what makes the picker work: the list
+  // is a page from the server, not a filter over one already fetched.
   useAbortable(enabled, loadHistory);
 
   const run = React.useCallback(
@@ -77,9 +124,10 @@ export function useRuns(
         status: "running",
         startedAt: new Date().toISOString(),
         source: "ui",
+        ...(workspace ? { workspace } : {}),
       };
       setRuns((prev) => [pending, ...prev].slice(0, RUN_CAP));
-      setSelectedRunId(runId);
+      setSelected({ id: runId, fromHistory: false });
       openOutput();
 
       try {
@@ -89,6 +137,7 @@ export function useRuns(
           runId,
           source: "ui",
           ...(database ? { database } : {}),
+          ...(workspace ? { workspace } : {}),
           ...(settings ? { maxRows: settings.maxRows } : {}),
           ...(settings ? { timeoutMs: settings.statementTimeoutMs } : {}),
         });
@@ -108,7 +157,7 @@ export function useRuns(
       }
       return runId;
     },
-    [activeSql, connectionId, database, getClient, onSchemaChanged, openOutput, settings],
+    [activeSql, connectionId, database, getClient, onSchemaChanged, openOutput, settings, workspace],
   );
 
   /**
@@ -139,18 +188,68 @@ export function useRuns(
     [connectionId, database, getClient, settings],
   );
 
+  /**
+   * Points at a run and, if its rows are not already here, asks the server for them.
+   *
+   * The history list is headers, and the last fifty runs are the only ones the server holds in
+   * memory — so before this, clicking anything older showed a results pane that claimed a row count
+   * and had nothing in it. The server now answers from the history store too, when the settings
+   * were recording results, and a 404 is the honest "those rows were not kept".
+   */
+  const selectRun = React.useCallback(
+    (runId: string): void => {
+      setSelected({ id: runId, fromHistory: true });
+      const held = runs.find((r) => r.id === runId);
+      // Any status but `running` is worth asking about. A run that failed or was cancelled on its
+      // third statement still has the rows the first two returned, and the server stored them.
+      if (!held || held.status === "running" || resolved.has(runId)) return;
+      if ((held.results ?? []).some((result) => result.rows.length > 0)) return;
+
+      void getClient()
+        .runs.get(runId)
+        .then(
+          (full) => {
+            setRuns((prev) => prev.map((r) => (r.id === runId ? full : r)));
+            setResolved((prev) => new Map(prev).set(runId, "rows"));
+          },
+          () => setResolved((prev) => new Map(prev).set(runId, "none")),
+        );
+    },
+    [getClient, resolved, runs],
+  );
+
   const exportUrl = React.useCallback(
     (
       runId: string,
       exportOptions?: { statement?: number; format?: "csv" | "json" },
     ): string | null => {
-      // Runs age out of server memory, so a link is only offered while the rows are still held.
       const held = runs.find((r) => r.id === runId);
       if (!held || held.status !== "done") return null;
+      // The one case with nothing to download: the run aged out of server memory and history was
+      // not recording results, so the link would 404.
+      if (resolved.get(runId) === "none") return null;
       return getClient().runs.exportUrl(runId, exportOptions);
     },
-    [getClient, runs],
+    [getClient, resolved, runs],
   );
+
+  const historyStats = React.useCallback(
+    (): Promise<HistoryStats> => getClient().history.stats(),
+    [getClient],
+  );
+
+  /**
+   * Clears the store and the list it feeds, so the History tab empties with it. A run still in
+   * flight stays: it is not in the store to be cleared, and `run` finishes by mapping over this
+   * list — dropped from it, the result it is about to return would have nowhere to land.
+   */
+  const clearHistory = React.useCallback(async (): Promise<void> => {
+    await getClient().history.clear();
+    const running = new Set(runsRef.current.filter((r) => r.status === "running").map((r) => r.id));
+    setRuns((prev) => prev.filter((r) => r.status === "running"));
+    setResolved(new Map());
+    setSelected((prev) => (prev && running.has(prev.id) ? prev : null));
+  }, [getClient]);
 
   const cancelRun = React.useCallback(
     async (runId: string): Promise<void> => {
@@ -170,13 +269,23 @@ export function useRuns(
     [getClient],
   );
 
+  // The newest run when nothing has been picked, which is what the pane opens on after a reload.
+  // That run came off the wire rather than out of this session, so it counts as history: the
+  // editor below it is empty or holding something else entirely.
+  const selectedRun = selected ? runs.find((r) => r.id === selected.id) : undefined;
+
   return {
     runs,
-    activeRun: runs.find((r) => r.id === selectedRunId) ?? runs[0],
+    activeRun: selectedRun ?? runs[0],
+    activeRunFromHistory: selectedRun ? selected!.fromHistory : true,
     run,
     exportUrl,
     cancelRun,
-    selectRun: setSelectedRunId,
+    selectRun,
     probe,
+    historyStats,
+    clearHistory,
+    historyScope,
+    setHistoryScope,
   };
 }

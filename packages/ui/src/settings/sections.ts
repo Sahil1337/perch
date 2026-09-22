@@ -6,4 +6,5 @@ export { SettingRow } from "./setting-controls";
 export { EditorSection } from "./editor-section";
 export { QuerySection } from "./query-section";
 export { FilesSection } from "./files-section";
+export { HistorySection } from "./history-section";
 export { AppearanceSection } from "./appearance-section";

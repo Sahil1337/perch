@@ -5,6 +5,7 @@ export {
   NETWORK,
   NOT_API,
   PerchError,
+  connectFailureCode,
   isNetworkError,
   isNotApiError,
   isPerchError,

@@ -8,8 +8,11 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/url"
+	"os"
 	"os/exec"
 	"os/user"
+	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
@@ -61,6 +64,10 @@ type candidate struct {
 	source  protocol.DiscoverySource
 	version string
 	label   string
+	// Filled in by the container probe, which can read the login the image was started with.
+	// Empty means "use the dialect's default".
+	user     string
+	database string
 }
 
 func scan(ctx context.Context) protocol.DiscoveryResult {
@@ -127,6 +134,11 @@ func merge(candidates []candidate) []protocol.DiscoveredServer {
 		if server.Label == "" {
 			server.Label = c.label
 		}
+		// A probe that knows the login outranks the guess merge started with: the container
+		// probe reads it off the image's own environment, while the others only know an address.
+		if c.user != "" || c.database != "" {
+			server.SuggestedURL = credentialedURL(c)
+		}
 	}
 
 	out := make([]protocol.DiscoveredServer, 0, len(order))
@@ -158,6 +170,28 @@ func suggestedURL(dialect protocol.Dialect, host string, port int) string {
 		return fmt.Sprintf("mysql://root@%s:%d/", host, port)
 	}
 	return fmt.Sprintf("postgres://%s@%s:%d/postgres", osUser(), host, port)
+}
+
+// credentialedURL is suggestedURL for a candidate that knows better. A container has no account
+// named after the person running it, so the OS user — the right guess for a server installed on
+// this machine — is the one guess guaranteed to fail there.
+func credentialedURL(c candidate) string {
+	user, database := c.user, c.database
+	scheme := "postgres"
+	if c.dialect == protocol.DialectMySQL {
+		scheme = "mysql"
+		if user == "" {
+			user = "root"
+		}
+	} else {
+		if user == "" {
+			user = "postgres"
+		}
+		if database == "" {
+			database = user
+		}
+	}
+	return fmt.Sprintf("%s://%s@%s:%d/%s", scheme, url.QueryEscape(user), c.host, c.port, url.PathEscape(database))
 }
 
 func reachable(host string, port int) bool {
@@ -251,54 +285,168 @@ func binaryVersion(ctx context.Context, path string) string {
 }
 
 // probeDocker reports running containers whose image looks like a database, with the host port
-// its server port is published on.
+// its server port is published on and the login the image was started with.
+//
+// Three things it does not take for granted. The CLI may not be on PATH — Docker Desktop installs
+// it where a GUI-launched process cannot see it, so the known locations are tried too. The
+// runtime may not be Docker: podman and nerdctl speak the same two subcommands. And the login is
+// never the OS user, which is why the image's own environment is read: a container has no account
+// named after the person running it, so the default guess fails on every container there is.
 func probeDocker(ctx context.Context) []candidate {
-	out, err := run(ctx, "docker", "ps", "--format", "{{.Image}}\t{{.Ports}}\t{{.Names}}")
+	cli, ok := containerCLI()
+	if !ok {
+		return nil
+	}
+	out, err := run(ctx, cli, "ps", "--format", "{{.ID}}\t{{.Image}}\t{{.Ports}}\t{{.Names}}")
 	if err != nil {
 		return nil
 	}
 	found := []candidate{}
 	for _, line := range strings.Split(out, "\n") {
 		fields := strings.Split(strings.TrimSpace(line), "\t")
-		if len(fields) < 3 {
+		if len(fields) < 4 {
 			continue
 		}
-		image, ports, name := strings.ToLower(fields[0]), fields[1], fields[2]
-		var dialect protocol.Dialect
-		switch {
-		case strings.Contains(image, "postgres"):
-			dialect = protocol.DialectPostgres
-		case strings.Contains(image, "mysql"), strings.Contains(image, "mariadb"):
-			dialect = protocol.DialectMySQL
-		default:
+		id, image, ports, name := fields[0], strings.ToLower(fields[1]), fields[2], fields[3]
+		dialect, ok := imageDialect(image)
+		if !ok {
 			continue
 		}
 		port, ok := publishedPort(ports, defaultPortFor(dialect))
 		if !ok {
-			continue
+			// Published on a port the image does not normally use. It is still the only database
+			// in that container, so the mapping is unambiguous.
+			port, ok = anyPublishedPort(ports)
+			if !ok {
+				// Reachable only from inside the container network; nothing to offer.
+				continue
+			}
 		}
+		user, database := containerLogin(ctx, cli, id, dialect)
 		found = append(found, candidate{
 			dialect: dialect, host: "127.0.0.1", port: port,
 			source: protocol.SourceDocker, label: name,
+			user: user, database: database,
 		})
 	}
 	return found
 }
 
+func imageDialect(image string) (protocol.Dialect, bool) {
+	switch {
+	case strings.Contains(image, "postgres"), strings.Contains(image, "pgvector"),
+		strings.Contains(image, "timescale"):
+		return protocol.DialectPostgres, true
+	case strings.Contains(image, "mysql"), strings.Contains(image, "mariadb"),
+		strings.Contains(image, "percona"):
+		return protocol.DialectMySQL, true
+	}
+	return "", false
+}
+
+// Where a container CLI lives when it is not on PATH. Docker Desktop on macOS puts it in the
+// user's home, and a process started from the Dock inherits none of a shell's PATH.
+var containerCLIs = []string{"docker", "podman", "nerdctl"}
+
+var containerCLIDirs = []string{
+	"/usr/local/bin",
+	"/opt/homebrew/bin",
+	"/usr/bin",
+	"/Applications/Docker.app/Contents/Resources/bin",
+}
+
+func containerCLI() (string, bool) {
+	for _, name := range containerCLIs {
+		if path, err := exec.LookPath(name); err == nil {
+			return path, true
+		}
+	}
+	home, _ := os.UserHomeDir()
+	dirs := containerCLIDirs
+	if home != "" {
+		dirs = append([]string{filepath.Join(home, ".docker", "bin"), filepath.Join(home, ".rd", "bin")}, dirs...)
+	}
+	for _, dir := range dirs {
+		for _, name := range containerCLIs {
+			path := filepath.Join(dir, name)
+			if info, err := os.Stat(path); err == nil && !info.IsDir() && info.Mode()&0o111 != 0 {
+				return path, true
+			}
+		}
+	}
+	return "", false
+}
+
+// containerLogin reads the user and database the image was started with. The password is in the
+// same environment and is deliberately not read: perch asks for it rather than lifting a secret
+// out of a process and writing it to disk.
+func containerLogin(ctx context.Context, cli, id string, dialect protocol.Dialect) (user, database string) {
+	out, err := run(ctx, cli, "inspect", "--format", "{{range .Config.Env}}{{println .}}{{end}}", id)
+	if err != nil {
+		return "", ""
+	}
+	env := map[string]string{}
+	for _, line := range strings.Split(out, "\n") {
+		key, value, ok := strings.Cut(strings.TrimSpace(line), "=")
+		if ok {
+			env[key] = value
+		}
+	}
+	if dialect == protocol.DialectMySQL {
+		// MYSQL_USER is a second, non-root account the image creates; root is the one guaranteed
+		// to exist, so it stays the suggestion.
+		return "root", env["MYSQL_DATABASE"]
+	}
+	user = env["POSTGRES_USER"]
+	if user == "" {
+		user = "postgres"
+	}
+	database = env["POSTGRES_DB"]
+	if database == "" {
+		// The official image defaults the database to the user's name, not to `postgres`.
+		database = user
+	}
+	return user, database
+}
+
 // publishedPort reads the host port out of docker's "0.0.0.0:5433->5432/tcp" mapping list.
 func publishedPort(ports string, containerPort int) (int, bool) {
-	want := fmt.Sprintf("->%d/tcp", containerPort)
+	return hostPortFor(ports, fmt.Sprintf("->%d/tcp", containerPort))
+}
+
+// anyPublishedPort is the fallback for a container that runs its database on a port the image
+// does not normally use. MySQL's X protocol is excluded: it is published by the official image
+// alongside the real one, and it does not speak the protocol the driver does.
+func anyPublishedPort(ports string) (int, bool) {
 	for _, mapping := range strings.Split(ports, ",") {
-		mapping = strings.TrimSpace(mapping)
-		if !strings.HasSuffix(mapping, want) {
+		if strings.HasSuffix(strings.TrimSpace(mapping), "->33060/tcp") {
 			continue
 		}
-		hostSide := strings.TrimSuffix(mapping, want)
-		if at := strings.LastIndex(hostSide, ":"); at != -1 {
-			var port int
-			if _, err := fmt.Sscanf(hostSide[at+1:], "%d", &port); err == nil {
-				return port, true
-			}
+		if port, ok := hostPortFor(mapping, "/tcp"); ok {
+			return port, true
+		}
+	}
+	return 0, false
+}
+
+func hostPortFor(ports, suffix string) (int, bool) {
+	for _, mapping := range strings.Split(ports, ",") {
+		mapping = strings.TrimSpace(mapping)
+		if !strings.HasSuffix(mapping, suffix) {
+			continue
+		}
+		hostSide, _, ok := strings.Cut(mapping, "->")
+		if !ok {
+			// "5432/tcp" with no arrow: exposed, never published, so unreachable from here.
+			continue
+		}
+		at := strings.LastIndex(hostSide, ":")
+		if at == -1 {
+			continue
+		}
+		var port int
+		if _, err := fmt.Sscanf(hostSide[at+1:], "%d", &port); err == nil && port > 0 {
+			return port, true
 		}
 	}
 	return 0, false

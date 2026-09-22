@@ -56,3 +56,23 @@ func (c ConnectionConfig) Summary(status ConnectionStatus, errMsg string, databa
 		Databases: databases,
 	}
 }
+
+// Why a connection could not be opened, as the `code` on the error envelope. The UI branches on
+// it: a server that asked for a password gets a password prompt rather than the whole form back,
+// and a server that is not running gets told so instead of "authentication failed".
+type ConnectFailureCode string
+
+const (
+	// The server asked for a password and the connection has none.
+	ConnectPasswordRequired ConnectFailureCode = "password_required"
+	// It has one and the server refused it.
+	ConnectAuthFailed ConnectFailureCode = "auth_failed"
+	// The login itself is unknown: no such role, or no pg_hba line that would let it in.
+	ConnectUnknownUser     ConnectFailureCode = "unknown_user"
+	ConnectUnknownDatabase ConnectFailureCode = "unknown_database"
+	// Nothing answered at host:port.
+	ConnectUnreachable ConnectFailureCode = "unreachable"
+	ConnectTLSRequired ConnectFailureCode = "tls_required"
+	// Anything else; the message is the driver's own.
+	ConnectFailed ConnectFailureCode = "connect_failed"
+)

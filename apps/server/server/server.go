@@ -138,6 +138,9 @@ func (s *Server) Close() {
 	}
 	s.bus.CloseAll()
 	s.pool.Shutdown()
+	// bbolt holds a file lock on history.db; a process that exits without releasing it makes the
+	// next `perch serve` wait two seconds for nothing.
+	_ = storage.CloseHistory()
 }
 
 func (s *Server) ServerInfo(pid int) protocol.ServerInfo {

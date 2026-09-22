@@ -2,12 +2,7 @@
 // built per document and outlives every setting change, so anything that can vary later arrives
 // through a Compartment and anything that can change on a render arrives through the bridge ref.
 
-import {
-  autocompletion,
-  closeBrackets,
-  closeBracketsKeymap,
-  completionKeymap,
-} from "@codemirror/autocomplete";
+import { closeBrackets, closeBracketsKeymap, completionKeymap } from "@codemirror/autocomplete";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import {
   bracketMatching,
@@ -40,10 +35,12 @@ import { cellHeight, editorThemeBase, paneHeight, sqlHighlighting } from "./them
 // set at module scope serves every mounted editor without them interfering.
 export const languageConf = new Compartment();
 export const gutterConf = new Compartment();
+export const completionConf = new Compartment();
 
 /** What the view is built from, read once at creation and never again. */
 export type EditorSnapshot = {
   autoFocus: boolean;
+  completion: Extension;
   gutter: Extension;
   language: Extension;
   minimal: boolean;
@@ -114,7 +111,7 @@ export function createEditorView({
         indentUnit.of("  "),
         bracketMatching(),
         closeBrackets(),
-        autocompletion({ icons: false }),
+        completionConf.of(initial.completion),
         syntaxHighlighting(sqlHighlighting),
         editorThemeBase,
         initial.minimal ? cellHeight : paneHeight,

@@ -25,17 +25,16 @@ export function useDatabases(
   React.useEffect(() => {
     if (!enabled || !connectionId || summaryDatabases) return;
     const controller = new AbortController();
-    void (async () => {
-      try {
-        const list = await getClient().connections.databases(connectionId, {
-          signal: controller.signal,
-        });
+    void getClient()
+      .connections.databases(connectionId, { signal: controller.signal })
+      .then((list) => {
+        if (controller.signal.aborted) return;
         setFetched({ connectionId, value: asyncReady(list) });
-      } catch (error) {
-        if (aborted(error)) return;
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted || aborted(error)) return;
         setFetched({ connectionId, value: asyncError(messageOf(error)) });
-      }
-    })();
+      });
     return () => controller.abort();
   }, [enabled, connectionId, summaryDatabases, getClient]);
 

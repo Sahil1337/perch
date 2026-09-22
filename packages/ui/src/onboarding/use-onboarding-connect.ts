@@ -1,9 +1,16 @@
-import type { ConnectionSummary, Dialect, DiscoveredServer } from "@perch/protocol";
+import type {
+  ConnectFailureCode,
+  ConnectionSummary,
+  Dialect,
+  DiscoveredServer,
+} from "@perch/protocol";
 import * as React from "react";
-import { messageOf } from "../lib/errors";
+import { failureCodeOf, isPasswordFailure, messageOf } from "../lib/errors";
 import { useWorkspace } from "../workspace/context";
-import type { ConnectionInput } from "../workspace/types";
-import { serverKey } from "./discovered-servers";
+import { asyncData, type ConnectionInput } from "../workspace/types";
+import { suggestedName } from "./connection-name";
+import { serverKey, type DiscoveredInput } from "./discovered-servers";
+import type { PasswordChallenge } from "./password-prompt";
 
 /**
  * How far the one action on this screen has got. One value rather than three, because the three it
@@ -14,7 +21,7 @@ export type ConnectPhase =
   | { kind: "idle" }
   /** `target` is a connection id or a discovered row's key, whichever the spinner belongs to. */
   | { kind: "connecting"; target: string }
-  | { kind: "failed"; message: string }
+  | { kind: "failed"; message: string; code: ConnectFailureCode }
   /** The dial answered. The card unmounts and the handover screen takes over. */
   | { kind: "opening"; dialect: Dialect; name: string };
 
@@ -28,17 +35,52 @@ export type ConnectPhase =
  */
 export type Prefill = { input: ConnectionInput; seq: number };
 
+/** The saved connection already pointing at this address, if there is one. */
+function savedFor(
+  server: DiscoveredServer,
+  saved: readonly ConnectionSummary[],
+): ConnectionSummary | undefined {
+  return saved.find(
+    (item) =>
+      item.dialect === server.dialect && item.port === server.port && sameHost(item.host, server.host),
+  );
+}
+
+/** `localhost` and `127.0.0.1` are the same machine, and discovery reports the latter. */
+function sameHost(a: string, b: string): boolean {
+  const local = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
+  return a === b || (local.has(a) && local.has(b));
+}
+
+function failure(cause: unknown): ConnectPhase {
+  return {
+    kind: "failed",
+    message: messageOf(cause),
+    code: failureCodeOf(cause) ?? "connect_failed",
+  };
+}
+
 export function useOnboardingConnect(): {
   readonly phase: ConnectPhase;
   readonly prefill: Prefill | null;
+  readonly challenge: PasswordChallenge | null;
   /** The id or key currently being dialled, for the row that should show a spinner. */
   readonly pending: string | null;
-  open: (connectionId: string) => Promise<void>;
-  connectDiscovered: (input: ConnectionInput, server: DiscoveredServer) => Promise<void>;
+  open: (connectionId: string, password?: string) => Promise<void>;
+  connectDiscovered: (
+    input: DiscoveredInput,
+    server: DiscoveredServer,
+    password?: string,
+  ) => Promise<void>;
+  /** Drops the password prompt without dialling — the row goes back to a Connect button. */
+  dismissChallenge: () => void;
 } {
-  const { connections, addConnection, testConnection, connect } = useWorkspace();
+  const { connections, addConnection, updateConnection, connect } = useWorkspace();
   const [phase, setPhase] = React.useState<ConnectPhase>({ kind: "idle" });
   const [prefill, setPrefill] = React.useState<Prefill | null>(null);
+  const [challenge, setChallenge] = React.useState<PasswordChallenge | null>(null);
+
+  const saved = asyncData(connections) ?? [];
 
   /**
    * Open a connection that already exists, and hand over to the connecting screen if it answers.
@@ -46,56 +88,92 @@ export function useOnboardingConnect(): {
    * Not `onDone`: the dial is done but the workspace is still fetching a schema, and the handover
    * screen exists to cover that. It finishes the flow itself when it is through.
    */
-  async function open(connectionId: string): Promise<void> {
+  async function open(connectionId: string, password?: string): Promise<void> {
+    const record = saved.find((item) => item.id === connectionId);
     setPhase({ kind: "connecting", target: connectionId });
     try {
+      if (password !== undefined) await updateConnection(connectionId, { password });
       await connect(connectionId);
-      const record =
-        connections.status === "ready"
-          ? connections.data.find((item) => item.id === connectionId)
-          : undefined;
+      setChallenge(null);
       setPhase({
         kind: "opening",
         dialect: record?.dialect ?? "postgres",
         name: record?.name ?? "",
       });
     } catch (cause) {
-      setPhase({ kind: "failed", message: messageOf(cause) });
+      if (isPasswordFailure(cause)) {
+        setChallenge({
+          target: connectionId,
+          user: record?.user ?? "",
+          refused: password !== undefined,
+        });
+        setPhase({ kind: "idle" });
+        return;
+      }
+      setChallenge(null);
+      setPhase(failure(cause));
     }
   }
 
   /**
-   * The discovery fast path: save what was found, dial it, and go. A failure is nearly always a
-   * password, so it lands in the form with the details filled in. The connection stays saved and
-   * `connectionId` points the form at it, so retrying fixes that record rather than making another.
+   * The discovery fast path: save what was found, dial it, and go.
+   *
+   * A server already on disk is reused rather than saved again — pressing Connect twice on the
+   * same row is a retry, not a request for a second copy, and the name collision that made was
+   * the commonest way this screen failed.
+   *
+   * A password is the likeliest reason the dial does not land, and it comes back as a prompt on
+   * the row. Anything else falls through to the form with the details filled in; the connection
+   * stays saved, so fixing it there fixes that record rather than making another.
    */
   async function connectDiscovered(
-    input: ConnectionInput,
+    input: DiscoveredInput,
     server: DiscoveredServer,
+    password?: string,
   ): Promise<void> {
-    setPhase({ kind: "connecting", target: serverKey(server) });
-    let created: ConnectionSummary;
+    const key = serverKey(server);
+    setPhase({ kind: "connecting", target: key });
+
+    const existing = savedFor(server, saved);
+    let record: ConnectionSummary;
     try {
-      created = await addConnection(input);
+      record =
+        existing === undefined
+          ? await addConnection({ ...input, name: suggestedName(server, saved), password })
+          : password === undefined
+            ? existing
+            : await updateConnection(existing.id, { password });
     } catch (cause) {
-      setPhase({ kind: "failed", message: messageOf(cause) });
+      setPhase(failure(cause));
       return;
     }
+
     try {
-      await testConnection(created.id);
-      await connect(created.id);
-      setPhase({ kind: "opening", dialect: created.dialect, name: created.name });
+      await connect(record.id);
+      setChallenge(null);
+      setPhase({ kind: "opening", dialect: record.dialect, name: record.name });
     } catch (cause) {
-      setPhase({ kind: "failed", message: messageOf(cause) });
-      setPrefill((previous) => ({ input, seq: (previous?.seq ?? 0) + 1 }));
+      if (isPasswordFailure(cause)) {
+        setChallenge({ target: key, user: input.user ?? "", refused: password !== undefined });
+        setPhase({ kind: "idle" });
+        return;
+      }
+      setChallenge(null);
+      setPhase(failure(cause));
+      setPrefill((previous) => ({
+        input: { ...input, name: record.name },
+        seq: (previous?.seq ?? 0) + 1,
+      }));
     }
   }
 
   return {
     phase,
     prefill,
+    challenge,
     pending: phase.kind === "connecting" ? phase.target : null,
     open,
     connectDiscovered,
+    dismissChallenge: () => setChallenge(null),
   };
 }
