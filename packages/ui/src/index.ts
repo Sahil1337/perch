@@ -23,6 +23,7 @@ export * from "./ui/context-menu";
 export * from "./ui/dropdown-menu";
 export * from "./ui/input";
 export * from "./ui/input-group";
+export * from "./ui/password-input";
 export * from "./ui/kbd";
 export * from "./ui/scroll-area";
 export * from "./ui/separator";

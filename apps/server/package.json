@@ -5,7 +5,7 @@
   "private": true,
   "license": "MIT",
   "scripts": {
-    "dev": "bash scripts/dev.sh",
+    "dev": "node scripts/dev.mjs",
     "start": "./dist/perch serve",
     "build": "bash scripts/build.sh",
     "build:all": "bash scripts/build.sh --all",
