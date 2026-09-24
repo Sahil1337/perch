@@ -51,6 +51,20 @@ func newPostgresDriver(config protocol.ConnectionConfig) *postgresDriver {
 
 func (d *postgresDriver) Dialect() protocol.Dialect { return protocol.DialectPostgres }
 
+// quoteDSN makes a value safe to put in a libpq keyword/value connection string.
+//
+// Unquoted, a space ends the value and the next word is read as another keyword — so a role or
+// database named with a space in it does not fail at the server, it fails at the parser, with a
+// message about the connection string rather than about the login. Single quotes allow the space
+// through; inside them a backslash escapes a quote or another backslash. The password is not
+// here for the same reason in reverse: it is the field likeliest to hold anything at all, so it
+// is set on the parsed config rather than written into a string that has to be parsed.
+func quoteDSN(value string) string {
+	return "'" + dsnEscape.Replace(value) + "'"
+}
+
+var dsnEscape = strings.NewReplacer(`\`, `\\`, `'`, `\'`)
+
 func (d *postgresDriver) poolConfig(database string, max int32) (*pgxpool.Config, error) {
 	if database == "" {
 		database = d.config.Database
@@ -61,8 +75,8 @@ func (d *postgresDriver) poolConfig(database string, max int32) (*pgxpool.Config
 	}
 	dsn := fmt.Sprintf(
 		"host=%s port=%d user=%s dbname=%s application_name=%s sslmode=%s connect_timeout=%d",
-		d.config.Host, d.config.Port, d.config.User, database, appName,
-		sslModeFor(d.config), int(connectTimeout.Seconds()),
+		quoteDSN(d.config.Host), d.config.Port, quoteDSN(d.config.User), quoteDSN(database),
+		quoteDSN(appName), sslModeFor(d.config), int(connectTimeout.Seconds()),
 	)
 	cfg, err := pgxpool.ParseConfig(dsn)
 	if err != nil {

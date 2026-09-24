@@ -167,7 +167,7 @@ export function Onboarding({ onDone }: OnboardingProps): React.ReactElement {
                     challenge={challenge}
                     connections={saved}
                     onDismissChallenge={dismissChallenge}
-                    onOpen={(id, password) => void open(id, password)}
+                    onOpen={(id, password, user) => void open(id, password, user)}
                     pending={pending}
                   />
                 )}

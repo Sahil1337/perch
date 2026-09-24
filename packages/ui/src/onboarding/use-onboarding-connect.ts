@@ -66,7 +66,7 @@ export function useOnboardingConnect(): {
   readonly challenge: PasswordChallenge | null;
   /** The id or key currently being dialled, for the row that should show a spinner. */
   readonly pending: string | null;
-  open: (connectionId: string, password?: string) => Promise<void>;
+  open: (connectionId: string, password?: string, user?: string) => Promise<void>;
   connectDiscovered: (
     input: DiscoveredInput,
     server: DiscoveredServer,
@@ -88,11 +88,13 @@ export function useOnboardingConnect(): {
    * Not `onDone`: the dial is done but the workspace is still fetching a schema, and the handover
    * screen exists to cover that. It finishes the flow itself when it is through.
    */
-  async function open(connectionId: string, password?: string): Promise<void> {
+  async function open(connectionId: string, password?: string, user?: string): Promise<void> {
     const record = saved.find((item) => item.id === connectionId);
     setPhase({ kind: "connecting", target: connectionId });
     try {
-      if (password !== undefined) await updateConnection(connectionId, { password });
+      // `user` is undefined unless the prompt corrected it, and an undefined field is one the
+      // server leaves alone: this patches the login only when there is a new one to patch.
+      if (password !== undefined) await updateConnection(connectionId, { password, user });
       await connect(connectionId);
       setChallenge(null);
       setPhase({
@@ -104,7 +106,7 @@ export function useOnboardingConnect(): {
       if (isPasswordFailure(cause)) {
         setChallenge({
           target: connectionId,
-          user: record?.user ?? "",
+          user: user ?? record?.user ?? "",
           refused: password !== undefined,
         });
         setPhase({ kind: "idle" });
@@ -142,7 +144,7 @@ export function useOnboardingConnect(): {
           ? await addConnection({ ...input, name: suggestedName(server, saved), password })
           : password === undefined
             ? existing
-            : await updateConnection(existing.id, { password });
+            : await updateConnection(existing.id, { password, user: input.user });
     } catch (cause) {
       setPhase(failure(cause));
       return;
