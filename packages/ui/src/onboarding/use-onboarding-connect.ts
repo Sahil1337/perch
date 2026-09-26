@@ -144,7 +144,12 @@ export function useOnboardingConnect(): {
           ? await addConnection({ ...input, name: suggestedName(server, saved), password })
           : password === undefined
             ? existing
-            : await updateConnection(existing.id, { password, user: input.user });
+            : await updateConnection(existing.id, {
+                password,
+                // Only when the prompt actually changed it. `input.user` is the discovery guess
+                // unless it did, and writing that over a saved login loses the working one.
+                user: input.user === existing.user ? undefined : input.user,
+              });
     } catch (cause) {
       setPhase(failure(cause));
       return;
@@ -156,7 +161,12 @@ export function useOnboardingConnect(): {
       setPhase({ kind: "opening", dialect: record.dialect, name: record.name });
     } catch (cause) {
       if (isPasswordFailure(cause)) {
-        setChallenge({ target: key, user: input.user ?? "", refused: password !== undefined });
+        // The saved login, not the guess: a reused connection already knows who it logs in as.
+        setChallenge({
+          target: key,
+          user: existing?.user ?? input.user ?? "",
+          refused: password !== undefined,
+        });
         setPhase({ kind: "idle" });
         return;
       }

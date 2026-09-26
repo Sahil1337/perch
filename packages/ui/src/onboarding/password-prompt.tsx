@@ -69,18 +69,25 @@ export function PasswordPrompt({
   // Its own handler rather than a nested <form>: this sits inside the onboarding form, and a
   // form cannot contain one. Shared by both fields so Enter submits from either.
   const keys = (event: React.KeyboardEvent): void => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      submit();
-    }
-    if (event.key === "Escape") {
-      event.preventDefault();
-      onCancel();
-    }
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    submit();
+  };
+
+  // On the wrapper so the reveal toggle and the buttons are covered too, and it stops there:
+  // Escape reaching the dialog behind this prompt means "finish onboarding", not "cancel".
+  const escape = (event: React.KeyboardEvent): void => {
+    if (event.key !== "Escape") return;
+    event.preventDefault();
+    event.stopPropagation();
+    onCancel();
   };
 
   return (
-    <div className={cn("flex flex-col gap-1.5 border-border border-t px-2 py-2", className)}>
+    <div
+      className={cn("flex flex-col gap-1.5 border-border border-t px-2 py-2", className)}
+      onKeyDown={escape}
+    >
       <p className="flex items-center gap-1.5 text-muted-foreground text-xs">
         <KeyRoundIcon className="size-3 shrink-0" />
         {refused
