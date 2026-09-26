@@ -35,7 +35,7 @@ export function ConnectionBeam({
   return (
     <div
       aria-label={`Perch, connecting to ${DIALECT_LABEL[target]}`}
-      className={cn("flex items-center justify-center gap-3", className)}
+      className={cn("flex items-start justify-center gap-3", className)}
       role="img"
     >
       <Node label="Perch">
@@ -48,7 +48,9 @@ export function ConnectionBeam({
           one lights the wire underneath instead, so the state shows without stopping the motion. */}
       <div
         className={cn(
-          "relative h-px w-20 overflow-hidden rounded-full",
+          // Aligned to the mark's centre, not the column's: the column includes the name
+          // underneath, so centring against it hangs the wire below the two cards it joins.
+          "relative mt-5 h-px w-20 overflow-hidden rounded-full",
           linked ? "bg-primary/24" : "bg-border",
         )}
       >

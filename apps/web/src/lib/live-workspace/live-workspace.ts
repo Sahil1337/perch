@@ -21,6 +21,7 @@ import { usePanels } from "../use-panels";
 import { useBuffers } from "./use-buffers";
 import { useFileSession } from "./use-file-session";
 import { useConnections } from "./use-connections";
+import { workspaceOf } from "./run-scope";
 import { useRuns } from "./use-runs";
 import { useSchema } from "./use-schema";
 import { useServerEvents } from "./use-server-events";
@@ -90,10 +91,21 @@ export function useLiveWorkspace(options: LiveWorkspaceOptions = {}): WorkspaceA
 
   const openOutput = React.useCallback((): void => setPanel("outputOpen", true), [setPanel]);
 
+  /**
+   * Which folder the query about to run belongs to, so History can be read per project. Derived
+   * from the active buffer rather than stored: it is a pure function of the tab you are in and the
+   * roots that are open.
+   */
+  const runWorkspace = React.useMemo(
+    () => workspaceOf(buffers.activeBuffer?.path, roots, server.queriesDir),
+    [buffers.activeBuffer?.path, roots, server.queriesDir],
+  );
+
   const runs = useRuns(getClient, enabled, {
     connectionId: connections.connectionId,
     database: connections.database,
     activeSql: buffers.activeBuffer?.content,
+    workspace: runWorkspace,
     settings: settingsData,
     onSchemaChanged: reintrospect,
     openOutput,
@@ -168,11 +180,16 @@ export function useLiveWorkspace(options: LiveWorkspaceOptions = {}): WorkspaceA
 
     runs: runs.runs,
     activeRun: runs.activeRun,
+    activeRunFromHistory: runs.activeRunFromHistory,
     run: runs.run,
     exportUrl: runs.exportUrl,
     cancelRun: runs.cancelRun,
     selectRun: runs.selectRun,
     probe: runs.probe,
+    historyStats: runs.historyStats,
+    clearHistory: runs.clearHistory,
+    historyScope: runs.historyScope,
+    setHistoryScope: runs.setHistoryScope,
 
     settings,
     updateSettings,

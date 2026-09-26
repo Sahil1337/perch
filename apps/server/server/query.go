@@ -28,6 +28,7 @@ type queryBody struct {
 	Record       *bool   `json:"record"`
 	ReadOnly     *bool   `json:"readOnly"`
 	Source       *string `json:"source"`
+	Workspace    *string `json:"workspace"`
 }
 
 func (s *Server) runInputFrom(r *http.Request) (StartRunInput, error) {
@@ -65,6 +66,9 @@ func (s *Server) runInputFrom(r *http.Request) (StartRunInput, error) {
 		BatchSize:    body.BatchSize,
 		Record:       body.Record,
 		Source:       source,
+	}
+	if body.Workspace != nil {
+		input.Workspace = *body.Workspace
 	}
 	if body.ReadOnly != nil {
 		input.ReadOnly = *body.ReadOnly

@@ -2,6 +2,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -17,10 +18,14 @@ import (
 
 	"perch/server"
 	"perch/storage"
+	"perch/update"
 )
 
-// Overridden at build time with -ldflags "-X main.Version=…".
-var Version = "0.1.0"
+// Set by the linker from apps/server/package.json, the one place the version lives — see
+// scripts/build.sh. Deliberately not a number here: a literal would be a second copy, free to
+// disagree with the first. A build without the flag says "dev", which names no release at all
+// rather than claiming the wrong one.
+var Version = "dev"
 
 const help = `perch v%s — a tiny local SQL client
 
@@ -30,6 +35,7 @@ commands:
   serve                 start the local server and open the UI (default command)
   stop                  stop the running server
   status                show whether the server is running
+  update                install the latest release over this binary
 
 Run "perch <command> --help" for command-specific options. "perch --version" prints the version.
 `
@@ -51,7 +57,7 @@ func main() {
 	rest := args
 	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
 		switch args[0] {
-		case "serve", "stop", "status":
+		case "serve", "stop", "status", "update":
 			command = args[0]
 			rest = args[1:]
 		default:
@@ -69,6 +75,8 @@ func main() {
 		err = cmdStop(rest)
 	case "status":
 		err = cmdStatus(rest)
+	case "update":
+		err = cmdUpdate(rest)
 	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -147,6 +155,7 @@ already running (per ~/.perch/server.json), prints/opens its URL instead of star
 	if open {
 		openBrowser(running.URL)
 	}
+	go noticeUpdate()
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
@@ -255,4 +264,84 @@ func openBrowser(url string) {
 	if err := cmd.Start(); err == nil {
 		go cmd.Wait()
 	}
+}
+
+func cmdUpdate(args []string) error {
+	flags := flag.NewFlagSet("update", flag.ExitOnError)
+	checkOnly := flags.Bool("check", false, "report whether a newer release exists, and install nothing")
+	pin := flags.String("version", "", "install this tag instead of the latest (e.g. vX.Y.Z)")
+	flags.Usage = func() {
+		fmt.Print(`usage: perch update [--check] [--version <tag>]
+
+Downloads the latest release for this platform, verifies it against the release's checksums.txt,
+and replaces the running binary. A running server keeps the old version until it is restarted.
+
+  --check             report what is available and install nothing
+  --version <tag>     install this tag instead of the latest, including an older one
+`)
+	}
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+
+	tag := *pin
+	if tag == "" {
+		latest, err := update.Latest(ctx)
+		if err != nil {
+			return fmt.Errorf("could not reach the releases API: %w", err)
+		}
+		tag = latest
+		if !update.IsNewer(tag, Version) {
+			fmt.Printf("perch v%s is the latest release\n", Version)
+			return nil
+		}
+		if *checkOnly {
+			fmt.Printf("%s is available (you have v%s)\n  run: perch update\n", tag, Version)
+			return nil
+		}
+	} else if *checkOnly {
+		fmt.Printf("%s is available (you have v%s)\n  run: perch update --version %s\n", tag, Version, tag)
+		return nil
+	}
+
+	fmt.Printf("perch v%s → %s\n", Version, tag)
+	path, err := update.Apply(ctx, tag, func(line string) { fmt.Printf("  %s\n", line) })
+	if err != nil {
+		return err
+	}
+	fmt.Printf("  replaced %s\n", tilde(path))
+
+	if info, _ := storage.ReadServerInfo(); info != nil && healthy(info.URL) {
+		fmt.Printf("\nA server is still running the old version (pid %d). Restart it: perch stop && perch\n", info.PID)
+	}
+	return nil
+}
+
+// noticeUpdate is the look serve takes for a newer release: one cached request a day, never
+// blocking the server it runs beside, and silent about anything that goes wrong — a machine
+// that cannot reach GitHub is not a problem the person running a SQL client has to hear about.
+func noticeUpdate() {
+	if update.Disabled() || !update.Supported() {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	tag, err := update.Check(ctx, 24*time.Hour)
+	if err != nil || !update.IsNewer(tag, Version) {
+		return
+	}
+	fmt.Printf("%s is available (you have v%s) — run: perch update\n", tag, Version)
+}
+
+// ~/.local/bin/perch rather than /Users/you/.local/bin/perch, matching what install.sh prints.
+func tilde(path string) string {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" || !strings.HasPrefix(path, home+string(os.PathSeparator)) {
+		return path
+	}
+	return "~" + path[len(home):]
 }

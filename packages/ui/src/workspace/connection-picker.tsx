@@ -14,7 +14,7 @@ import {
 import { Skeleton } from "../ui/skeleton";
 import { Spinner } from "../ui/spinner";
 import { CONNECT_MS, CONNECT_STAGES } from "../onboarding/connecting-screen";
-import { useResetOnboarded } from "../onboarding/use-onboarding";
+import { requestConnectSetup } from "../onboarding/use-onboarding";
 import { useConnecting } from "./connecting-overlay";
 import { useWorkspace } from "./context";
 import { ErrorText } from "./error-text";
@@ -33,8 +33,6 @@ export function ConnectionPicker({ className }: { className?: string }): React.R
   const { connections, connection, database, databases, connect, selectDatabase } = useWorkspace();
   // Both picks invalidate every pane behind this menu, so both go behind the handover screen.
   const { cover } = useConnecting();
-  // The way back to the setup screen, after "Skip for now" or to add another server.
-  const showSetup = useResetOnboarded();
 
   const currentDatabase = database ?? connection?.database ?? null;
   const pending = connections.status === "loading" || connections.status === "idle";
@@ -77,7 +75,7 @@ export function ConnectionPicker({ className }: { className?: string }): React.R
           {(connections.status === "ready" || connections.status === "error") &&
             connections.data !== undefined &&
             (connections.data.length === 0 ? (
-              <DropdownMenuItem onClick={showSetup}>
+              <DropdownMenuItem onClick={requestConnectSetup}>
                 <PlusIcon />
                 <span>Connect a database…</span>
               </DropdownMenuItem>
@@ -109,7 +107,7 @@ export function ConnectionPicker({ className }: { className?: string }): React.R
           {/* Always here, not only when the list is empty: "connect to something else" is the
               same question as "connect to something", and it has the same answer. */}
           {connections.status === "ready" && connections.data.length > 0 && (
-            <DropdownMenuItem onClick={showSetup}>
+            <DropdownMenuItem onClick={requestConnectSetup}>
               <PlusIcon />
               <span>Connect a database…</span>
             </DropdownMenuItem>

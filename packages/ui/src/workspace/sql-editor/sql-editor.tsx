@@ -7,11 +7,12 @@
 // view drops the cursor, scroll position and undo history. And nothing hardcodes a colour:
 // highlighting maps to theme-token classes and the chrome reads `var(--color-*)`.
 
-import { MySQL, PostgreSQL, sql } from "@codemirror/lang-sql";
+import { autocompletion } from "@codemirror/autocomplete";
+import { sql } from "@codemirror/lang-sql";
 import { setDiagnostics, type Diagnostic } from "@codemirror/lint";
 import type { Extension } from "@codemirror/state";
 import { highlightActiveLineGutter, lineNumbers, type EditorView } from "@codemirror/view";
-import type { Dialect, Settings } from "@perch/protocol";
+import type { CompletionMode, Dialect, Settings } from "@perch/protocol";
 import { splitStatements } from "@perch/sql";
 import * as React from "react";
 import { cn } from "../../lib/utils";
@@ -27,13 +28,15 @@ import { useWorkspace } from "../context";
 import { asyncData, type CursorPosition } from "../types";
 import { hotkeyLabel } from "../use-hotkey";
 import { completionNamespace, defaultSchemaName } from "./completion";
-import { createEditorView, gutterConf, languageConf } from "./create-view";
+import { completionConf, createEditorView, gutterConf, languageConf } from "./create-view";
+import { dialectFor } from "./dialect";
 import { useEditorCommands, type EditorBridge } from "./editor-commands";
 import {
   formatDocument,
   FORMAT_DOCUMENT_EVENT,
   type FormatDocumentEventDetail,
 } from "./format-document";
+import { smartCompletionSource } from "./smart-completion";
 import { queryErrorDiagnostic } from "./statements";
 
 // `Hotkey` descriptors rather than strings, so `hotkeyLabel` renders the platform's own glyphs.
@@ -77,6 +80,9 @@ export function SqlEditor({
   // "lower" is a deliberate floor, not a preference: the formatter defaults to "upper", so a
   // format fired before settings load would upper-case every keyword in the file.
   const keywordCase: Settings["keywordCase"] = asyncData(settings)?.keywordCase ?? "lower";
+  // "smart" is the stored default, so a popup opened before settings load behaves the way it will
+  // a moment later rather than briefly offering the whole dictionary.
+  const completionMode: CompletionMode = asyncData(settings)?.completion ?? "smart";
 
   /* The view reads its callbacks through a ref, so a new closure on every render never costs a
      reconfiguration — and the keymap built at creation stays correct forever. */
@@ -87,30 +93,53 @@ export function SqlEditor({
     run: () => {},
     setCursor: () => {},
   });
-  bridge.current = {
-    applyChange: (next: string) => {
-      if (controlled) controlledOnChange?.(next);
-      else if (fileId) editBuffer(fileId, next);
-    },
-    dialect,
-    keywordCase,
-    run: (sql: string) => {
-      if (onRunStatement) onRunStatement(sql);
-      else void run(sql);
-    },
-    setCursor,
-  };
+  /* Refilled after the commit rather than in render: React may discard a render, and the keymap
+     holds this ref for the life of the view — a callback from UI that never shipped would keep
+     firing. */
+  React.useEffect(() => {
+    bridge.current = {
+      applyChange: (next: string) => {
+        if (controlled) controlledOnChange?.(next);
+        else if (fileId) editBuffer(fileId, next);
+      },
+      dialect,
+      keywordCase,
+      run: (sql: string) => {
+        if (onRunStatement) onRunStatement(sql);
+        else void run(sql);
+      },
+      setCursor,
+    };
+  });
 
   const language = React.useMemo(
     () =>
       sql({
         defaultSchema: defaultSchemaName(schemaData, dialect),
-        dialect: dialect === "mysql" ? MySQL : PostgreSQL,
+        dialect: dialectFor(dialect),
         schema: completionNamespace(schemaData),
         upperCaseKeywords: false,
       }),
     [dialect, schemaData],
   );
+
+  const completion = React.useMemo<Extension>(() => {
+    if (completionMode === "off") return [];
+    if (completionMode === "basic") return autocompletion({ icons: true });
+    // `override` is the only way to drop lang-sql's own dictionary source: a language-data facet
+    // value cannot be removed once the language provides it.
+    return autocompletion({
+      icons: true,
+      override: [
+        smartCompletionSource({
+          defaultSchema: defaultSchemaName(schemaData, dialect),
+          dialect,
+          keywordCase,
+          schema: schemaData,
+        }),
+      ],
+    });
+  }, [completionMode, dialect, keywordCase, schemaData]);
 
   const gutter = React.useMemo<Extension>(
     () => (minimal ? [] : [lineNumbers(), highlightActiveLineGutter()]),
@@ -139,8 +168,12 @@ export function SqlEditor({
   const hostRef = React.useRef<HTMLDivElement>(null);
   const viewRef = React.useRef<EditorView | null>(null);
   const reported = React.useRef<CursorPosition>({ col: 1, line: 1 });
-  const initial = React.useRef({ autoFocus, gutter, language, minimal, value });
-  initial.current = { autoFocus, gutter, language, minimal, value };
+  const initial = React.useRef({ autoFocus, completion, gutter, language, minimal, value });
+  /* After the commit, and declared above the effect that builds the view, so the view is always
+     created from props that actually rendered. */
+  React.useEffect(() => {
+    initial.current = { autoFocus, completion, gutter, language, minimal, value };
+  });
 
   const commands = useEditorCommands(viewRef, bridge);
 
@@ -182,6 +215,10 @@ export function SqlEditor({
   React.useEffect(() => {
     viewRef.current?.dispatch({ effects: gutterConf.reconfigure(gutter) });
   }, [gutter]);
+
+  React.useEffect(() => {
+    viewRef.current?.dispatch({ effects: completionConf.reconfigure(completion) });
+  }, [completion]);
 
   /* Adopt changes made to the buffer from outside (a save round-trip, a palette insertion). The
      equality check is what stops this from fighting the updateListener on every keystroke. */

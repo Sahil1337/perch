@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Existing tag to build a draft release from (e.g. v0.1.0)"
+        description: "Existing tag to build a draft release from"
         required: true
 
 env:
@@ -35,8 +35,8 @@ jobs:
         run: |
           TAG="${{ inputs.tag }}"
           VERSION="${TAG#v}"
-          # The binary reports its version from a build flag, so a tag that disagrees with
-          # package.json would ship a binary that lies about which release it is.
+          # The linker stamps package.json's version into the binary, so a tag that disagrees
+          # would name the assets one thing and have the binary report another.
           DECLARED=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' apps/server/package.json | head -1)
           if [ "$VERSION" != "$DECLARED" ]; then
             echo "::error::tag $TAG says $VERSION but apps/server/package.json says $DECLARED"
@@ -51,8 +51,6 @@ jobs:
 
       - name: Build every target
         working-directory: apps/server
-        env:
-          PERCH_VERSION: ${{ steps.version.outputs.version }}
         run: bash scripts/build.sh --all
 
       - name: Package

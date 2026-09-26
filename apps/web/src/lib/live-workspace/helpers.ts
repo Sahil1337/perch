@@ -1,5 +1,5 @@
-import { isPerchError } from "@perch/client";
-import { baseName, messageOf as textOf } from "@perch/ui";
+import { connectFailureCode, isPerchError } from "@perch/client";
+import { ConnectFailed, baseName, messageOf as textOf } from "@perch/ui";
 
 export const RECONNECT_MIN_MS = 1_000;
 export const RECONNECT_MAX_MS = 10_000;
@@ -37,4 +37,15 @@ export function sleep(ms: number, signal: AbortSignal): Promise<void> {
 /** Fire-and-forget loads from callbacks and events, where there is no effect to cancel. */
 export function detached(): AbortSignal {
   return new AbortController().signal;
+}
+
+/**
+ * A rejection from a connect or test, re-thrown as the error type the UI branches on. The code the
+ * server sent is what turns "it failed" into a password field on the row that failed, so it has to
+ * survive the trip from the transport to the component.
+ */
+export function connectFailure(error: unknown): ConnectFailed {
+  return new ConnectFailed(messageOf(error), connectFailureCode(error) ?? "connect_failed", {
+    cause: error,
+  });
 }

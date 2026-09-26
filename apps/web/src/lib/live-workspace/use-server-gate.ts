@@ -26,24 +26,25 @@ export function useServerGate(
     if (!probing) return;
     const controller = new AbortController();
     const { signal } = controller;
-    void (async () => {
-      let delay = RECONNECT_MIN_MS;
-      while (!signal.aborted) {
-        try {
-          const info = await getClient().health({ signal });
-          if (!signal.aborted) {
-            setQueriesDir(info.queriesDir ?? null);
-            setStatus("ready");
-          }
-          return;
-        } catch (error) {
+    // Chained rather than a `while` + `await`, so every state write sits behind its own
+    // `signal.aborted` check: the probe in flight when the gate closes must not land.
+    const probe = (delay: number): void => {
+      void getClient()
+        .health({ signal })
+        .then((info) => {
+          if (signal.aborted) return;
+          setQueriesDir(info.queriesDir ?? null);
+          setStatus("ready");
+        })
+        .catch((error: unknown) => {
           if (signal.aborted || aborted(error)) return;
           setStatus("unreachable");
-        }
-        await sleep(delay, signal);
-        delay = Math.min(delay * 2, RECONNECT_MAX_MS);
-      }
-    })();
+          void sleep(delay, signal).then(() => {
+            if (!signal.aborted) probe(Math.min(delay * 2, RECONNECT_MAX_MS));
+          });
+        });
+    };
+    probe(RECONNECT_MIN_MS);
     return () => controller.abort();
   }, [probing, probeNonce, getClient]);
 

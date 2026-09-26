@@ -4,7 +4,7 @@
 #   curl -fsSL https://raw.githubusercontent.com/Sahil1337/perch/main/install.sh | sh
 #
 # Environment:
-#   PERCH_VERSION        install this tag instead of the latest (e.g. v0.1.0)
+#   PERCH_VERSION        install this tag instead of the latest (e.g. vX.Y.Z)
 #   PERCH_INSTALL_DIR    install here instead of the first writable default
 #   PERCH_DOWNLOAD_BASE  fetch assets from here instead of GitHub (testing, mirrors)
 #   PERCH_NO_MODIFY_PATH leave the shell profile alone and just print the line to add

@@ -92,17 +92,85 @@ export const editorThemeBase = EditorView.theme({
     color: "var(--color-popover-foreground)",
     fontFamily: "var(--font-sans)",
   },
-  ".cm-tooltip.cm-tooltip-autocomplete > ul": { fontFamily: "var(--font-mono)" },
-  ".cm-tooltip.cm-tooltip-autocomplete > ul > li": { padding: "0.125rem 0.5rem" },
+  // The completion popup, rebuilt. CodeMirror's default gives a row 1px of padding and marks the
+  // matched characters with `text-decoration: underline` — the same signal the linter uses for an
+  // error, on a list you read dozens of times an hour. A row here has the shape of a command
+  // palette item instead: a kind glyph, the label, and the detail pinned to the right edge so the
+  // details read as a column rather than a ragged trail.
+  ".cm-tooltip.cm-tooltip-autocomplete": {
+    borderRadius: "var(--radius-lg)",
+    boxShadow: "0 8px 24px -8px color-mix(in oklab, var(--color-foreground) 25%, transparent)",
+    overflow: "hidden",
+    padding: "0.25rem",
+  },
+  // A minimum width is what stops the box resizing under the cursor on every keystroke; the
+  // maximum is for a join predicate, the one completion long enough to run off the screen.
+  ".cm-tooltip.cm-tooltip-autocomplete > ul": {
+    fontFamily: "var(--font-mono)",
+    maxHeight: "17rem",
+    maxWidth: "34rem",
+    minWidth: "22rem",
+    scrollPaddingBlock: "0.25rem",
+  },
+  ".cm-tooltip.cm-tooltip-autocomplete > ul > li": {
+    alignItems: "center",
+    borderRadius: "var(--radius-sm)",
+    boxSizing: "border-box",
+    cursor: "default",
+    display: "flex",
+    gap: "0.5rem",
+    lineHeight: "1.5",
+    minHeight: "1.75rem",
+    padding: "0.1875rem 0.5rem",
+  },
   ".cm-tooltip.cm-tooltip-autocomplete > ul > li[aria-selected]": {
     backgroundColor: "var(--color-accent)",
     color: "var(--color-accent-foreground)",
   },
+  ".cm-tooltip-autocomplete .cm-completionLabel": {
+    flex: "0 1 auto",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  // Weight and a token, not an underline.
+  ".cm-tooltip-autocomplete .cm-completionMatchedText": {
+    color: "var(--color-info-foreground)",
+    fontWeight: "600",
+    textDecoration: "none",
+  },
   ".cm-completionDetail": {
     color: "var(--color-muted-foreground)",
+    flex: "0 0 auto",
     fontStyle: "normal",
-    marginLeft: "0.5rem",
+    marginLeft: "auto",
+    overflow: "hidden",
+    paddingLeft: "1.5rem",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
   },
+  ".cm-tooltip-autocomplete > ul > li[aria-selected] .cm-completionDetail": {
+    color: "color-mix(in oklab, var(--color-accent-foreground) 65%, transparent)",
+  },
+  // CodeMirror ships an emoji for `keyword` and a glyph set that does not distinguish a column
+  // from a table. These are the kinds this editor actually emits, in the same tokens the SQL
+  // highlighter uses, so the popup and the text under it agree about what a thing is.
+  ".cm-tooltip-autocomplete .cm-completionIcon": {
+    boxSizing: "content-box",
+    fontSize: "100%",
+    opacity: "1",
+    paddingRight: "0",
+    textAlign: "center",
+    width: "1rem",
+  },
+  ".cm-completionIcon-property::after": { color: "var(--color-muted-foreground)", content: "'▪'" },
+  ".cm-completionIcon-constant::after": { color: "var(--color-warning-foreground)", content: "'◆'" },
+  ".cm-completionIcon-class::after": { color: "var(--color-info-foreground)", content: "'▦'" },
+  ".cm-completionIcon-interface::after": { color: "var(--color-info-foreground)", content: "'▨'" },
+  ".cm-completionIcon-type::after": { color: "var(--color-muted-foreground)", content: "'○'" },
+  ".cm-completionIcon-function::after": { color: "var(--color-success-foreground)", content: "'ƒ'" },
+  ".cm-completionIcon-keyword::after": { color: "var(--color-muted-foreground)", content: "'·'" },
+  ".cm-completionIcon-text::after": { color: "var(--color-warning-foreground)", content: "'◇'" },
   ".cm-diagnostic-error": { borderLeft: "3px solid var(--color-destructive)" },
   ".cm-panels": {
     backgroundColor: "var(--color-sidebar)",

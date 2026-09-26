@@ -8,8 +8,8 @@ import { useCollapse, useFade } from "../lib/motion";
 import { Button } from "../ui/button";
 
 /**
- * A ghost button on the card's content edge, pulled out by its own padding so the *text* lands on
- * the column everything else is aligned to while the pressable area keeps its size.
+ * A ghost button on the column's edge, pulled out by its own padding so the *text* lands on the
+ * line while the pressable area keeps its size. Only correct inside a `ROW_COLUMN` container.
  */
 const EDGE_RIGHT = "-mr-2";
 

@@ -28,7 +28,7 @@ startup, so it never argues with a real `perch serve` you have running, or with 
 Open the `dev UI` line:
 
 ```
-perch:dev: perch v0.1.0 → http://127.0.0.1:54716
+perch:dev: perch v0.2.0 → http://127.0.0.1:54716
 perch:dev: dev UI      → http://localhost:5173/
 perch:dev: dev UI      → http://127.0.0.1:5173/
 @perch/web:dev:   VITE v8.3.0  ready in 430 ms
@@ -151,15 +151,17 @@ cd apps/server && gofmt -l .        # prints nothing when clean
 
 ## Cutting a release
 
-The version in `apps/server/package.json` is the source of truth; the workflow fails if the tag
-disagrees with it, because the binary reports its version from a build flag and would otherwise
-lie about which release it is.
+`apps/server/package.json` is the only place the version is written down. The build scripts read
+it and the linker stamps it into the binary, so bumping that one field is the whole change — the
+Go source carries no number to keep in step (an unflagged `go run` reports `dev`). The workflow
+fails if the tag disagrees with it, because the tag is what names the assets and picks the
+CHANGELOG section.
 
 ```sh
 # bump apps/server/package.json, commit, then:
-git tag v0.1.0 && git push origin v0.1.0
+git tag vX.Y.Z && git push origin vX.Y.Z
 # wait for that commit's `server` workflow to pass, then:
-#   Actions -> release -> Run workflow -> tag: v0.1.0
+#   Actions -> release -> Run workflow -> tag: vX.Y.Z
 ```
 
 [`.github/workflows/release.yml`](.github/workflows/release.yml) is **manual only**, and that is
@@ -172,6 +174,10 @@ It builds all five targets, ships Windows as a bare `.exe` and the rest as `.tar
 is what preserves the executable bit; a raw download needs a `chmod`), writes `checksums.txt`,
 and opens a **draft** release for you to publish. Re-running against an existing tag re-uploads
 the assets rather than failing.
+
+Publishing is what makes a release exist for everyone else: `install.sh` and `perch update` both
+read `releases/latest`, which does not see a draft. Until you publish, `perch update` on an older
+binary reports the previous release as the newest one.
 
 The binaries are unsigned. Until there is an Apple Developer certificate and a Windows signing
 cert, a downloaded copy trips Gatekeeper on macOS and SmartScreen on Windows.

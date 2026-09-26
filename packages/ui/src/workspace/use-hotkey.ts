@@ -49,7 +49,11 @@ function matches(event: KeyboardEvent, hotkey: Hotkey): boolean {
  */
 export function useHotkey(hotkey: Hotkey, handler: () => void, enabled = true): void {
   const latest = React.useRef(handler);
-  latest.current = handler;
+  // After the commit, not in render: a render React discards would otherwise arm the live listener
+  // with a handler belonging to UI that never shipped.
+  React.useEffect(() => {
+    latest.current = handler;
+  });
 
   const { key, mod, shift, alt } = hotkey;
 

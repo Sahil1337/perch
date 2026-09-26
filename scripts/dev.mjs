@@ -3,6 +3,7 @@ import { createServer } from "node:net";
 import { readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 /** Where `perch serve` records the server it started; `PERCH_HOME` moves it. */
 function serverInfoPath() {
@@ -32,6 +33,18 @@ async function runningServer() {
   }
 }
 
+/**
+ * Turborepo's launcher script, which we run on this runtime rather than through the
+ * `node_modules/.bin` shim: on Windows that shim is a `.cmd`, which `spawn` refuses to exec
+ * without a shell, and the extensionless sibling beside it is not executable there at all — so
+ * a bare `spawn("turbo", ...)` fails with ENOENT. Naming the script avoids the shim, the shell,
+ * and the quoting a path with spaces in it would otherwise need.
+ */
+function turboLauncher() {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  return path.join(root, "node_modules", "turbo", "bin", "turbo");
+}
+
 /** An ephemeral port the OS just confirmed is free. */
 function freePort() {
   return new Promise((resolve, reject) => {
@@ -58,7 +71,7 @@ if (existing) {
 }
 
 const port = await freePort();
-const child = spawn("turbo", ["run", "dev"], {
+const child = spawn(process.execPath, [turboLauncher(), "run", "dev"], {
   stdio: "inherit",
   env: {
     ...process.env,
@@ -67,6 +80,14 @@ const child = spawn("turbo", ["run", "dev"], {
     // which is only there for `dev:ui` on its own.
     VITE_PERCH_URL: `http://127.0.0.1:${port}`,
   },
+});
+
+child.on("error", (error) => {
+  console.error(
+    `Failed to start Turborepo: ${error.message}\n` +
+      `Is the workspace installed? Run \`bun install\` at the repo root.`,
+  );
+  process.exit(1);
 });
 
 // Ctrl-C reaches the whole process group already; this is only so the exit code survives.

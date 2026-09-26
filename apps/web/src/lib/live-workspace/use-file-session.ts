@@ -69,7 +69,7 @@ export function useFileSession(
    */
   restoring: boolean;
 } {
-  const { buffers, activeBufferId, openFile, focusBuffer } = workspace;
+  const { buffers, activeBufferId } = workspace;
 
   // Read once, at mount, rather than through an external store: the record is consumed exactly
   // once and never rendered, so there is nothing for a later write — here or in another tab — to
@@ -80,13 +80,13 @@ export function useFileSession(
   const restoring = !restored && remembered.files.length > 0;
 
   /**
-   * `openFile` closes over the buffer list, so its identity changes as tabs appear. Held in a ref
-   * so the restore below can depend on the server gate alone and still call the current one; a
-   * stale one costs at most a redundant read, since `openFile` de-duplicates by path on the way in.
+   * `openFile` closes over the buffer list, so its identity changes as tabs appear, and
+   * `activeBufferId` moves as the user clicks. The restore reads both at the moment it finishes
+   * rather than at the moment it started, so it holds the whole api rather than depending on it.
    */
-  const latestOpen = React.useRef(openFile);
+  const latest = React.useRef(workspace);
   React.useEffect(() => {
-    latestOpen.current = openFile;
+    latest.current = workspace;
   });
 
   /** Exactly once per app load, whatever re-renders or a StrictMode double-mount do to the effect. */
@@ -95,42 +95,56 @@ export function useFileSession(
     // Files are read over HTTP, so there is nothing to restore into until the server answers.
     if (!enabled || started.current || remembered.files.length === 0) return;
     started.current = true;
-    void (async () => {
-      // One at a time, in the order they were in: buffers are appended as they arrive, so opening
-      // them in parallel would shuffle the tab strip into whatever order the reads finished in.
-      // A file that cannot be read resolves like any other; it just leaves no buffer behind.
-      for (const path of remembered.files) await latestOpen.current(path);
+
+    // One at a time, in the order they were in: buffers are appended as they arrive, so opening
+    // them in parallel would shuffle the tab strip into whatever order the reads finished in.
+    // The outcome is kept as it goes, because `await openFile(…)` resolves before React has
+    // committed the tab — reading it back off `buffers` would need another render to be true.
+    const open = async (): Promise<{
+      opened: ReadonlySet<string>;
+      missing: readonly string[];
+      target: string | null;
+    }> => {
+      const opened = new Set<string>();
+      const missing: string[] = [];
+      let target: string | null = null;
+
+      for (const path of remembered.files) {
+        const id = await latest.current.openFile(path);
+        if (id === null) {
+          missing.push(path);
+          continue;
+        }
+        opened.add(id);
+        if (path === remembered.active) target = id;
+      }
+      return { opened, missing, target };
+    };
+
+    void open().then(({ opened, missing, target }) => {
+      // Focus is the user's before it is ours: if what has focus now is a tab this restore did not
+      // open — a scratch, or a file they picked while it was in flight — theirs stands. Anything the
+      // restore itself focused, which is whichever file it opened last, does not outrank the
+      // remembered one.
+      const active = latest.current.activeBufferId;
+      if (target !== null && (active === null || opened.has(active))) {
+        latest.current.focusBuffer(target);
+      }
+
+      // `openFile` reported each of these as it failed, into an error line that is last-write-wins;
+      // this one lands last and names them all at once instead of whichever happened to fail late.
+      if (missing.length > 0) {
+        const names = missing.map(fileName).join(", ");
+        reportFileError(
+          missing.length === 1
+            ? `Could not reopen ${names} from your last session.`
+            : `Could not reopen ${missing.length} files from your last session: ${names}.`,
+        );
+      }
+
       setRestored(true);
-    })();
-  }, [enabled, remembered]);
-
-  const settled = React.useRef(false);
-  React.useEffect(() => {
-    if (!restored || settled.current) return;
-    settled.current = true;
-
-    // This render carries every buffer the loop opened, which is why the outcome is read here and
-    // not inside the loop: an `await openFile(…)` resolves before React has committed the tab.
-    const missing = remembered.files.filter((path) => !buffers.some((b) => b.path === path));
-    const active = remembered.active;
-    const target = active === null ? undefined : buffers.find((b) => b.path === active);
-    // Focus is the user's before it is ours: if what has focus now is a tab this restore did not
-    // open — a scratch, or a file they picked while it was in flight — theirs stands. Anything the
-    // restore itself focused, which is whichever file it opened last, does not outrank the
-    // remembered one.
-    const taken = buffers.some(
-      (b) => b.id === activeBufferId && (b.path === null || !remembered.files.includes(b.path)),
-    );
-    if (target && !taken) focusBuffer(target.id);
-
-    if (missing.length === 0) return;
-    const names = missing.map(fileName).join(", ");
-    reportFileError(
-      missing.length === 1
-        ? `Could not reopen ${names} from your last session.`
-        : `Could not reopen ${missing.length} files from your last session: ${names}.`,
-    );
-  }, [restored, remembered, buffers, activeBufferId, focusBuffer, reportFileError]);
+    });
+  }, [enabled, remembered, reportFileError]);
 
   // Serialized during render so the effect below can compare it: `buffers` changes on every
   // keystroke, and what is remembered does not.

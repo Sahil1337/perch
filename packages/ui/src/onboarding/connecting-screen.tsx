@@ -63,8 +63,12 @@ export function ConnectingScreen({
   const count = stages.length;
 
   // In a ref, so a caller rebuilding the callback cannot restart the sequence half way through.
+  // Written after the commit rather than in render: React is free to discard a render, and the
+  // timers below must only ever call back into a screen the user actually got.
   const done = React.useRef(onDone);
-  done.current = onDone;
+  React.useEffect(() => {
+    done.current = onDone;
+  });
 
   React.useEffect(() => {
     // Nobody who asked not to be moved wants to be held here to watch something they cannot see.

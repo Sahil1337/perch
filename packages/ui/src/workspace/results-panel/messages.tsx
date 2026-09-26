@@ -10,7 +10,7 @@ export function MessagesView({ run }: { run: Run }): React.ReactElement {
   const started = clockOf(run.startedAt);
 
   return (
-    <div className="h-full overflow-auto p-2.5 font-mono text-xs leading-5">
+    <div className="h-full overflow-auto p-2.5 font-mono text-sm">
       <p className="text-muted-foreground">
         <span className="tabular-nums">[{started}]</span> Run started
         {run.database ? ` on ${run.database}` : ""}.

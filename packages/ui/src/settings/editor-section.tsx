@@ -2,13 +2,19 @@
 // formatter writes, and "Keyword case" alone does not say formatting is an explicit action rather
 // than something that happens as you type.
 
-import type { Settings } from "@perch/protocol";
+import type { CompletionMode, Settings } from "@perch/protocol";
 import { AnimatePresence, motion } from "motion/react";
 import * as React from "react";
 import { useFade } from "../lib/motion";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
 import { SettingRow } from "./setting-controls";
 import type { SettingsWriter } from "./saved-tick";
+
+const COMPLETION_LABELS: Record<CompletionMode, string> = {
+  off: "Off",
+  basic: "Basic",
+  smart: "Smart",
+};
 
 const KEYWORD_CASE_LABELS: Record<Settings["keywordCase"], string> = {
   preserve: "Preserve",
@@ -44,6 +50,28 @@ export function EditorSection({
 
   return (
     <>
+      <SettingRow
+        description="Smart reads the statement you are in and only suggests columns from the tables it joins. Basic offers every keyword and every object in the schema."
+        title="Autocomplete"
+      >
+        <Select
+          items={COMPLETION_LABELS}
+          onValueChange={(value) => writer.write({ completion: value as CompletionMode })}
+          value={settings.completion}
+        >
+          <SelectTrigger className="w-36" size="sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectPopup>
+            {(Object.keys(COMPLETION_LABELS) as CompletionMode[]).map((option) => (
+              <SelectItem key={option} value={option}>
+                {COMPLETION_LABELS[option]}
+              </SelectItem>
+            ))}
+          </SelectPopup>
+        </Select>
+      </SettingRow>
+
       <SettingRow
         description="How the formatter writes keywords. Formatting is an explicit action — ⇧⌥F, or Format from the editor's context menu."
         title="Keyword case"

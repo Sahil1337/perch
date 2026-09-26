@@ -85,11 +85,12 @@ func (p *Pool) DriverFor(ctx context.Context, idOrName string) (db.Driver, error
 		return entry.driver, nil
 	}
 	if err := entry.driver.Connect(ctx); err != nil {
+		failure := db.Classify(config, err)
 		p.mu.Lock()
 		entry.status = protocol.StatusError
-		entry.err = err.Error()
+		entry.err = failure.Message
 		p.mu.Unlock()
-		return nil, httpx.BadRequest(err.Error(), "connect_failed")
+		return nil, httpx.BadRequest(failure.Message, string(failure.Code))
 	}
 	p.mu.Lock()
 	entry.status = protocol.StatusConnected
@@ -183,13 +184,18 @@ func (p *Pool) Forget(connectionID string) {
 }
 
 func (p *Pool) Test(ctx context.Context, idOrName string) (string, int64, error) {
-	driver, err := p.DriverFor(ctx, idOrName)
+	config, err := p.Config(idOrName)
+	if err != nil {
+		return "", 0, err
+	}
+	driver, err := p.DriverFor(ctx, config.ID)
 	if err != nil {
 		return "", 0, err
 	}
 	version, latency, err := driver.Test(ctx)
 	if err != nil {
-		return "", 0, httpx.BadRequest(err.Error(), "test_failed")
+		failure := db.Classify(config, err)
+		return "", 0, httpx.BadRequest(failure.Message, string(failure.Code))
 	}
 	return version, latency, nil
 }

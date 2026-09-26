@@ -23,7 +23,7 @@ func (s *Server) registerRuns() {
 	})
 
 	s.handle("GET /api/runs/{id}", func(w http.ResponseWriter, r *http.Request) error {
-		run, ok := s.runLog.Get(r.PathValue("id"))
+		run, ok := runWithRows(s.runLog, r.PathValue("id"))
 		if !ok {
 			return httpx.NotFound("no such run: " + r.PathValue("id"))
 		}
@@ -31,7 +31,7 @@ func (s *Server) registerRuns() {
 	})
 
 	s.handle("GET /api/runs/{id}/export", func(w http.ResponseWriter, r *http.Request) error {
-		run, ok := s.runLog.Get(r.PathValue("id"))
+		run, ok := runWithRows(s.runLog, r.PathValue("id"))
 		if !ok {
 			return httpx.NotFound("no such run: " + r.PathValue("id"))
 		}
@@ -78,6 +78,21 @@ func (s *Server) registerRuns() {
 	})
 }
 
+// runWithRows finds a run's rows wherever they still are: in memory for the last fifty, and in
+// history for anything older that was recorded with `historyMode: results`. Before the store this
+// was memory only, which is why an export link went dead as soon as a run aged out — and why every
+// run went dead at a restart.
+func runWithRows(log *RunLog, runID string) (protocol.RunRecord, bool) {
+	if run, ok := log.Get(runID); ok {
+		return run, true
+	}
+	run, ok, err := storage.FullRun(runID)
+	if err != nil || !ok {
+		return protocol.RunRecord{}, false
+	}
+	return run, true
+}
+
 func (s *Server) registerHistory() {
 	s.handle("GET /api/history", func(w http.ResponseWriter, r *http.Request) error {
 		query := r.URL.Query()
@@ -90,11 +105,39 @@ func (s *Server) registerHistory() {
 			limit = parsed
 		}
 		limit = min(1000, max(1, limit))
-		records, err := storage.ReadHistory(limit, query.Get("connectionId"))
+		scope := protocol.HistoryScope(query.Get("scope"))
+		switch scope {
+		case protocol.ScopeAll, protocol.ScopeWorkspace, protocol.ScopeGlobal:
+		default:
+			scope = protocol.ScopeAll
+		}
+		records, err := storage.ListRuns(storage.HistoryQuery{
+			Limit:        limit,
+			ConnectionID: query.Get("connectionId"),
+			Scope:        scope,
+			Workspace:    query.Get("workspace"),
+		})
 		if err != nil {
 			return err
 		}
 		return httpx.JSON(w, records)
+	})
+
+	// What history is costing, for the settings pane that offers to clear it. Separate from the
+	// list because the list is a page and this is the whole store.
+	s.handle("GET /api/history/stats", func(w http.ResponseWriter, r *http.Request) error {
+		stats, err := storage.HistoryStats()
+		if err != nil {
+			return err
+		}
+		return httpx.JSON(w, stats)
+	})
+
+	s.handle("DELETE /api/history", func(w http.ResponseWriter, r *http.Request) error {
+		if err := storage.ClearHistory(); err != nil {
+			return err
+		}
+		return httpx.JSON(w, map[string]any{"ok": true})
 	})
 }
 
