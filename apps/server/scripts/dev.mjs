@@ -17,7 +17,6 @@ const args = [
 
 const child = spawn("go", args, {
   stdio: "inherit",
-  shell: process.platform === "win32",
   env: process.env,
 });
 
