@@ -13,12 +13,12 @@ contract; this one is how the code behind it is arranged.
 apps/server/
 ├── go.mod                    module perch, Go 1.25
 ├── main.go                   the CLI: serve (default), stop, status
-├── package.json              scripts only — turbo and `--filter perch` reach the .sh files
+├── package.json              scripts only — turbo and `--filter perch` reach the scripts
 │                             through it; no npm dependencies
 ├── scripts/
 │   ├── build.sh              stages apps/server/ui into webui/static, then go build
 │   │                         (--all cross-compiles every release target)
-│   ├── dev.sh                go run . serve, allow-listing the vite dev origin
+│   ├── dev.mjs               go run . serve, allow-listing the vite dev origin
 │   ├── build.bat             the Windows convenience copy of build.sh
 │   ├── smoke.sh              the end-to-end suite; drives ./dist/perch
 │   └── smoke-fixtures.sql    the tables smoke.sh expects

@@ -89,7 +89,7 @@ To target a single workspace, use `--filter`: `bun run --filter perch typecheck`
 **The server needs Go 1.25+, and nothing else does.** `apps/server` is a Go module; its
 `package.json` holds scripts and no dependencies, so `bun install` never touches it. Its real
 entry points are `scripts/build.sh` (add `--all` to cross-compile every release target) and
-`scripts/dev.sh`. `go vet ./...`, `gofmt -l .` and `go build ./...` are what CI runs, so run them
+`scripts/dev.mjs`. `go vet ./...`, `gofmt -l .` and `go build ./...` are what CI runs, so run them
 before pushing:
 
 ```sh
