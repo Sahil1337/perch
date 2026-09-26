@@ -16,6 +16,7 @@ import { cn } from "../../lib/utils";
 import { Button } from "../../ui/button";
 import { Field, FieldDescription, FieldLabel } from "../../ui/field";
 import { Input } from "../../ui/input";
+import { PasswordInput } from "../../ui/password-input";
 import { Switch } from "../../ui/switch";
 import { useWorkspace } from "../../workspace/context";
 import type { ConnectionInput, ConnectionTest } from "../../workspace/types";
@@ -145,11 +146,10 @@ export function ConnectionForm({
 
       <Field>
         <FieldLabel>Password</FieldLabel>
-        <Input
+        <PasswordInput
           autoComplete="off"
           onValueChange={fields.setPassword}
           placeholder={connectionId === undefined ? "" : "Unchanged"}
-          type="password"
           value={fields.password}
         />
         <FieldDescription>

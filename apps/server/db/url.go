@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"os/user"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -129,7 +130,17 @@ func parseSSL(query url.Values) bool {
 	return true
 }
 
+// The login a server on this machine is likeliest to accept when nothing else named one.
+//
+// On Unix the OS user is the convention and usually right: a package install creates a role named
+// after whoever ran it, and peer auth matches on it. Windows has no such convention — the
+// installer creates `postgres` and nothing else — and user.Current() there answers
+// `MACHINE\Name`, a backslash and often a space that no role is ever called. Suggesting it
+// produces a login certain to be refused, under a name nobody typed.
 func osUser() string {
+	if runtime.GOOS == "windows" {
+		return "postgres"
+	}
 	if current, err := user.Current(); err == nil && current.Username != "" {
 		return current.Username
 	}

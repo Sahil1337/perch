@@ -24,7 +24,8 @@ export function SavedConnections({
    */
   challenge?: PasswordChallenge | null;
   onDismissChallenge?: () => void;
-  onOpen: (connectionId: string, password?: string) => void;
+  /** `user` is present only when the prompt corrected the saved login. */
+  onOpen: (connectionId: string, password?: string, user?: string) => void;
 }): React.ReactElement {
   return (
     <section className="flex flex-col gap-2">
@@ -42,8 +43,12 @@ export function SavedConnections({
                   tells two rows on one server apart. */}
               <span
                 className="flex min-w-0 max-w-48 shrink-0 font-mono text-muted-foreground text-xs"
-                title={`${item.host}:${item.port}`}
+                title={`${item.user === "" ? "" : `${item.user}@`}${item.host}:${item.port}`}
               >
+                {/* The login is here for the same reason it is on a discovered row: it is what
+                    the password will be checked against, and a wrong one refuses every password
+                    there is. It truncates before the host does — the host identifies the row. */}
+                {item.user !== "" && <span className="min-w-0 truncate">{item.user}@</span>}
                 <span className="min-w-0 truncate">{item.host}</span>
                 <span className="shrink-0">:{item.port}</span>
               </span>
@@ -61,7 +66,7 @@ export function SavedConnections({
             {challenge?.target === item.id && (
               <PasswordPrompt
                 onCancel={() => onDismissChallenge?.()}
-                onSubmit={(password) => onOpen(item.id, password)}
+                onSubmit={(password, user) => onOpen(item.id, password, user)}
                 pending={pending === item.id}
                 refused={challenge.refused}
                 user={challenge.user}

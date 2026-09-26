@@ -28,7 +28,7 @@ import {
   type ConnectionInput,
 } from "../workspace/types";
 import { ROW_COLUMN } from "./column";
-import { DIALECT_DEFAULTS, DialectMark } from "./dialect-mark";
+import { DIALECT_DEFAULTS, DIALECT_LABEL, DialectMark } from "./dialect-mark";
 import { PasswordPrompt, type PasswordChallenge } from "./password-prompt";
 
 /**
@@ -223,18 +223,22 @@ export function DiscoveredServers({
 
       {servers.length > 0 && (
         <ul className="flex flex-col gap-1">
-          {servers.map((server) => (
-            <ServerRow
-              challenge={challenge?.target === serverKey(server) ? challenge : null}
-              key={serverKey(server)}
-              onDismissChallenge={onDismissChallenge}
-              onSelect={(password) =>
-                onSelect(connectionInputFromServer(server, result?.osUser ?? ""), server, password)
-              }
-              pending={pending === serverKey(server)}
-              server={server}
-            />
-          ))}
+          {servers.map((server) => {
+            const input = connectionInputFromServer(server, result?.osUser ?? "");
+            return (
+              <ServerRow
+                challenge={challenge?.target === serverKey(server) ? challenge : null}
+                input={input}
+                key={serverKey(server)}
+                onDismissChallenge={onDismissChallenge}
+                onSelect={(password, user) =>
+                  onSelect(user === undefined ? input : { ...input, user }, server, password)
+                }
+                pending={pending === serverKey(server)}
+                server={server}
+              />
+            );
+          })}
         </ul>
       )}
     </section>
@@ -243,13 +247,17 @@ export function DiscoveredServers({
 
 function ServerRow({
   server,
+  input,
   onSelect,
   pending,
   challenge,
   onDismissChallenge,
 }: {
   server: DiscoveredServer;
-  onSelect: (password?: string) => void;
+  /** What Connect will send, so the row can name the login before it is used. */
+  input: DiscoveredInput;
+  /** `user` is present only when the prompt corrected the guess this row started from. */
+  onSelect: (password?: string, user?: string) => void;
   pending: boolean;
   challenge: PasswordChallenge | null;
   onDismissChallenge?: () => void;
@@ -265,7 +273,9 @@ function ServerRow({
           label={server.reachable ? "Reachable" : "Not answering"}
           status={server.reachable ? "connected" : "idle"}
         />
-        <span className="shrink-0 font-mono text-xs">
+        <span className="shrink-0 font-medium text-xs">{DIALECT_LABEL[server.dialect]}</span>
+        <span className="shrink-0 font-mono text-muted-foreground text-xs">
+          {input.user === "" ? "" : `${input.user}@`}
           {server.host}:{server.port}
         </span>
         {server.version !== undefined && (
@@ -288,7 +298,7 @@ function ServerRow({
       {challenge !== null && (
         <PasswordPrompt
           onCancel={() => onDismissChallenge?.()}
-          onSubmit={(password) => onSelect(password)}
+          onSubmit={(password, user) => onSelect(password, user)}
           pending={pending}
           refused={challenge.refused}
           user={challenge.user}
