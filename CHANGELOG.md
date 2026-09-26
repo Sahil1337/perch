@@ -9,7 +9,7 @@ The section matching a release's version becomes that release's notes on GitHub 
 [0.2.0]: https://github.com/Sahil1337/perch/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Sahil1337/perch/releases/tag/v0.1.0
 
-## [0.2.0] — 2026-09-22
+## [0.2.0] — 2026-09-27
 
 ### Added
 
