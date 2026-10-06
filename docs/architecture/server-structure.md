@@ -37,7 +37,8 @@ apps/server/
 │   ├── start.go              binds a port (scanning upward), writes server.json, shuts down
 │   ├── bus.go                fans ServerEvents to open SSE streams; non-blocking sends
 │   ├── pool.go               live drivers by connection id + the schema TTL cache. The seam
-│   │                         where a driver's plain error becomes an answerable HTTP failure
+│   │                         where a driver's plain error becomes an answerable HTTP failure,
+│   │                         and where a held transaction's end becomes a `transaction` event
 │   ├── runner.go             builds the RunRecord, forwards events, guarantees one `done`,
 │   │                         appends to history
 │   ├── runlog.go             the in-memory run log (50), so /runs/:id can serve rows
@@ -51,9 +52,13 @@ apps/server/
 │   ├── sink.go               one statement's output: the maxRows cut, row batching, the result
 │   ├── cell.go               driver value → wire Cell, in the shapes node-postgres and mysql2
 │   │                         produced (int8 and numeric as strings, ISO timestamps, \x hex)
-│   ├── postgres.go           pools, statement execution, cancel via pg_cancel_backend
+│   ├── postgres.go           pools, the run's session, statement execution, cancel via the
+│   │                         protocol's CancelRequest
+│   ├── pgheld.go             transactions a tab keeps open between runs: the claim per session
+│   │                         key, the idle rollback, release, and the pool-pressure message
 │   ├── pgtypes.go            OID → name, error → QueryError, the row-returning heuristic
-│   ├── pgintrospect.go       the schema tree, three catalog queries
+│   ├── pgintrospect.go       the schema tree in three whole-database catalog queries, then
+│   │                         triggers, best-effort: a failure there empties them, not the tree
 │   ├── columnsource.go       relation oid + attnum → table and column names, cached
 │   ├── mysql.go              the same shape over database/sql; cancel via KILL QUERY
 │   ├── mysqlintrospect.go    the schema tree from information_schema
@@ -107,7 +112,29 @@ that is how the stale-write 409 returns the file as it is on disk now.
 `db.Driver` is nine methods. Both implementations embed `base`, which owns the run loop (one
 `start`, one `statement` per statement, one `done`), the cancellation flag and the per-statement
 bookkeeping; each dialect supplies four hooks — execute a statement, kill a handle, recognise a
-cancellation, convert an error. That is the Go shape of what `BaseDriver` did with inheritance.
+cancellation, convert an error — and may supply two more, open and close a session. That is the
+Go shape of what `BaseDriver` did with inheritance.
+
+With the session hooks, a run that can write holds one connection from its first statement to its
+last, so a transaction, a cursor or a `SET` carries across its statements and nothing carries into
+the next run. `closeSession` runs however the run ended, before `done`: it rolls back a transaction
+the script left open, reports that as a `notice` with index -1 (collected into
+`RunRecord.notices`), and resets the connection before it goes back to the pool — or closes it when
+it cannot. Postgres supplies them. Read-only runs never get a session: each statement takes its own
+pooled connection and sets read-only on it, so no statement can lift the setting for the next.
+MySQL does not supply them yet and keeps a connection per statement.
+
+The one thing that does carry into the next run is a transaction left open by a run with a
+`sessionKey` (the UI sends the editor tab's buffer id). Postgres's `closeSession` keeps that
+connection, still inside the transaction, in a map keyed by database and session key, and the
+key's next run continues on it without the opening `DISCARD ALL`. Runs with one key take turns: one
+arriving while another executes is refused. What the key holds afterwards is `RunRecord.transaction`,
+returned from `Driver.Run` beside the status. A held session ends by a run (`COMMIT`, `ROLLBACK`),
+by `POST /api/connections/:id/sessions/release`, after `idleTransactionTimeout` (15 minutes; a
+string var, so `-ldflags "-X perch/db.idleTransactionTimeout=20s"` shortens it), on Disconnect or
+Forget — which must roll them back before `pgxpool.Close`, since that waits for every connection —
+or when its connection dies. Those that end without a run reach the UI through
+`db.SessionHolder.OnClosed`, which `server/pool.go` turns into a `transaction` event on the bus.
 
 Streaming has no cursor. pgx reads a result set message by message rather than buffering it, so
 `conn.Query` plus an early `Close` on the maxRows cut does what `pg-cursor` was there for.

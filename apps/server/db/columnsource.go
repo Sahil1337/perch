@@ -5,12 +5,16 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"perch/protocol"
 )
+
+// A lookup only decorates a result, so it never holds one up for long.
+const lookupTimeout = time.Second
 
 // Postgres reports each field's relation oid (0 for an expression) and attribute number but
 // never the names, so they are resolved with one query per statement and remembered for the
@@ -54,7 +58,10 @@ func (c *columnSourceCache) resolve(ctx context.Context, pool *pgxpool.Pool, dat
 	}
 	c.mu.Unlock()
 
-	if len(missing) > 0 {
+	// Never wait on the pool for this. The statement already holds one of its connections, and when
+	// runs doing the same hold all the others, each lookup would be waiting on another's run. A
+	// skipped lookup caches nothing, so the next statement asks again.
+	if stat := pool.Stat(); len(missing) > 0 && (stat.IdleConns() > 0 || stat.TotalConns() < stat.MaxConns()) {
 		c.lookup(ctx, pool, database, missing)
 	}
 
@@ -74,6 +81,9 @@ func (c *columnSourceCache) resolve(ctx context.Context, pool *pgxpool.Pool, dat
 }
 
 func (c *columnSourceCache) lookup(ctx context.Context, pool *pgxpool.Pool, database string, missing map[string][2]any) {
+	ctx, cancel := context.WithTimeout(ctx, lookupTimeout)
+	defer cancel()
+
 	tuples := make([]string, 0, len(missing))
 	args := make([]any, 0, len(missing)*2)
 	for _, pair := range missing {

@@ -49,11 +49,16 @@ the stale-write 409 returns the file as it is on disk now.
 
 | Method | Path          | Body | Response                             | Purpose                                                                                |
 | ------ | ------------- | ---- | ------------------------------------ | -------------------------------------------------------------------------------------- |
-| GET    | `/api/events` | —    | `text/event-stream` of `ServerEvent` | One long-lived SSE stream per UI: file changes, finished runs, workspace-root changes. |
+| GET    | `/api/events` | —    | `text/event-stream` of `ServerEvent` | One long-lived SSE stream per UI: file changes, finished runs, workspace-root changes, held transactions ending. |
 
 Each frame is `event: <ServerEvent["type"]>` with the whole event as JSON in `data`. The stream
 opens with a `hello` and a `roots` event, and emits a `: ping` comment every 25s so proxies do
 not drop it. Detection is push-based (OS file watching); the ping is pure keep-alive.
+
+A `transaction` event — `{ type, connectionId, sessionKey, database, state: "closed", reason }` —
+says a transaction a session key held (see below) ended without a run ending it: `idle` (rolled back
+after 15 minutes unused), `released` (the release route), `disconnected` (Disconnect, an edited or
+deleted connection, or shutdown) or `lost` (the connection died under it).
 
 ## Connections
 
@@ -65,11 +70,27 @@ not drop it. Detection is push-based (OS file watching); the ping is pure keep-a
 | DELETE | `/api/connections/:id`            | —                                              | `{ ok: boolean }`                              | Forget the driver and remove the saved connection.                                                                                                           |
 | POST   | `/api/connections/:id/test`       | —                                              | `{ serverVersion: string, latencyMs: number }` | Round-trip the connection without keeping it open.                                                                                                           |
 | POST   | `/api/connections/:id/connect`    | —                                              | `ConnectionSummary`                            | Open the pooled driver eagerly.                                                                                                                              |
-| POST   | `/api/connections/:id/disconnect` | —                                              | `ConnectionSummary`                            | Close the pooled driver.                                                                                                                                     |
+| POST   | `/api/connections/:id/disconnect` | —                                              | `ConnectionSummary`                            | Close the pooled driver, rolling back every transaction a session key held on it.                                                                            |
+| POST   | `/api/connections/:id/sessions/release` | `{ sessionKey }`                         | `{ released: number }`                         | Roll back and free whatever the session key holds on the connection, on any database; `released` counts the transactions. Idempotent. The UI calls it when a tab closes. |
 | GET    | `/api/connections/:id/databases`  | —                                              | `string[]`                                     | Databases visible to the connection.                                                                                                                         |
 | GET    | `/api/connections/:id/schema`     | —                                              | `DatabaseSchema`                               | Schema → table → column tree. `?database=` picks a non-default database; `?refresh=1` bypasses the cache.                                                    |
 
 `:id` accepts either the connection id or its name.
+
+On Postgres the schema also carries triggers:
+- **`Table.triggers`** is in firing order: grouped by table, then byte order of name, which is the
+  order Postgres runs them.
+- **Each trigger** has its timing, operations, `UPDATE OF` columns, level, `WHEN` condition, function,
+  arguments, state (`enabled` / `disabled` / `replica` / `always`), constraint and transition-table
+  flags, comment, and `pg_get_triggerdef` definition.
+- **`Table.isPartition`** marks partitions. Their cloned row triggers are left out; the parent lists
+  them.
+- **`DatabaseSchema.triggerFunctions`** lists every function returning `trigger`, with its language
+  and owning extension.
+- **`DatabaseSchema.serverVersionNum`** is Postgres's `server_version_num`.
+
+Trigger introspection is best-effort: if it fails, `triggers` and `triggerFunctions` come back
+empty rather than the tree failing. MySQL returns empty lists and a null version for now.
 
 A failed `connect` or `test` answers `400` with a `code` naming the reason, which is what the UI
 branches on: `password_required`, `auth_failed`, `unknown_user`, `unknown_database`, `unreachable`,
@@ -92,7 +113,7 @@ for; otherwise TLS to a remote host is `verify-full` and to loopback is `require
 
 | Method | Path                   | Body                                                                                                      | Response                                        | Purpose                                                                                                                                             |
 | ------ | ---------------------- | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| POST   | `/api/query`           | `{ connectionId, sql, database?, runId?, maxRows?, timeoutMs?, batchSize?, record?, readOnly?, source? }` | `application/x-ndjson`, one `RunEvent` per line | Run SQL and stream results as they arrive: one JSON object per line, flushed in order.                                                              |
+| POST   | `/api/query`           | `{ connectionId, sql, database?, runId?, maxRows?, timeoutMs?, batchSize?, record?, readOnly?, source?, workspace?, sessionKey? }` | `application/x-ndjson`, one `RunEvent` per line | Run SQL and stream results as they arrive: one JSON object per line, flushed in order.                                                              |
 | POST   | `/api/query/sync`      | same as `/api/query`                                                                                      | `RunRecord`                                     | The same run, buffered into a single reply. Convenient for small queries.                                                                           |
 | POST   | `/api/runs/:id/cancel` | —                                                                                                         | `{ cancelled: boolean }`                        | Cancel an in-flight run.                                                                                                                            |
 | GET    | `/api/runs`            | —                                                                                                         | `RunRecord[]`                                   | Recent runs from memory, newest first, **without result rows** — fetch one run to get its rows.                                                     |
@@ -113,10 +134,33 @@ read-only session (Postgres `set default_transaction_read_only = on`, MySQL
 `set session transaction_read_only = 1`), set and reset per statement on its pooled client, so a
 write is refused by the server and arrives as an ordinary `error` event.
 
+On Postgres, every statement of a run that is not `readOnly` shares one session, so
+`BEGIN; …; ROLLBACK;`, cursors and `SET` work across statements. A transaction still open when the
+run ends — never committed, or failed part-way — is rolled back, and the run says so in a `notice`
+event with `index: -1`, which `RunRecord.notices` collects. Behind a transaction-mode pooler
+(pgbouncer, Supabase's port 6543, Neon's pooled endpoints) only work inside an explicit transaction
+is sure to share a session. MySQL still takes a connection per statement. A run that waits more
+than 10s for a free connection fails, saying the connections are busy — and how many are holding
+open transactions, when any are.
+
+The exception is a run with a `sessionKey` (the UI sends the editor tab's buffer id). If it ends
+inside a transaction, its connection is kept, still in the transaction, and the next run with that
+key on the same database continues it: `BEGIN;`, `UPDATE …;`, `SAVEPOINT s;` and `ROLLBACK TO
+SAVEPOINT s;` can each be a run of their own. The record's `transaction` says what the key holds
+afterwards — `"open"`, `"failed"` (Postgres's aborted state, where only `ROLLBACK` or
+`ROLLBACK TO SAVEPOINT` runs; a cancelled statement leaves it there too) or `null` — and a
+run-level notice says the same. Outside a transaction nothing carries over. Runs with one key take
+turns: one that arrives while another is executing fails at once with "This tab's transaction is
+busy with another run." A held transaction is rolled back after 15 minutes idle (the key's next
+run starts with a notice saying so), by the release route, on Disconnect, and when its connection
+turns out to be dead, which fails that next run. Every one of those emits a `transaction` event.
+Held connections count against the pool. `readOnly` runs ignore the key, and so does MySQL.
+
 Each `ResultColumn` in a `columns` event or a `StatementResult` carries `source` — the base
 `{ table, column }` a value comes from — when the driver can tell: Postgres resolves the field's
 relation oid and attnum against `pg_class`/`pg_attribute` (one lookup per statement, cached for
-the connection's lifetime), MySQL reports them directly. Expressions and aggregates have none.
+the connection's lifetime, and skipped when the pool has no connection to spare), MySQL reports
+them directly. Expressions and aggregates have none.
 
 ## Settings
 

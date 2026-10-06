@@ -15,6 +15,7 @@ import type {
   RunRecord,
   Settings,
   StatementResult,
+  TransactionState,
 } from "@perch/protocol";
 
 
@@ -81,11 +82,21 @@ export type Buffer = {
   readonly view: "script" | "notebook";
   /** The disk copy at the moment an outside change hit a dirty buffer, for "reload" or "keep mine". */
   readonly conflict?: { readonly modifiedAt: string; readonly content: string };
+  /**
+   * The id the tab had before a `saveAs` gave it a path, and a new id with it. Its runs keep using
+   * that one as their session key, so a transaction open in the tab survives the save.
+   */
+  readonly sessionKey?: string;
 };
 
 /** A throwaway tab: nothing to save, nothing to lose, no prompt on close. */
 export function isScratch(buffer: Buffer): boolean {
   return buffer.path === null;
+}
+
+/** The key a tab's runs carry, so a transaction one of them leaves open stays with the tab. */
+export function sessionKeyOf(buffer: Buffer): string {
+  return buffer.sessionKey ?? buffer.id;
 }
 
 export type SaveState = "saved" | "saving" | "unsaved" | "error";
@@ -113,6 +124,16 @@ export type Run = RunRecord;
 export function runStatements(run: Run): readonly StatementResult[] {
   return run.results ?? [];
 }
+
+/** A transaction a tab's runs left open, which its next run continues. See `transactionFor`. */
+export type TabTransaction = {
+  /** `failed` takes only a rollback. */
+  readonly state: TransactionState;
+  /** When the run that opened it started. */
+  readonly since: string;
+  /** A run from the tab is in flight, and may be about to change all of this. */
+  readonly running: boolean;
+};
 
 
 export type SidebarTab = "schema" | "files" | "history";
@@ -207,7 +228,10 @@ export type WorkspaceApi = {
 
   /* schema */
   readonly schema: Async<DatabaseSchema>;
-  /** Re-introspects, bypassing the server's TTL cache. */
+  /**
+   * Re-introspects, bypassing the server's TTL cache. Resolves once that fetch has landed, whether
+   * it loaded or failed, so a caller can read the schema it asked for; never rejects.
+   */
   refreshSchema(): Promise<void>;
 
   /* buffers — the tabs open in the editor */
@@ -222,6 +246,10 @@ export type WorkspaceApi = {
    * null when the file could not be read — the failure is reported into the Files tab, not thrown.
    */
   openFile(path: string): Promise<string | null>;
+  /**
+   * Closes a tab, rolling back any transaction it holds. A surface that closes one asks first when
+   * `transactionFor` says there is something to lose.
+   */
   closeBuffer(id: string): void;
   focusBuffer(id: string): void;
   editBuffer(id: string, content: string): void;
@@ -253,8 +281,25 @@ export type WorkspaceApi = {
    * directly above the results and repeating it is noise.
    */
   readonly activeRunFromHistory: boolean;
-  /** Runs `sql`, or the active buffer when omitted. Resolves with the run's id once it settles. */
-  run(sql?: string): Promise<string | undefined>;
+  /**
+   * Runs `sql`, or the active buffer when omitted. Resolves with the run's id once it settles.
+   * `bufferId` is the tab the SQL came from, the active one when omitted: a transaction the run
+   * leaves open stays with that tab, and its next run continues it.
+   */
+  run(sql?: string, options?: { bufferId?: string }): Promise<string | undefined>;
+  /**
+   * Runs SQL the UI wrote on the user's behalf. Recorded in History; never selects the run or opens
+   * the results pane; resolves (never rejects) with the finished record, waiting for the schema to
+   * re-introspect when the SQL changed it. `sql` runs as given: a caller that needs a transaction
+   * writes one. With `sessionKey` (see `sessionKeyOf`) it runs inside that tab's open transaction,
+   * which is how a `COMMIT` gets to it.
+   */
+  execute(sql: string, options?: { sessionKey?: string }): Promise<RunRecord>;
+  /**
+   * The transaction a tab holds open on the current connection and database, or null. Read off
+   * the tab's runs, and cleared when the server says it ended without one: idle, a disconnect.
+   */
+  transactionFor(bufferId: string): TabTransaction | null;
   cancelRun(runId: string): Promise<void>;
   /**
    * Points the results pane at a run, fetching its rows if they are not already here. A run older

@@ -63,7 +63,23 @@ export type RunRecord = {
    * the History tab calls global.
    */
   workspace?: string;
+  /**
+   * What the server said about the run as a whole rather than one statement — the `notice` events
+   * with `index: -1`. Postgres runs that can write share one session, and a transaction still open
+   * when the run ends is rolled back and reported here — or, for a run with a `sessionKey`, kept
+   * open and reported as such. Empty when there was nothing to say.
+   */
+  notices: string[];
+  /**
+   * What the run's `sessionKey` holds now the run is over: a transaction still open, or one that
+   * failed and only takes `ROLLBACK` (or `ROLLBACK TO SAVEPOINT`). Always null for a run without a
+   * key. A transaction can also end with no run to say so; see the `transaction` server event.
+   */
+  transaction: TransactionState | null;
 };
+
+/** A transaction a session key kept open between runs. `failed` is Postgres's aborted state. */
+export type TransactionState = "open" | "failed";
 
 /**
  * Which runs a history page is asking for. `workspace` means this root *and* the global ones,
@@ -72,7 +88,10 @@ export type RunRecord = {
  */
 export type HistoryScope = "all" | "workspace" | "global";
 
-/** Events streamed (NDJSON) while a run executes. */
+/**
+ * Events streamed (NDJSON) while a run executes. A `notice` with `index: -1` is about the run
+ * itself, not a statement; it is collected into `RunRecord.notices`.
+ */
 export type RunEvent =
   | { type: "start"; runId: string; statements: number }
   | { type: "statement"; runId: string; index: number; sql: string }
@@ -100,9 +119,19 @@ export type QueryOptions = {
   /**
    * Run every statement in a read-only session, so a probe can never write. Postgres:
    * `set default_transaction_read_only = on` for the statement; MySQL:
-   * `set session transaction_read_only = 1`. Default false.
+   * `set session transaction_read_only = 1`. Each statement gets a connection of its own rather
+   * than the one session a Postgres run otherwise shares, so no statement can lift the setting for
+   * the next (`BEGIN READ WRITE`, `SET default_transaction_read_only = off`). Default false.
    */
   readOnly?: boolean;
   /** The workspace root this run belongs to; see `RunRecord.workspace`. */
   workspace?: string;
+  /**
+   * The editor tab the run comes from, which the UI names by its buffer id. On Postgres a run with
+   * a key that ends inside a transaction keeps its connection, and the key's next run continues
+   * the transaction. Runs with the same key take turns: one arriving while another executes is
+   * refused. `POST /api/connections/:id/sessions/release` rolls back what a key holds; so does 15
+   * minutes idle, or a disconnect. Ignored when `readOnly`, and on MySQL.
+   */
+  sessionKey?: string;
 };

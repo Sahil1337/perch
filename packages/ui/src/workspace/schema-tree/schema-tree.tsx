@@ -6,7 +6,7 @@
 // Async rendering follows the rule in types.ts: a populated tree is never replaced by a skeleton.
 
 import type { Table } from "@perch/protocol";
-import { LayersIcon, RefreshCwIcon, TriangleAlertIcon, WaypointsIcon } from "lucide-react";
+import { LayersIcon, RefreshCwIcon, TriangleAlertIcon, WaypointsIcon, ZapIcon } from "lucide-react";
 import * as React from "react";
 import { cn } from "../../lib/utils";
 import { Button } from "../../ui/button";
@@ -14,6 +14,7 @@ import { Input } from "../../ui/input";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../../ui/tooltip";
 import { useWorkspace } from "../context";
 import { requestSchemaDiagram } from "../schema-diagram";
+import { requestTriggers } from "../triggers";
 import { asyncData } from "../types";
 import { Disclosure, SchemaSkeleton } from "./disclosure";
 import { Hint, TableRows, TreeRow } from "./rows";
@@ -27,7 +28,7 @@ export function SchemaTree({
   /** Called with the table a click landed on, in addition to toggling its columns. */
   onPickTable?: (table: Table) => void;
 }): React.ReactElement {
-  const { schema, refreshSchema } = useWorkspace();
+  const { connection, schema, refreshSchema } = useWorkspace();
   const data = asyncData(schema);
 
   const [query, setQuery] = React.useState("");
@@ -42,6 +43,8 @@ export function SchemaTree({
   const needle = query.trim().toLowerCase();
   const showSchemas = needsSchemaLevel(data);
   const refreshing = schema.status === "ready" && schema.stale;
+  // MySQL triggers are not read yet, so the view would only ever say there are none.
+  const triggersShown = connection?.dialect !== "mysql";
 
   const groups = React.useMemo(() => {
     const all = data?.schemas ?? [];
@@ -104,6 +107,32 @@ export function SchemaTree({
           />
           <TooltipPopup>Visualise relationships</TooltipPopup>
         </Tooltip>
+        {triggersShown && (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  aria-label="Show triggers"
+                  disabled={data === undefined}
+                  // Like the diagram, opens on the selected table when there is one.
+                  onClick={() => {
+                    const table = data?.schemas
+                      .flatMap((entry) => entry.tables)
+                      .find((candidate) => `${candidate.schema}.${candidate.name}` === selected);
+                    requestTriggers(
+                      table ? { schema: table.schema, table: table.name } : undefined,
+                    );
+                  }}
+                  size="icon-xs"
+                  variant="ghost"
+                >
+                  <ZapIcon />
+                </Button>
+              }
+            />
+            <TooltipPopup>Show triggers</TooltipPopup>
+          </Tooltip>
+        )}
       </div>
 
       {schema.status === "error" && (

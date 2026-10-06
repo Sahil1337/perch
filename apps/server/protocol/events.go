@@ -25,10 +25,30 @@ type RootsEvent struct {
 	Roots []string `json:"roots"`
 }
 
-func (e HelloEvent) EventType() string      { return e.Type }
-func (e FileServerEvent) EventType() string { return e.Type }
-func (e RunServerEvent) EventType() string  { return e.Type }
-func (e RootsEvent) EventType() string      { return e.Type }
+// TransactionEvent says a transaction held for a session key ended without a run ending it.
+type TransactionEvent struct {
+	Type         string            `json:"type"`
+	ConnectionID string            `json:"connectionId"`
+	SessionKey   string            `json:"sessionKey"`
+	Database     string            `json:"database"`
+	State        string            `json:"state"`
+	Reason       TransactionReason `json:"reason"`
+}
+
+type TransactionReason string
+
+const (
+	ReasonIdle         TransactionReason = "idle"
+	ReasonReleased     TransactionReason = "released"
+	ReasonDisconnected TransactionReason = "disconnected"
+	ReasonLost         TransactionReason = "lost"
+)
+
+func (e HelloEvent) EventType() string       { return e.Type }
+func (e FileServerEvent) EventType() string  { return e.Type }
+func (e RunServerEvent) EventType() string   { return e.Type }
+func (e RootsEvent) EventType() string       { return e.Type }
+func (e TransactionEvent) EventType() string { return e.Type }
 
 func NewHello(serverStartedAt string) HelloEvent {
 	return HelloEvent{Type: "hello", ServerStartedAt: serverStartedAt}
@@ -47,4 +67,15 @@ func NewRootsEvent(roots []string) RootsEvent {
 		roots = make([]string, 0)
 	}
 	return RootsEvent{Type: "roots", Roots: roots}
+}
+
+func NewTransactionClosed(connectionID, database, sessionKey string, reason TransactionReason) TransactionEvent {
+	return TransactionEvent{
+		Type:         "transaction",
+		ConnectionID: connectionID,
+		SessionKey:   sessionKey,
+		Database:     database,
+		State:        "closed",
+		Reason:       reason,
+	}
 }

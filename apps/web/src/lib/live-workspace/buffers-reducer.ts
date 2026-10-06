@@ -11,7 +11,7 @@
 // `dirty: content !== written`, so the buffers already carry that answer and the counter had
 // nothing left to decide.
 
-import type { Buffer, SaveState } from "@perch/ui";
+import { sessionKeyOf, type Buffer, type SaveState } from "@perch/ui";
 
 export type BuffersState = {
   readonly buffers: readonly Buffer[];
@@ -167,6 +167,8 @@ function reduce(state: BuffersState, action: BuffersAction): BuffersState {
             path: action.path,
             name: action.name,
             dirty: false,
+            // The id changes with the path; a transaction open in the tab must not be left behind.
+            sessionKey: sessionKeyOf(b),
           }),
         ),
         activeBufferId:

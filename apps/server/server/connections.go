@@ -195,6 +195,23 @@ func (s *Server) registerConnections() {
 		return httpx.JSON(w, summary)
 	})
 
+	s.handle("POST /api/connections/{id}/sessions/release", func(w http.ResponseWriter, r *http.Request) error {
+		var body struct {
+			SessionKey string `json:"sessionKey"`
+		}
+		if err := httpx.DecodeJSON(r, &body); err != nil {
+			return err
+		}
+		if body.SessionKey == "" {
+			return httpx.BadRequest("sessionKey is required")
+		}
+		released, err := s.pool.Release(r.PathValue("id"), body.SessionKey)
+		if err != nil {
+			return err
+		}
+		return httpx.JSON(w, map[string]any{"released": released})
+	})
+
 	s.handle("GET /api/connections/{id}/databases", func(w http.ResponseWriter, r *http.Request) error {
 		databases, err := s.pool.Databases(r.Context(), r.PathValue("id"))
 		if err != nil {

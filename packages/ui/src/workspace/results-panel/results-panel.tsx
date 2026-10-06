@@ -62,7 +62,10 @@ export function ResultsPanel({
   // A run that only spoke has nothing for the grid to hold: a `DO` block's `RAISE NOTICE`, a
   // `CALL`. Its notices are the result. Keyed on `columns`, not `rows` — a SELECT that matched
   // nothing still answered the question, and pulling the view off that empty grid would hide it.
-  const spoke = statements.some((result) => result.notices.length > 0);
+  // The run's own notices count too: an UPDATE whose transaction was rolled back at the end would
+  // otherwise open on a badge claiming the rows it changed.
+  const spoke =
+    (current?.notices.length ?? 0) > 0 || statements.some((result) => result.notices.length > 0);
   const showed = statements.some((result) => result.columns.length > 0);
 
   // Each finished run gets one say in which half you are looking at: failures and notices-only

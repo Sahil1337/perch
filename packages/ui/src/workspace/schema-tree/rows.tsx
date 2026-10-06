@@ -1,6 +1,7 @@
 import type { Column, Table } from "@perch/protocol";
-import { ChevronRightIcon, KeyIcon } from "lucide-react";
+import { ChevronRightIcon, KeyIcon, ZapIcon } from "lucide-react";
 import { motion } from "motion/react";
+import { plural } from "../../lib/format";
 import { useFade } from "../../lib/motion";
 import * as React from "react";
 import { cn } from "../../lib/utils";
@@ -58,7 +59,25 @@ export function TableRows({
                       MAT
                     </Badge>
                   )}
-                  {table.rowEstimate !== undefined && <Hint>~{table.rowEstimate}</Hint>}
+                  {/* Display only: the row is a button already, and the toolbar's ⚡ opens the
+                      view on the selected table. */}
+                  {table.triggers.length > 0 && (
+                    <Hint>
+                      <span
+                        className="inline-flex items-center gap-0.5 text-warning-foreground"
+                        title={plural(table.triggers.length, "trigger")}
+                      >
+                        <ZapIcon className="size-3" />
+                        {table.triggers.length}
+                      </span>
+                    </Hint>
+                  )}
+                  {table.rowEstimate !== undefined && (
+                    // After a trigger count, which already pushed both to the right edge.
+                    <Hint className={table.triggers.length > 0 ? "ms-0" : undefined}>
+                      ~{table.rowEstimate}
+                    </Hint>
+                  )}
                 </>
               }
             />
@@ -157,9 +176,20 @@ export function TreeRow({
   );
 }
 
-export function Hint({ children }: { children: React.ReactNode }): React.ReactElement {
+export function Hint({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}): React.ReactElement {
   return (
-    <span className="ms-auto shrink-0 truncate font-mono text-muted-foreground text-xs tabular-nums">
+    <span
+      className={cn(
+        "ms-auto shrink-0 truncate font-mono text-muted-foreground text-xs tabular-nums",
+        className,
+      )}
+    >
       {children}
     </span>
   );

@@ -1,7 +1,7 @@
 // The commands the palette ships with, and the keys that also reach them.
 //
 // A hook rather than a constant, because every action closes over something from the workspace
-// contract — but it takes exactly what it uses, so the dependency list is the six things that
+// contract — but it takes exactly what it uses, so the dependency list is the things that
 // actually change rather than the twenty the palette happens to destructure.
 
 import {
@@ -14,6 +14,7 @@ import {
   SaveIcon,
   WandSparklesIcon,
   WaypointsIcon,
+  ZapIcon,
 } from "lucide-react";
 import * as React from "react";
 import { requestQueryWalk } from "../query-walk";
@@ -24,6 +25,7 @@ import {
   statementAtCursor,
   type FormatDocumentEventDetail,
 } from "../sql-editor";
+import { requestTriggers } from "../triggers";
 import type { Buffer, CursorPosition, PanelState } from "../types";
 import { hotkeyLabel } from "../use-hotkey";
 import type { PaletteAction } from "./palette-items";
@@ -47,6 +49,8 @@ export type BuiltinActionDeps = {
   run: (sql?: string) => Promise<string | undefined>;
   refreshSchema: () => Promise<void>;
   togglePanel: (key: "sidebarOpen" | "outputOpen" | "paletteOpen") => void;
+  /** Whether the Triggers view has anything to show: not on MySQL, whose triggers aren't read. */
+  triggers: boolean;
 };
 
 export function useBuiltinActions(
@@ -63,6 +67,7 @@ export function useBuiltinActions(
     run,
     refreshSchema,
     togglePanel,
+    triggers,
   } = deps;
 
   return React.useMemo(
@@ -130,6 +135,19 @@ export function useBuiltinActions(
           close();
         },
       },
+      ...(triggers
+        ? [
+            {
+              label: "Show triggers",
+              hint: "What fires when a table changes",
+              icon: ZapIcon,
+              onSelect: () => {
+                requestTriggers();
+                close();
+              },
+            },
+          ]
+        : []),
       {
         label: "Visualise query",
         hint: "Walk the statement at the cursor, step by step",
@@ -174,6 +192,7 @@ export function useBuiltinActions(
       run,
       save,
       togglePanel,
+      triggers,
     ],
   );
 }

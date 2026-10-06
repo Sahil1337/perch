@@ -16,12 +16,24 @@ import (
 	"perch/protocol"
 )
 
-// The connection's own pool. A statement holds one connection at a time; four covers concurrent
-// runs. A database other than the connection's own is a side trip, so it gets a smaller pool.
+// The connection's own pool. A run that can write holds one connection from its first statement
+// to its last, and a tab with a transaction open holds one between runs, so four is how many of
+// those there can be at once; the next waits up to acquireTimeout for one to be free. A database
+// other than the connection's own is a side trip, so it gets a smaller pool.
 const (
 	mainPoolMax      = 4
 	secondaryPoolMax = 2
+	acquireTimeout   = 10 * time.Second
 )
+
+// pgSession is the connection a run holds for all of its statements. claim is set for a run with a
+// session key, whose transaction may outlive it.
+type pgSession struct {
+	pool     *pgxpool.Pool
+	conn     *pgxpool.Conn
+	database string
+	claim    *keyedSession
+}
 
 type postgresDriver struct {
 	base
@@ -34,18 +46,29 @@ type postgresDriver struct {
 	// Notices arrive on the connection, not the query, so the sink currently reading that
 	// connection is looked up when one fires.
 	noticeSinks sync.Map // *pgconn.PgConn -> *Sink
+
+	keysMu sync.Mutex
+	// By heldID: what each session key has claimed, and what an idle rollback left to be said.
+	keyed      map[string]*keyedSession
+	tombstones map[string]string
+	onClosed   func(database, sessionKey string, reason protocol.TransactionReason)
 }
 
 func newPostgresDriver(config protocol.ConnectionConfig) *postgresDriver {
 	d := &postgresDriver{
-		base:    newBase(config),
-		extra:   map[string]*pgxpool.Pool{},
-		sources: newColumnSourceCache(),
+		base:       newBase(config),
+		extra:      map[string]*pgxpool.Pool{},
+		sources:    newColumnSourceCache(),
+		keyed:      map[string]*keyedSession{},
+		tombstones: map[string]string{},
 	}
 	d.execStatement = d.exec
 	d.killHandle = d.kill
 	d.isCancellation = pgIsCancellation
 	d.toQueryError = pgQueryError
+	d.openSession = d.startSession
+	d.closeSession = d.endSession
+	d.keyState = d.heldState
 	return d
 }
 
@@ -128,6 +151,7 @@ func (d *postgresDriver) Disconnect() error {
 	d.mu.Unlock()
 
 	d.clearRuns()
+	d.dropHeld()
 	for _, extra := range extras {
 		extra.Close()
 	}
@@ -230,12 +254,12 @@ func (d *postgresDriver) ListDatabases(ctx context.Context) ([]string, error) {
 	return out, rows.Err()
 }
 
-func (d *postgresDriver) Run(ctx context.Context, sql string, opts protocol.QueryOptions, emit func(protocol.RunEvent)) protocol.RunStatus {
+func (d *postgresDriver) Run(ctx context.Context, sql string, opts protocol.QueryOptions, emit func(protocol.RunEvent)) (protocol.RunStatus, *protocol.TransactionState) {
 	if _, err := d.requirePool(ctx); err != nil {
 		emit(protocol.NewRunStart(opts.RunID, 0))
 		emit(protocol.NewRunError(opts.RunID, 0, protocol.QueryError{Message: err.Error()}))
 		emit(protocol.NewRunDone(opts.RunID, protocol.RunError, 0))
-		return protocol.RunError
+		return protocol.RunError, nil
 	}
 	return d.run(ctx, sql, opts, emit)
 }
@@ -244,33 +268,173 @@ func (d *postgresDriver) Cancel(runID string) bool {
 	return d.cancel(runID, d.IsConnected())
 }
 
+func (d *postgresDriver) databaseName(database string) string {
+	if database == "" {
+		return d.config.Database
+	}
+	return database
+}
+
+// acquire waits for a pooled connection, but not for ever: with every connection held by a long
+// run, or by a tab's open transaction, the next run would otherwise hang without a word. wait is
+// the run's, so a cancel ends it.
+func (d *postgresDriver) acquire(wait context.Context, pool *pgxpool.Pool, database string) (*pgxpool.Conn, error) {
+	ctx, cancel := context.WithTimeout(wait, acquireTimeout)
+	defer cancel()
+	conn, err := pool.Acquire(ctx)
+	if err == nil {
+		return conn, nil
+	}
+	if wait.Err() != nil {
+		return nil, wait.Err()
+	}
+	// A slow connect times out here too, and is not the pool being full.
+	if stat := pool.Stat(); errors.Is(err, context.DeadlineExceeded) && stat.AcquiredConns() >= stat.MaxConns() {
+		return nil, busyError(stat.MaxConns(), database, d.holding(database))
+	}
+	return nil, err
+}
+
+// discard closes a connection instead of returning it to the pool, for when what it holds is
+// unknown.
+func discard(conn *pgxpool.Conn) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	_ = conn.Hijack().Close(ctx)
+}
+
+// startSession lends a run its connection. A run with a session key continues whatever the key
+// holds, as it was left: that transaction is the point, so there is no DISCARD.
+func (d *postgresDriver) startSession(ctx context.Context, opts RunOptions, notice func(string)) (any, error) {
+	database := d.databaseName(opts.Database)
+	var claim *keyedSession
+	if opts.SessionKey != "" {
+		var held *pgSession
+		var err error
+		claim, held, err = d.claim(ctx, database, opts.SessionKey, notice)
+		if err != nil {
+			return nil, err
+		}
+		if held != nil {
+			return held, nil
+		}
+	}
+
+	session, err := func() (*pgSession, error) {
+		pool, err := d.poolFor(ctx, opts.Database)
+		if err != nil {
+			return nil, err
+		}
+		conn, err := d.acquire(ctx, pool, database)
+		if err != nil {
+			return nil, err
+		}
+		// endSession leaves a connection clean, but a read-only run's connection comes back with
+		// only its two settings reset, so whatever else it SET would reach this run.
+		if err := clean(ctx, conn); err != nil {
+			discard(conn)
+			return nil, err
+		}
+		return &pgSession{pool: pool, conn: conn, database: database, claim: claim}, nil
+	}()
+	if err != nil {
+		d.unclaim(claim)
+		return nil, err
+	}
+	return session, nil
+}
+
+// endSession ends the run's hold on its connection. A keyed run that stopped inside a transaction
+// leaves it held for the key's next run; otherwise the connection goes back to the pool reset.
+func (d *postgresDriver) endSession(ctx context.Context, session any, notice func(string)) *protocol.TransactionState {
+	s := session.(*pgSession)
+	pgConn := s.conn.Conn().PgConn()
+	status := pgConn.TxStatus()
+	open := status != 'I'
+
+	if pgConn.IsClosed() {
+		d.unclaim(s.claim)
+		discard(s.conn)
+		// The server rolls back what a dropped connection left open.
+		if open {
+			notice("The connection was lost; any open transaction was rolled back.")
+			if s.claim != nil {
+				d.closed(s.claim, protocol.ReasonLost)
+			}
+		}
+		return nil
+	}
+	if open {
+		if state, held := d.hold(s, status); held {
+			if state == protocol.TransactionFailed {
+				notice("The transaction failed. Roll it back to continue.")
+			} else {
+				notice("The transaction is still open. Commit or roll back to finish it.")
+			}
+			return &state
+		}
+	}
+	d.unclaim(s.claim)
+	if open {
+		// Rolled back either way: by reset, or by closing the connection when that fails.
+		notice("The transaction was still open when the run ended, so it was rolled back.")
+	}
+	_ = reset(ctx, s.conn, open)
+	return nil
+}
+
+// reset gives a connection back to the pool as it was lent: outside any transaction, with no trace
+// of the session's SETs, roles, temp tables, cursors, prepared statements or advisory locks. One
+// that cannot be put back that way is closed instead, never returned to the pool.
+func reset(ctx context.Context, conn *pgxpool.Conn, open bool) error {
+	err := func() error {
+		if open {
+			if _, err := conn.Exec(ctx, "rollback", pgx.QueryExecModeSimpleProtocol); err != nil {
+				return err
+			}
+		}
+		// After the rollback: DISCARD refuses to run inside a transaction, and a reset made inside
+		// one would be undone with it.
+		return clean(ctx, conn)
+	}()
+	if err != nil {
+		discard(conn)
+		return err
+	}
+	conn.Release()
+	return nil
+}
+
+func clean(ctx context.Context, conn *pgxpool.Conn) error {
+	if _, err := conn.Exec(ctx, "discard all", pgx.QueryExecModeSimpleProtocol); err != nil {
+		return err
+	}
+	// DISCARD dropped the server's prepared statements; this drops pgx's memory of them, which a
+	// statement a read-only run prepared on this connection would otherwise be sent by name.
+	return conn.Conn().DeallocateAll(ctx)
+}
+
 func (d *postgresDriver) exec(ctx context.Context, sql string, sc *StatementContext) error {
+	if s, ok := sc.Session.(*pgSession); ok {
+		// Nothing set here needs undoing afterwards: the whole session is reset on its way back to
+		// the pool.
+		return d.execOn(ctx, s.pool, s.conn, s.database, sql, sc)
+	}
+
 	pool, err := d.poolFor(ctx, sc.Options.Database)
 	if err != nil {
 		return err
 	}
-	conn, err := pool.Acquire(ctx)
+	database := d.databaseName(sc.Options.Database)
+	conn, err := d.acquire(sc.WaitContext(), pool, database)
 	if err != nil {
 		return err
 	}
 	defer conn.Release()
 
-	pgConn := conn.Conn().PgConn()
-	d.noticeSinks.Store(pgConn, sc.Sink)
-	defer d.noticeSinks.Delete(pgConn)
-
-	// The backend pid is what a cancel has to kill; pgx already knows it, so no round trip.
-	sc.SetHandle(int32(pgConn.PID()))
-	if err := sc.CheckCancelled(); err != nil {
-		return err
-	}
-
-	// Per statement, not per run: the next statement gets another pooled connection.
+	// This connection goes back to the pool after one statement, so what it was set to is undone
+	// before it does.
 	if sc.Options.Timeout > 0 {
-		ms := strconv.FormatInt(sc.Options.Timeout.Milliseconds(), 10)
-		if _, err := conn.Exec(ctx, "set statement_timeout = "+ms); err != nil {
-			return err
-		}
 		defer conn.Exec(ctx, "set statement_timeout = default")
 	}
 	if sc.Options.ReadOnly {
@@ -279,10 +443,28 @@ func (d *postgresDriver) exec(ctx context.Context, sql string, sc *StatementCont
 		}
 		defer conn.Exec(ctx, "set default_transaction_read_only = default")
 	}
+	return d.execOn(ctx, pool, conn, database, sql, sc)
+}
 
-	database := sc.Options.Database
-	if database == "" {
-		database = d.config.Database
+func (d *postgresDriver) execOn(ctx context.Context, pool *pgxpool.Pool, conn *pgxpool.Conn, database, sql string, sc *StatementContext) error {
+	pgConn := conn.Conn().PgConn()
+	d.noticeSinks.Store(pgConn, sc.Sink)
+	defer d.noticeSinks.Delete(pgConn)
+
+	sc.SetHandle(pgConn)
+	defer sc.ClearHandle()
+	if err := sc.CheckCancelled(); err != nil {
+		return err
+	}
+
+	// Before every statement, even on a run's own session: a script's `SET statement_timeout = 0`
+	// or `RESET ALL` must not switch the run's timeout off for the statements after it. Not in a
+	// failed transaction, which refuses everything but a rollback, and the rollback must get through.
+	if sc.Options.Timeout > 0 && pgConn.TxStatus() != 'E' {
+		ms := strconv.FormatInt(sc.Options.Timeout.Milliseconds(), 10)
+		if _, err := conn.Exec(ctx, "set statement_timeout = "+ms); err != nil {
+			return err
+		}
 	}
 	return d.readRows(ctx, pool, conn, database, sql, sc.Sink)
 }
@@ -359,19 +541,18 @@ func commandOf(tag pgconn.CommandTag) string {
 	return strings.Join(parts, " ")
 }
 
+// kill sends the protocol's own cancel request for the statement's backend. It needs no pooled
+// connection, so a full pool cannot starve it, and no pg_signal_backend privilege; and unlike
+// cancelling the statement's context, it leaves the connection alive, for endSession to roll back
+// or to hold with its transaction failed.
 func (d *postgresDriver) kill(handle any) error {
-	pid, ok := handle.(int32)
+	pgConn, ok := handle.(*pgconn.PgConn)
 	if !ok {
 		return nil
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	pool, err := d.requirePool(ctx)
-	if err != nil {
-		return err
-	}
-	_, err = pool.Exec(ctx, "select pg_cancel_backend($1)", pid)
-	return err
+	return pgConn.CancelRequest(ctx)
 }
 
 // 57014 is query_canceled; statement timeouts share it, so those stay errors.

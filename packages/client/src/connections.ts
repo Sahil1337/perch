@@ -31,6 +31,11 @@ export type ConnectionsApi = {
   disconnect(id: string, opts?: CallOptions): Promise<ConnectionSummary>;
   databases(id: string, opts?: CallOptions): Promise<string[]>;
   schema(id: string, opts?: SchemaOptions): Promise<DatabaseSchema>;
+  /**
+   * Rolls back whatever a session key holds on the connection, and resolves with how many
+   * transactions that was. Holding nothing is not an error.
+   */
+  releaseSession(id: string, sessionKey: string, opts?: CallOptions): Promise<number>;
 };
 
 export function connectionsApi(http: Transport): ConnectionsApi {
@@ -69,5 +74,14 @@ export function connectionsApi(http: Transport): ConnectionsApi {
         query: { database: opts?.database, refresh: opts?.refresh ? "1" : undefined },
         signal: opts?.signal,
       }),
+
+    releaseSession: async (id, sessionKey, opts) =>
+      (
+        await http.json<{ released: number }>(at(id, "/sessions/release"), {
+          method: "POST",
+          body: { sessionKey },
+          signal: opts?.signal,
+        })
+      ).released,
   };
 }

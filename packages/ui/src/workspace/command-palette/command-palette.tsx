@@ -45,6 +45,7 @@ export function CommandPalette(): React.ReactElement {
     activeBuffer,
     activeBufferId,
     connect,
+    connection,
     connections,
     cursor,
     database,
@@ -85,6 +86,7 @@ export function CommandPalette(): React.ReactElement {
       run,
       refreshSchema,
       togglePanel,
+      triggers: connection?.dialect !== "mysql",
     },
     close,
   );

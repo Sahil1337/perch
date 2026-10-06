@@ -27,6 +27,8 @@ type StartRunInput struct {
 	Source   protocol.RunSource
 	// The workspace root the SQL came from, for History's per-folder view. Empty is global.
 	Workspace string
+	// The editor tab the SQL came from; see protocol.QueryOptions.SessionKey.
+	SessionKey string
 }
 
 // Runner runs SQL on behalf of a client: it builds the RunRecord, forwards every driver event to
@@ -97,6 +99,7 @@ func (r *Runner) StartRun(ctx context.Context, input StartRunInput, emit func(pr
 		Workspace:    input.Workspace,
 		Results:      []protocol.StatementResult{},
 		Source:       input.Source,
+		Notices:      []string{},
 	}
 	r.log.Remember(record)
 
@@ -109,13 +112,14 @@ func (r *Runner) StartRun(ctx context.Context, input StartRunInput, emit func(pr
 	r.mu.Unlock()
 
 	opts := protocol.QueryOptions{
-		RunID:     runID,
-		Database:  input.Database,
-		MaxRows:   settings.MaxRows,
-		BatchSize: 200,
-		TimeoutMs: settings.StatementTimeout,
-		Record:    input.Record,
-		ReadOnly:  input.ReadOnly,
+		RunID:      runID,
+		Database:   input.Database,
+		MaxRows:    settings.MaxRows,
+		BatchSize:  200,
+		TimeoutMs:  settings.StatementTimeout,
+		Record:     input.Record,
+		ReadOnly:   input.ReadOnly,
+		SessionKey: input.SessionKey,
 	}
 	if input.MaxRows != nil {
 		opts.MaxRows = *input.MaxRows
@@ -128,7 +132,7 @@ func (r *Runner) StartRun(ctx context.Context, input StartRunInput, emit func(pr
 	}
 
 	capture := newCapture(record, emit)
-	status := driver.Run(ctx, input.SQL, opts, capture.emit)
+	status, transaction := driver.Run(ctx, input.SQL, opts, capture.emit)
 
 	r.mu.Lock()
 	delete(r.running, runID)
@@ -136,6 +140,7 @@ func (r *Runner) StartRun(ctx context.Context, input StartRunInput, emit func(pr
 
 	duration := time.Since(startedAt).Milliseconds()
 	record.Status = status
+	record.Transaction = transaction
 	record.DurationMs = &duration
 	record.FinishedAt = protocol.Now()
 	// Guarantees the NDJSON stream always ends with exactly one done line.
@@ -210,6 +215,11 @@ func (c *capture) emit(event protocol.RunEvent) {
 		}
 		delete(c.buffers, result.Index)
 		c.record.Results = append(c.record.Results, result)
+	case protocol.RunNotice:
+		// A statement's notices arrive again in its result; only the run's own are kept here.
+		if e.Index < 0 {
+			c.record.Notices = append(c.record.Notices, e.Message)
+		}
 	case protocol.RunErrorEvent:
 		err := e.Error
 		c.record.Error = &err

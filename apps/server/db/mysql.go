@@ -206,12 +206,12 @@ func (d *mysqlDriver) ListDatabases(ctx context.Context) ([]string, error) {
 	return out, nil
 }
 
-func (d *mysqlDriver) Run(ctx context.Context, sql string, opts protocol.QueryOptions, emit func(protocol.RunEvent)) protocol.RunStatus {
+func (d *mysqlDriver) Run(ctx context.Context, sql string, opts protocol.QueryOptions, emit func(protocol.RunEvent)) (protocol.RunStatus, *protocol.TransactionState) {
 	if _, err := d.require(ctx); err != nil {
 		emit(protocol.NewRunStart(opts.RunID, 0))
 		emit(protocol.NewRunError(opts.RunID, 0, protocol.QueryError{Message: err.Error()}))
 		emit(protocol.NewRunDone(opts.RunID, protocol.RunError, 0))
-		return protocol.RunError
+		return protocol.RunError, nil
 	}
 	return d.run(ctx, sql, opts, emit)
 }
@@ -241,7 +241,8 @@ func (d *mysqlDriver) exec(ctx context.Context, statement string, sc *StatementC
 		return err
 	}
 
-	// Per statement, like Postgres: the next statement gets another pooled connection.
+	// Per statement: MySQL has no run session yet, so the next statement gets another pooled
+	// connection, and anything set here has to be undone before this one goes back.
 	if sc.Options.Timeout > 0 {
 		// MySQL 5.7.8+ / MariaDB: a server-side cap for SELECTs.
 		ms := strconv.FormatInt(sc.Options.Timeout.Milliseconds(), 10)

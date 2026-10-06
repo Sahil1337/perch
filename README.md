@@ -113,6 +113,24 @@ The visualization is based on your actual SQL and database. Query Walk uses read
 
 ---
 
+### Triggers
+
+**See what runs when a table changes.**
+
+The Triggers view lays out a table's triggers in the order PostgreSQL runs them:
+
+```text
+before the statement → before each row → row written → after each row → after the statement
+```
+
+Press **Play** to step an example `INSERT`, `UPDATE`, `DELETE` or `TRUNCATE` through them and watch what fires, what is skipped and why.
+
+Create a trigger from the slot where it should run, with a new or existing function, or edit, rename, turn off and drop the ones you have. Every change shows the SQL first, runs as one transaction, and is recorded in History. Anything the form can't represent opens as SQL in the editor instead.
+
+Triggers work on PostgreSQL 11 and newer; editing a trigger in place needs PostgreSQL 14. MySQL triggers aren't supported yet.
+
+---
+
 ### SQL notebooks
 
 Turn any `.sql` file into a notebook.

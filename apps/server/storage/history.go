@@ -191,7 +191,7 @@ func ListRuns(query HistoryQuery) ([]protocol.RunRecord, error) {
 			if !query.keep(record) {
 				continue
 			}
-			out = append(out, record)
+			out = append(out, withNotices(record))
 		}
 		return nil
 	})
@@ -360,7 +360,16 @@ func decompress(blob []byte) (protocol.RunRecord, error) {
 		return record, err
 	}
 	err = json.Unmarshal(raw, &record)
-	return record, err
+	return withNotices(record), err
+}
+
+// withNotices gives a run recorded before RunRecord had notices an empty list, since the wire
+// type promises one.
+func withNotices(record protocol.RunRecord) protocol.RunRecord {
+	if record.Notices == nil {
+		record.Notices = []string{}
+	}
+	return record
 }
 
 // How many bytes of records the store holds, kept as a counter rather than measured: summing every

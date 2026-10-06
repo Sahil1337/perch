@@ -80,7 +80,22 @@ type RunRecord struct {
 	// run belongs to no folder — an untitled buffer, perch's own queries directory, or the CLI —
 	// which the History tab calls global.
 	Workspace string `json:"workspace,omitempty"`
+	// What the server said about the run as a whole rather than one statement: the index -1
+	// notices, such as a transaction left open and rolled back.
+	Notices []string `json:"notices"`
+	// What the run's session key holds now the run is over. Nil, serialised as null, when it holds
+	// nothing, which is always so for a run without a key.
+	Transaction *TransactionState `json:"transaction"`
 }
+
+// TransactionState is a transaction a session key kept open between runs. Failed is Postgres's
+// aborted state: only ROLLBACK or ROLLBACK TO SAVEPOINT will run in it.
+type TransactionState string
+
+const (
+	TransactionOpen   TransactionState = "open"
+	TransactionFailed TransactionState = "failed"
+)
 
 // Which runs a history page is asking for. `workspace` means this root and the global ones, which
 // is the view that matches how people work: the project in front of them, plus the scratch queries
@@ -125,8 +140,9 @@ type RunRows struct {
 }
 
 type RunNotice struct {
-	Type    string `json:"type"`
-	RunID   string `json:"runId"`
+	Type  string `json:"type"`
+	RunID string `json:"runId"`
+	// -1 for a notice about the run itself rather than one of its statements.
 	Index   int    `json:"index"`
 	Message string `json:"message"`
 }
@@ -209,6 +225,9 @@ type QueryOptions struct {
 	ReadOnly bool  `json:"readOnly,omitempty"`
 	// The workspace root this run belongs to; see RunRecord.Workspace.
 	Workspace string `json:"workspace,omitempty"`
+	// The editor tab the run comes from. A run with one that ends inside a transaction keeps its
+	// connection for the tab's next run. Ignored by read-only runs and by MySQL.
+	SessionKey string `json:"sessionKey,omitempty"`
 }
 
 func (o QueryOptions) ShouldRecord() bool { return o.Record == nil || *o.Record }

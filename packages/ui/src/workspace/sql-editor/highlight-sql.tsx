@@ -10,7 +10,9 @@ const KEYWORDS: ReadonlySet<string> = new Set(
     "as and or not null is in like ilike between case when then else end distinct union " +
     "all having with asc desc interval now current_date primary key foreign references " +
     "default constraint returning exists any some cast true false begin commit rollback " +
-    "explain analyze using natural cross over partition window filter"
+    "explain analyze using natural cross over partition window filter truncate replace " +
+    "trigger before after instead of for each row statement execute function procedure " +
+    "deferrable initially deferred immediate referencing"
   ).split(" "),
 );
 

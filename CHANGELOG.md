@@ -6,8 +6,47 @@ and versions follow [semantic versioning](https://semver.org/).
 The section matching a release's version becomes that release's notes on GitHub — see
 [CONTRIBUTING.md](CONTRIBUTING.md#cutting-a-release).
 
+[Unreleased]: https://github.com/Sahil1337/perch/compare/v0.2.0...HEAD
 [0.2.0]: https://github.com/Sahil1337/perch/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Sahil1337/perch/releases/tag/v0.1.0
+
+## [Unreleased]
+
+### Added
+
+- **Triggers view** — See, create and manage Postgres triggers without writing the DDL yourself.
+  Open it from the ⚡ button in the schema sidebar or **Show triggers** in the command palette.
+  Pick a table and a change (insert, update, delete, truncate), and the view lays its triggers out
+  in the order Postgres runs them: before the statement, before each row, after each row, and
+  after the statement. **Play** steps an example statement through them so you can watch what
+  fires, what is skipped and why.
+
+  Add a trigger from the slot where it should run, with a new or existing function. You can also
+  edit, rename, turn off or drop a trigger. Every change shows the SQL it will run, runs as one
+  transaction, and lands in History. Editing a function's body keeps its other settings, such as
+  `SECURITY DEFINER` and `search_path`. Triggers the form can't represent open in the editor
+  instead: constraint triggers, triggers with arguments or transition tables, and any edit on
+  Postgres older than 14.
+
+### Changed
+
+- **A run is one session on Postgres, and a tab keeps its open transaction** — Every statement in
+  a run that can write now shares one connection, so `BEGIN … COMMIT`, cursors (`DECLARE` /
+  `FETCH`) and `SET` work across the statements of a script. A run from an editor tab that ends
+  inside a transaction keeps it for that tab's next run, so `BEGIN`, `UPDATE`, `SAVEPOINT` and
+  `ROLLBACK TO SAVEPOINT` can each be run on their own. A bar above the editor says
+  **Transaction open** with **Commit** and **Roll back**, and the tab shows a dot. Closing the tab
+  asks first, and rolls the transaction back. So does 15 minutes idle, or disconnecting. Outside
+  a transaction nothing carries over, and a run from anywhere else (the Triggers view, a query
+  walk) still rolls back what it leaves open and says so in Messages. Behind a transaction-mode
+  pooler (pgbouncer, Supabase's port 6543, Neon's pooled endpoints), only work inside an explicit
+  transaction is guaranteed to share a session. Read-only runs and MySQL still use a connection
+  per statement.
+
+### Fixed
+
+- `BEGIN; UPDATE …; ROLLBACK;` no longer keeps the UPDATE on Postgres. Each statement used to run on
+  its own connection, so the ROLLBACK had no transaction to undo.
 
 ## [0.2.0] — 2026-09-27
 

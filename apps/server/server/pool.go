@@ -20,6 +20,8 @@ type Pool struct {
 	mu      sync.Mutex
 	entries map[string]*poolEntry
 	schemas map[string]schemaEntry
+	// Told when a transaction a tab held open ends without a run: see db.SessionHolder.
+	notify func(protocol.ServerEvent)
 }
 
 type poolEntry struct {
@@ -35,8 +37,8 @@ type schemaEntry struct {
 	cachedAt time.Time
 }
 
-func NewPool() *Pool {
-	return &Pool{entries: map[string]*poolEntry{}, schemas: map[string]schemaEntry{}}
+func NewPool(notify func(protocol.ServerEvent)) *Pool {
+	return &Pool{entries: map[string]*poolEntry{}, schemas: map[string]schemaEntry{}, notify: notify}
 }
 
 func (p *Pool) Config(idOrName string) (protocol.ConnectionConfig, error) {
@@ -62,6 +64,12 @@ func (p *Pool) entry(config protocol.ConnectionConfig) (*poolEntry, error) {
 	driver, err := db.NewDriver(config)
 	if err != nil {
 		return nil, httpx.BadRequest(err.Error(), "driver_unavailable")
+	}
+	if holder, ok := driver.(db.SessionHolder); ok && p.notify != nil {
+		id := config.ID
+		holder.OnClosed(func(database, sessionKey string, reason protocol.TransactionReason) {
+			p.notify(protocol.NewTransactionClosed(id, database, sessionKey, reason))
+		})
 	}
 	entry := &poolEntry{config: config, driver: driver, status: protocol.StatusDisconnected}
 	p.entries[config.ID] = entry
@@ -181,6 +189,27 @@ func (p *Pool) Forget(connectionID string) {
 	if ok {
 		_ = entry.driver.Disconnect()
 	}
+}
+
+// Release rolls back and frees whatever a session key holds on a connection, and says how many
+// transactions that was. A connection without a live driver holds nothing, so it is not connected
+// just to be told so.
+func (p *Pool) Release(idOrName, sessionKey string) (int, error) {
+	config, err := p.Config(idOrName)
+	if err != nil {
+		return 0, err
+	}
+	p.mu.Lock()
+	entry, ok := p.entries[config.ID]
+	p.mu.Unlock()
+	if !ok {
+		return 0, nil
+	}
+	holder, ok := entry.driver.(db.SessionHolder)
+	if !ok {
+		return 0, nil
+	}
+	return holder.Release(sessionKey), nil
 }
 
 func (p *Pool) Test(ctx context.Context, idOrName string) (string, int64, error) {

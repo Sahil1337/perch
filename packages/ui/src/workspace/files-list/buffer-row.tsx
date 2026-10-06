@@ -3,6 +3,7 @@ import * as React from "react";
 import { cn } from "../../lib/utils";
 import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
+import { RollBackAndClose, useCloseGuard } from "../close-guard";
 import { type Buffer, isScratch } from "../types";
 
 /**
@@ -23,6 +24,7 @@ export function BufferRow({
 }): React.ReactElement {
   const scratch = isScratch(buffer);
   const Icon = buffer.view === "notebook" ? NotebookIcon : FileTextIcon;
+  const guard = useCloseGuard(buffer.id, onClose);
 
   return (
     <div
@@ -61,15 +63,19 @@ export function BufferRow({
           )
         )}
       </button>
-      <Button
-        aria-label={`Close ${buffer.name}`}
-        className="shrink-0"
-        onClick={onClose}
-        size="icon-xs"
-        variant="ghost"
-      >
-        <XIcon />
-      </Button>
+      {guard.armed ? (
+        <RollBackAndClose guard={guard} />
+      ) : (
+        <Button
+          aria-label={`Close ${buffer.name}`}
+          className="shrink-0"
+          onClick={guard.request}
+          size="icon-xs"
+          variant="ghost"
+        >
+          <XIcon />
+        </Button>
+      )}
     </div>
   );
 }

@@ -14,3 +14,11 @@ export function clockOf(timestamp: string): string {
     ? timestamp
     : date.toLocaleTimeString("en-GB", { hour12: false });
 }
+
+/** Wall-clock `HH:MM`, for "since when" rather than "exactly when". Unparseable input is kept. */
+export function minuteOf(timestamp: string): string {
+  const date = new Date(timestamp);
+  return Number.isNaN(date.getTime())
+    ? timestamp
+    : date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });
+}

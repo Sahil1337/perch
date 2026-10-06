@@ -106,7 +106,8 @@ export function SqlEditor({
       keywordCase,
       run: (sql: string) => {
         if (onRunStatement) onRunStatement(sql);
-        else void run(sql);
+        // Named, not assumed: in a split, the editor being typed in need not be the active tab.
+        else void run(sql, fileId === undefined ? undefined : { bufferId: fileId });
       },
       setCursor,
     };

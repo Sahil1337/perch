@@ -7,6 +7,7 @@ import { ResultsPanel } from "../results-panel";
 import { SqlEditor } from "../sql-editor";
 import { ConflictBar } from "./conflict-bar";
 import { useGrid } from "./grid-context";
+import { TransactionBar } from "./transaction-bar";
 
 /**
  * How long the results pane takes to drop out of sight, in ms. It cannot simply be removed from the
@@ -45,10 +46,12 @@ export function PaneBody({ pane }: { pane: PaneId }): React.ReactElement | null 
       <SqlEditor className="h-full min-h-0" fileId={buffer.id} key={buffer.id} />
     );
 
-  if (buffer.conflict === undefined) return editor;
+  // One shape whether or not a bar is showing: returning the bare editor when none is would move
+  // it in the tree as a bar came and went, and remount it — cursor, scroll and undo gone.
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <ConflictBar buffer={buffer} />
+      <TransactionBar buffer={buffer} />
+      {buffer.conflict !== undefined && <ConflictBar buffer={buffer} />}
       <div className="min-h-0 flex-1">{editor}</div>
     </div>
   );

@@ -1,7 +1,19 @@
 import type { PerchClient } from "@perch/client";
-import type { HistoryScope, HistoryStats, RunRecord, Settings } from "@perch/protocol";
+import type {
+  HistoryScope,
+  HistoryStats,
+  RunRecord,
+  Settings,
+  TransactionEvent,
+} from "@perch/protocol";
 import type { Run } from "@perch/ui";
 import * as React from "react";
+import {
+  heldSlot,
+  heldTransactions,
+  latestInSlot,
+  type HeldTransaction,
+} from "./held-transactions";
 import { messageOf } from "./helpers";
 import { inScope } from "./run-scope";
 import { useAbortable } from "./use-async-resource";
@@ -10,8 +22,14 @@ import { useAbortable } from "./use-async-resource";
 const RUN_CAP = 100;
 const HISTORY_LIMIT = 50;
 
-/** Statements after which the schema tree is no longer what the server would introspect. */
-const DDL = /^(CREATE|ALTER|DROP|TRUNCATE|RENAME|COMMENT|GRANT|REVOKE|REFRESH)\b/i;
+/**
+ * Statements after which the schema tree is no longer what the server would introspect. COMMIT
+ * too: DDL inside a transaction a tab held open is invisible to the introspection until then.
+ */
+const DDL = /^(CREATE|ALTER|DROP|TRUNCATE|RENAME|COMMENT|GRANT|REVOKE|REFRESH|COMMIT)\b/i;
+
+const changedSchema = (record: RunRecord): boolean =>
+  (record.results ?? []).some((result) => DDL.test(result.command ?? ""));
 
 export type RunsOptions = {
   connectionId: string | null;
@@ -19,11 +37,16 @@ export type RunsOptions = {
   database: string | null;
   /** The text to run when the caller does not pass any: whatever is in the active buffer. */
   activeSql: string | undefined;
+  /** The active buffer's session key, for a run that does not name its tab. */
+  activeSessionKey: string | undefined;
   settings: Settings | undefined;
   /** The workspace root the active buffer belongs to; "" for a scratch tab or the CLI. */
   workspace: string;
-  /** DDL moves the ground under the schema tree, so it is re-introspected after a run. */
-  onSchemaChanged: () => void;
+  /**
+   * DDL moves the ground under the schema tree, so it is re-introspected after a run. Resolves
+   * once the new schema has landed, which is what `execute` waits for.
+   */
+  onSchemaChanged: () => Promise<void>;
   openOutput: () => void;
 };
 
@@ -31,7 +54,16 @@ export type RunsState = {
   runs: readonly Run[];
   activeRun: Run | undefined;
   activeRunFromHistory: boolean;
-  run: (sql?: string) => Promise<string | undefined>;
+  run: (sql?: string, sessionKey?: string) => Promise<string | undefined>;
+  execute: (sql: string, options?: { sessionKey?: string }) => Promise<RunRecord>;
+  /** Every transaction this session's runs left open, by key, connection and database. */
+  held: readonly HeldTransaction[];
+  /** Session keys with a run in flight. */
+  runningKeys: ReadonlySet<string>;
+  /** Connections a key may hold something on: where it holds a transaction, or has a run in flight. */
+  connectionsOf: (sessionKey: string) => readonly string[];
+  /** The server ended a held transaction without a run; the run that left it open is now closed. */
+  transactionClosed: (event: TransactionEvent) => void;
   exportUrl: (
     runId: string,
     options?: { statement?: number; format?: "csv" | "json" },
@@ -50,8 +82,16 @@ export function useRuns(
   enabled: boolean,
   options: RunsOptions,
 ): RunsState {
-  const { connectionId, database, activeSql, settings, workspace, onSchemaChanged, openOutput } =
-    options;
+  const {
+    connectionId,
+    database,
+    activeSql,
+    activeSessionKey,
+    settings,
+    workspace,
+    onSchemaChanged,
+    openOutput,
+  } = options;
 
   const [runs, setRuns] = React.useState<readonly Run[]>([]);
   /** Read by `clearHistory`, which decides what to keep after an await — by then `runs` is stale. */
@@ -75,6 +115,22 @@ export function useRuns(
   const [resolved, setResolved] = React.useState<ReadonlyMap<string, "rows" | "none">>(new Map());
   /** Which runs History is showing. Defaults to the folder in front of you, plus the global ones. */
   const [historyScope, setHistoryScope] = React.useState<HistoryScope>("workspace");
+  /**
+   * Runs `execute` made. They are in `runs` so History shows them, but the results pane never
+   * falls back to one: the SQL a view wrote for you is not what you were looking at. A ref, since
+   * an id only ever lands together with its run in `runs`, and that update is the re-render. Lost
+   * on reload, when the newest run may then be one of these; that is just the latest run.
+   */
+  const executedIds = React.useRef(new Set<string>());
+  /**
+   * The session key each of this session's runs carried, and which of those are still waiting for
+   * the server's answer. Refs for the same reason as `executedIds`: both only change together with
+   * `runs`. A run loaded from History has no entry, so it never claims a tab holds anything.
+   */
+  const keyOf = React.useRef(new Map<string, string>());
+  const inFlight = React.useRef(new Set<string>());
+  /** Runs whose transaction the server has since ended: idle, released, disconnected, lost. */
+  const [closed, setClosed] = React.useState<ReadonlySet<string>>(new Set());
 
   const loadHistory = React.useCallback(
     async (signal: AbortSignal): Promise<void> => {
@@ -110,9 +166,10 @@ export function useRuns(
   useAbortable(enabled, loadHistory);
 
   const run = React.useCallback(
-    async (sql?: string): Promise<string | undefined> => {
+    async (sql?: string, sessionKey?: string): Promise<string | undefined> => {
       const text = (sql ?? activeSql ?? "").trim();
       if (!text || !connectionId) return undefined;
+      const key = sessionKey ?? activeSessionKey;
 
       // The client owns the id: cancel needs an address before the run is over.
       const runId = crypto.randomUUID();
@@ -124,8 +181,14 @@ export function useRuns(
         status: "running",
         startedAt: new Date().toISOString(),
         source: "ui",
+        notices: [],
+        transaction: null,
         ...(workspace ? { workspace } : {}),
       };
+      if (key) {
+        keyOf.current.set(runId, key);
+        inFlight.current.add(runId);
+      }
       setRuns((prev) => [pending, ...prev].slice(0, RUN_CAP));
       setSelected({ id: runId, fromHistory: false });
       openOutput();
@@ -138,15 +201,16 @@ export function useRuns(
           source: "ui",
           ...(database ? { database } : {}),
           ...(workspace ? { workspace } : {}),
+          ...(key ? { sessionKey: key } : {}),
           ...(settings ? { maxRows: settings.maxRows } : {}),
           ...(settings ? { timeoutMs: settings.statementTimeoutMs } : {}),
         });
+        inFlight.current.delete(runId);
         setRuns((prev) => prev.map((r) => (r.id === runId ? record : r)));
-        if ((record.results ?? []).some((result) => DDL.test(result.command ?? ""))) {
-          onSchemaChanged();
-        }
+        if (changedSchema(record)) void onSchemaChanged();
       } catch (error) {
         const message = messageOf(error);
+        inFlight.current.delete(runId);
         setRuns((prev) =>
           prev.map((r) =>
             r.id === runId
@@ -157,7 +221,72 @@ export function useRuns(
       }
       return runId;
     },
-    [activeSql, connectionId, database, getClient, onSchemaChanged, openOutput, settings, workspace],
+    [
+      activeSessionKey,
+      activeSql,
+      connectionId,
+      database,
+      getClient,
+      onSchemaChanged,
+      openOutput,
+      settings,
+      workspace,
+    ],
+  );
+
+  const execute = React.useCallback(
+    async (sql: string, executeOptions?: { sessionKey?: string }): Promise<RunRecord> => {
+      const text = sql.trim();
+      const key = executeOptions?.sessionKey;
+      const pending: RunRecord = {
+        id: crypto.randomUUID(),
+        connectionId: connectionId ?? "",
+        database: database ?? "",
+        sql: text,
+        status: "running",
+        startedAt: new Date().toISOString(),
+        source: "ui",
+        notices: [],
+        transaction: null,
+      };
+      const failed = (message: string): RunRecord => ({
+        ...pending,
+        status: "error",
+        finishedAt: new Date().toISOString(),
+        error: { message },
+      });
+      if (!text) return failed("Nothing to run.");
+      if (!connectionId) return failed("No connection selected.");
+
+      // No workspace: the SQL came from a view, not from a file in any folder, so History files it
+      // with the global runs.
+      executedIds.current.add(pending.id);
+      if (key) {
+        keyOf.current.set(pending.id, key);
+        inFlight.current.add(pending.id);
+      }
+      setRuns((prev) => [pending, ...prev].slice(0, RUN_CAP));
+      let record: RunRecord;
+      try {
+        record = await getClient().query.runSync({
+          connectionId,
+          sql: text,
+          runId: pending.id,
+          source: "ui",
+          ...(database ? { database } : {}),
+          ...(key ? { sessionKey: key } : {}),
+          ...(settings ? { maxRows: settings.maxRows } : {}),
+          ...(settings ? { timeoutMs: settings.statementTimeoutMs } : {}),
+        });
+      } catch (error) {
+        record = failed(messageOf(error));
+      }
+      inFlight.current.delete(pending.id);
+      setRuns((prev) => prev.map((r) => (r.id === pending.id ? record : r)));
+      if (changedSchema(record)) await onSchemaChanged();
+      return record;
+    },
+    [connectionId, database, getClient, onSchemaChanged, settings],
   );
 
   /**
@@ -269,6 +398,40 @@ export function useRuns(
     [getClient],
   );
 
+  // The two refs only ever change together with `runs`, so `runs` is what re-reads them.
+  const held = React.useMemo(
+    () => heldTransactions(runs, keyOf.current, inFlight.current, closed),
+    [runs, closed],
+  );
+
+  const runningKeys = React.useMemo(() => {
+    const keys = new Set<string>();
+    for (const runId of inFlight.current) {
+      const key = keyOf.current.get(runId);
+      if (key) keys.add(key);
+    }
+    return keys;
+  }, [runs]);
+
+  const connectionsOf = React.useCallback(
+    (sessionKey: string): readonly string[] => {
+      const ids = new Set(held.filter((t) => t.sessionKey === sessionKey).map((t) => t.connectionId));
+      for (const item of runs) {
+        if (inFlight.current.has(item.id) && keyOf.current.get(item.id) === sessionKey) {
+          ids.add(item.connectionId);
+        }
+      }
+      return [...ids];
+    },
+    [held, runs],
+  );
+
+  const transactionClosed = React.useCallback((event: TransactionEvent): void => {
+    const slot = heldSlot(event.connectionId, event.database, event.sessionKey);
+    const latest = latestInSlot(runsRef.current, keyOf.current, inFlight.current, slot);
+    if (latest?.transaction) setClosed((prev) => new Set(prev).add(latest.id));
+  }, []);
+
   // The newest run when nothing has been picked, which is what the pane opens on after a reload.
   // That run came off the wire rather than out of this session, so it counts as history: the
   // editor below it is empty or holding something else entirely.
@@ -276,9 +439,14 @@ export function useRuns(
 
   return {
     runs,
-    activeRun: selectedRun ?? runs[0],
+    activeRun: selectedRun ?? runs.find((r) => !executedIds.current.has(r.id)),
     activeRunFromHistory: selectedRun ? selected!.fromHistory : true,
     run,
+    execute,
+    held,
+    runningKeys,
+    connectionsOf,
+    transactionClosed,
     exportUrl,
     cancelRun,
     selectRun,

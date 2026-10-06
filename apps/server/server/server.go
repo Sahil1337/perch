@@ -49,17 +49,19 @@ func New(opts Options) *Server {
 		startedAt = protocol.Now()
 	}
 
+	bus := NewBus()
 	s := &Server{
 		version:      opts.Version,
 		uiDir:        opts.UIDir,
 		url:          opts.URL,
 		startedAt:    startedAt,
 		allowOrigins: opts.AllowOrigins,
-		bus:          NewBus(),
-		pool:         NewPool(),
-		runLog:       NewRunLog(),
-		discovery:    discover.New(),
-		mux:          http.NewServeMux(),
+		bus:          bus,
+		// A tab's transaction can end with no run to report it: rolled back idle, on disconnect.
+		pool:      NewPool(bus.Publish),
+		runLog:    NewRunLog(),
+		discovery: discover.New(),
+		mux:       http.NewServeMux(),
 	}
 	s.runner = NewRunner(s.pool, s.runLog)
 

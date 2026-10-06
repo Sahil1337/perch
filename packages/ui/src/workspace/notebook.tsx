@@ -66,10 +66,11 @@ export function Notebook({
   );
   const runCell = React.useCallback(
     async (cell: Cell): Promise<void> => {
-      const runId = await run(cell.sql);
+      // The notebook's own key, so its cells share one transaction the way a script's lines do.
+      const runId = await run(cell.sql, { bufferId: fileId });
       if (runId) setOutputs((previous) => ({ ...previous, [cell.id]: runId }));
     },
-    [run],
+    [fileId, run],
   );
 
   const runAll = React.useCallback(async (): Promise<void> => {

@@ -36,6 +36,16 @@ export function MessagesView({ run }: { run: Run }): React.ReactElement {
 
       {run.error && <ErrorBlock error={run.error} />}
 
+      {run.notices.length > 0 && (
+        <div className="mt-2">
+          {run.notices.map((notice, position) => (
+            <p className="text-info-foreground" key={position}>
+              {notice}
+            </p>
+          ))}
+        </div>
+      )}
+
       {run.status === "running" && (
         <p className="text-muted-foreground">
           <span className="tabular-nums">[{started}]</span> Waiting for the server…

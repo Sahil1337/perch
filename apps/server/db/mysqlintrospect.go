@@ -133,6 +133,7 @@ func readMysqlSchema(ctx context.Context, handle *sql.DB, target string) (protoc
 			Kind:        protocol.KindTable,
 			Columns:     columnsByTable[name],
 			ForeignKeys: fksByTable[name],
+			Triggers:    []protocol.Trigger{},
 		}
 		if tableType != nil && strings.Contains(strings.ToUpper(*tableType), "VIEW") {
 			table.Kind = protocol.KindView
@@ -153,10 +154,13 @@ func readMysqlSchema(ctx context.Context, handle *sql.DB, target string) (protoc
 		return zero, err
 	}
 
+	// Trigger introspection is Postgres-only so far (a MySQL trigger's body is inline rather than a
+	// function), and serverVersionNum is Postgres's numbering, so it stays null.
 	return protocol.DatabaseSchema{
-		Database:  target,
-		Schemas:   []protocol.Schema{schema},
-		FetchedAt: protocol.Now(),
+		Database:         target,
+		Schemas:          []protocol.Schema{schema},
+		TriggerFunctions: []protocol.TriggerFunction{},
+		FetchedAt:        protocol.Now(),
 	}, nil
 }
 

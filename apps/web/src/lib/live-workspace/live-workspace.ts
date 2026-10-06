@@ -14,7 +14,13 @@
 
 import type { PerchClient } from "@perch/client";
 import type { BrowseResult, ServerEvent } from "@perch/protocol";
-import { asyncData, type PanelState, type WorkspaceApi } from "@perch/ui";
+import {
+  asyncData,
+  sessionKeyOf,
+  type PanelState,
+  type TabTransaction,
+  type WorkspaceApi,
+} from "@perch/ui";
 import * as React from "react";
 import { serverClient } from "../server-client";
 import { usePanels } from "../use-panels";
@@ -101,19 +107,76 @@ export function useLiveWorkspace(options: LiveWorkspaceOptions = {}): WorkspaceA
     [buffers.activeBuffer?.path, roots, server.queriesDir],
   );
 
+  /** The key a tab's runs carry. A tab that is already gone is named by the id it had. */
+  const keyFor = React.useCallback(
+    (bufferId: string): string => {
+      const buffer = buffers.buffers.find((candidate) => candidate.id === bufferId);
+      return buffer ? sessionKeyOf(buffer) : bufferId;
+    },
+    [buffers.buffers],
+  );
+
   const runs = useRuns(getClient, enabled, {
     connectionId: connections.connectionId,
     database: connections.database,
     activeSql: buffers.activeBuffer?.content,
+    activeSessionKey: buffers.activeBuffer ? sessionKeyOf(buffers.activeBuffer) : undefined,
     workspace: runWorkspace,
     settings: settingsData,
     onSchemaChanged: reintrospect,
     openOutput,
   });
 
+  const { run: runAs, transactionClosed, held, runningKeys, connectionsOf } = runs;
+
+  const run = React.useCallback(
+    (sql?: string, options?: { bufferId?: string }): Promise<string | undefined> =>
+      runAs(sql, options?.bufferId === undefined ? undefined : keyFor(options.bufferId)),
+    [keyFor, runAs],
+  );
+
+  /**
+   * Only what the tab's next run would continue: the current connection and database. A
+   * transaction the tab left on another database is still rolled back when the tab closes.
+   */
+  const transactionFor = React.useCallback(
+    (bufferId: string): TabTransaction | null => {
+      const key = keyFor(bufferId);
+      const found = held.find(
+        (t) =>
+          t.sessionKey === key &&
+          t.connectionId === connections.connectionId &&
+          t.database === connections.database,
+      );
+      return found
+        ? { state: found.state, since: found.since, running: runningKeys.has(key) }
+        : null;
+    },
+    [connections.connectionId, connections.database, held, keyFor, runningKeys],
+  );
+
+  const { closeBuffer: dropBuffer } = buffers;
+  const closeBuffer = React.useCallback(
+    (id: string): void => {
+      const key = keyFor(id);
+      for (const connectionId of connectionsOf(key)) {
+        // Best-effort: the server rolls it back after 15 minutes idle anyway.
+        void getClient()
+          .connections.releaseSession(connectionId, key)
+          .catch(() => {});
+      }
+      dropBuffer(id);
+    },
+    [connectionsOf, dropBuffer, getClient, keyFor],
+  );
+
   const onServerEvent = React.useCallback(
     (event: ServerEvent): void => {
       // A `run` event is this client's own run coming back; the record is already held.
+      if (event.type === "transaction") {
+        transactionClosed(event);
+        return;
+      }
       if (event.type === "roots") {
         refreshSettings();
         refreshFiles();
@@ -129,7 +192,7 @@ export function useLiveWorkspace(options: LiveWorkspaceOptions = {}): WorkspaceA
       if (change.created) refreshFiles();
       syncExternalFile(change.path, change.modifiedAt);
     },
-    [refreshFiles, refreshSettings, syncExternalFile],
+    [refreshFiles, refreshSettings, syncExternalFile, transactionClosed],
   );
 
   useServerEvents(getClient, enabled, onServerEvent);
@@ -163,7 +226,7 @@ export function useLiveWorkspace(options: LiveWorkspaceOptions = {}): WorkspaceA
     saveState: buffers.saveState,
     newScratch: buffers.newScratch,
     openFile: buffers.openFile,
-    closeBuffer: buffers.closeBuffer,
+    closeBuffer,
     focusBuffer: buffers.focusBuffer,
     editBuffer: buffers.editBuffer,
     setBufferView: buffers.setBufferView,
@@ -181,7 +244,9 @@ export function useLiveWorkspace(options: LiveWorkspaceOptions = {}): WorkspaceA
     runs: runs.runs,
     activeRun: runs.activeRun,
     activeRunFromHistory: runs.activeRunFromHistory,
-    run: runs.run,
+    run,
+    execute: runs.execute,
+    transactionFor,
     exportUrl: runs.exportUrl,
     cancelRun: runs.cancelRun,
     selectRun: runs.selectRun,

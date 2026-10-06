@@ -17,9 +17,10 @@ import * as React from "react";
 import { useSpring } from "../lib/motion";
 import { cn } from "../lib/utils";
 import { Button } from "../ui/button";
+import { RollBackAndClose, useCloseGuard } from "./close-guard";
 import { useWorkspace } from "./context";
 import { RESULTS_PANE, type PaneId, paneBufferId } from "./pane-layout";
-import { isScratch } from "./types";
+import { isScratch, type TabTransaction } from "./types";
 
 /** Droppable ids are namespaced because a tab is both a drag source and a drop target. */
 export const stripDroppableId = (groupId: string): string => `strip::${groupId}`;
@@ -105,6 +106,7 @@ function PaneTab({
 }): React.ReactElement {
   const spring = useSpring();
   const label = usePaneLabel(pane);
+  const guard = useCloseGuard(paneBufferId(pane), onClose);
 
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: pane,
@@ -142,14 +144,18 @@ function PaneTab({
         <PaneLabel label={label} />
       </button>
 
-      <button
-        aria-label={`Close ${label.name}`}
-        className="my-2 mr-2 flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-sm text-muted-foreground opacity-0 outline-none transition-opacity hover:bg-accent focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring group-hover/tab:opacity-100"
-        onClick={onClose}
-        type="button"
-      >
-        <XIcon className="size-3" />
-      </button>
+      {guard.armed ? (
+        <RollBackAndClose className="my-1.5 mr-1.5" guard={guard} />
+      ) : (
+        <button
+          aria-label={`Close ${label.name}`}
+          className="my-2 mr-2 flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-sm text-muted-foreground opacity-0 outline-none transition-opacity hover:bg-accent focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring group-hover/tab:opacity-100"
+          onClick={guard.request}
+          type="button"
+        >
+          <XIcon className="size-3" />
+        </button>
+      )}
 
       {/* One underline per group (`layoutId`), so switching tabs slides it across instead of
           blinking out here and in again there. Keyed by group: a single shared id would make the
@@ -170,18 +176,29 @@ type PaneLabelText = {
   readonly name: string;
   readonly scratch: boolean;
   readonly dirty: boolean;
+  readonly transaction: TabTransaction["state"] | null;
 };
 
 /** What a tab says. The results pane has no buffer behind it, so it is spelled out here. */
 export function usePaneLabel(pane: PaneId): PaneLabelText {
-  const { buffers } = useWorkspace();
+  const { buffers, transactionFor } = useWorkspace();
   const bufferId = paneBufferId(pane);
   if (bufferId === null) {
-    return { name: pane === RESULTS_PANE ? "Results" : pane, scratch: false, dirty: false };
+    return {
+      name: pane === RESULTS_PANE ? "Results" : pane,
+      scratch: false,
+      dirty: false,
+      transaction: null,
+    };
   }
   const buffer = buffers.find((candidate) => candidate.id === bufferId);
-  if (!buffer) return { name: "Untitled", scratch: false, dirty: false };
-  return { name: buffer.name, scratch: isScratch(buffer), dirty: buffer.dirty };
+  if (!buffer) return { name: "Untitled", scratch: false, dirty: false, transaction: null };
+  return {
+    name: buffer.name,
+    scratch: isScratch(buffer),
+    dirty: buffer.dirty,
+    transaction: transactionFor(buffer.id)?.state ?? null,
+  };
 }
 
 /** Shared by the strip and the drag overlay, so the ghost cannot drift from the real tab. */
@@ -196,6 +213,18 @@ export function PaneLabel({ label }: { label: PaneLabelText }): React.ReactEleme
         <span
           aria-label="Unsaved changes"
           className="size-1.5 shrink-0 rounded-full bg-foreground/70"
+          role="img"
+        />
+      )}
+      {/* In colour, beside the grey unsaved dot: a transaction is live on the server, not text
+          waiting for a save, and its locks are held until it ends. */}
+      {label.transaction && (
+        <span
+          aria-label={label.transaction === "failed" ? "Transaction failed" : "Transaction open"}
+          className={cn(
+            "size-1.5 shrink-0 rounded-full",
+            label.transaction === "failed" ? "bg-destructive" : "bg-info",
+          )}
           role="img"
         />
       )}
