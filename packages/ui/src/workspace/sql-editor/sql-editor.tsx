@@ -31,6 +31,7 @@ import { completionNamespace, defaultSchemaName } from "./completion";
 import { completionConf, createEditorView, gutterConf, languageConf } from "./create-view";
 import { dialectFor } from "./dialect";
 import { useEditorCommands, type EditorBridge } from "./editor-commands";
+import { trackEditorView } from "./generate";
 import {
   formatDocument,
   FORMAT_DOCUMENT_EVENT,
@@ -186,9 +187,11 @@ export function SqlEditor({
 
     const view = createEditorView({ bridge, initial: initial.current, parent, reported });
     viewRef.current = view;
+    const untrack = trackEditorView(view);
     if (initial.current.autoFocus) view.focus();
 
     return () => {
+      untrack();
       viewRef.current = null;
       view.destroy();
     };

@@ -38,6 +38,7 @@ import * as React from "react";
 import { useAppWorkspace } from "@/lib/app-workspace";
 import { DEFAULT_PANELS } from "@/lib/use-panels";
 import { RunHistory } from "@/run-history";
+import { GenerateButton, SqlGenerator } from "@/sql-generator";
 
 // The only route there is. The server answers every other path with the same shell, so the router
 // is what decides they are not this one — see the root route's `notFoundComponent`.
@@ -94,9 +95,11 @@ function Workspace(): React.ReactElement {
       <TriggersDialog />
       {/* And the editor's context menu and the palette open this one. */}
       <QueryWalkDialog />
+      <SqlGenerator />
       <AppTopbar
         end={
           <>
+            <GenerateButton />
             <SaveIndicator withToggle />
             <RunButton />
             <SettingsButton />

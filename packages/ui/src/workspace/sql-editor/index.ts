@@ -2,3 +2,4 @@ export { FORMAT_DOCUMENT_EVENT, type FormatDocumentEventDetail } from "./format-
 export { highlightSql } from "./highlight-sql";
 export { SqlEditor } from "./sql-editor";
 export { offsetOfPosition, queryErrorDiagnostic, statementAtCursor } from "./statements";
+export { generateInLastEditor, setSqlGenerator, useSqlGenerating } from "./generate";

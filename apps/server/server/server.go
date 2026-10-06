@@ -95,6 +95,7 @@ func (s *Server) routes() {
 	s.registerHistory()
 	s.registerSettings()
 	s.registerFiles()
+	s.registerGenerate()
 	// Last: the UI mount ends in a catch-all.
 	s.registerUI()
 }
