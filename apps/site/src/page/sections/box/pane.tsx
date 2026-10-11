@@ -1,0 +1,78 @@
+import type { Ref } from "react";
+import { cn } from "../../../shared/cn";
+import { BOX_ITEMS, cropUrl } from "./items";
+
+export type CropState = "loaded" | "failed";
+
+// The scenes' titlebar at the app's own size (600 wide, 40 tall: size-3 lights from left-3.5,
+// a 24px pill holding 12px type), drawn as SVG so it scales with the pane the way the crops do.
+const ADDRESS = "127.0.0.1:4600";
+const PILL_WIDTH = 111;
+
+function Titlebar() {
+  return (
+    <div className="border-b border-border bg-sidebar">
+      <svg viewBox="0 0 600 40" className="block w-full">
+        {[20, 40, 60].map((cx) => (
+          <circle key={cx} cx={cx} cy={20} r={6} className="fill-input" />
+        ))}
+        <rect x={300 - PILL_WIDTH / 2} y={8} width={PILL_WIDTH} height={24} rx={6} className="fill-secondary" />
+        <text
+          x={300}
+          y={20.5}
+          textAnchor="middle"
+          dominantBaseline="central"
+          fontSize={12}
+          className="fill-muted-foreground font-sans tabular-nums"
+        >
+          {ADDRESS}
+        </text>
+      </svg>
+    </div>
+  );
+}
+
+export type BoxPaneProps = {
+  /** The crop on show, or null before any has loaded. */
+  shown: string | null;
+  onCrop: (key: string, state: CropState) => void;
+  className?: string;
+  ref?: Ref<HTMLDivElement>;
+};
+
+/**
+ * A small window on the app showing the crop for the item in hand. Decorative: the list beside it
+ * says everything in words. The window's box is held from the first paint (the titlebar's viewBox,
+ * the crops' 4:3), so nothing moves when the images arrive.
+ */
+export function BoxPane({ shown, onCrop, className, ref }: BoxPaneProps) {
+  return (
+    <div
+      ref={ref}
+      aria-hidden
+      className={cn("dark overflow-hidden rounded-lg bg-background shadow-lg ring-1 ring-border", className)}
+    >
+      <Titlebar />
+      <div className="grid aspect-4/3">
+        {BOX_ITEMS.map(({ key }) => (
+          <img
+            key={key}
+            src={cropUrl(key)}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            draggable={false}
+            onLoad={() => onCrop(key, "loaded")}
+            onError={() => onCrop(key, "failed")}
+            // The incoming crop fades in over the outgoing one, which only goes once it is covered,
+            // so the crossfade never dips to the empty window between them.
+            className={cn(
+              "col-start-1 row-start-1 size-full object-cover transition-opacity motion-reduce:transition-none",
+              key === shown ? "z-10 opacity-100 duration-250 ease-out" : "opacity-0 delay-250 duration-0",
+            )}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}

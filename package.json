@@ -30,7 +30,7 @@
     "build": "bun run --filter @perch/web build && bun run --filter perch build",
     "start": "turbo run start --filter=perch",
     "typecheck": "bun run --filter '*' typecheck",
-    "lint": "eslint apps/web/src apps/web/vite.config.ts packages/ui/src && bun run --filter perch lint",
+    "lint": "eslint apps/web/src apps/web/vite.config.ts apps/site/src packages/ui/src && bun run --filter perch lint",
     "smoke": "bun run --filter perch smoke",
     "perch": "perch",
     "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules apps/server/dist apps/server/ui apps/server/webui/static apps/web/dist .turbo apps/*/.turbo"

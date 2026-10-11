@@ -1,0 +1,148 @@
+/* Prototype A's atmosphere: what Tailwind cannot say. The page colour, first light (a sky that
+   follows the scroll from night to a faint dawn behind the download section), and the nav's fill,
+   which tracks the same sky so it never reads as a band. Every colour is derived from the app's
+   own palette. */
+
+/* The page's one Tailwind build: the shared base, then the two landing scenes' tokens, so their
+   utilities are generated with everything else. */
+@import "../shared/styles/base.css";
+@import "./landing/keys/keys.css";
+@import "./landing/grid/grid.css";
+
+/* Not inherited, and animated only on the two elements that paint with it: a value that changes on
+   every scroll frame and is inherited from the root would restyle the whole document, every
+   workspace on the page included, on every one of those frames. */
+@property --a-night {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+:root {
+  /* The app's darkest surface, a step under its windows, so every scene stands slightly forward. */
+  --a-page: var(--bui-tooltip-bg);
+  /* Night is the same darkness turned toward the app's blue; dawn is its orange, barely there. */
+  --a-night-sky: oklch(from var(--bui-tooltip-bg) l calc(c + 0.011) 262);
+  --a-dawn-glow: oklch(from var(--bui-orange) l c h / 0.055);
+  --a-dawn-haze: oklch(from var(--bui-orange) l c h / 0.025);
+}
+
+[data-site-sky],
+[data-site-nav]::before {
+  --a-sky: color-mix(in oklab, var(--a-night-sky) calc(var(--a-night) * 100%), var(--a-page));
+}
+
+html {
+  background-color: var(--a-page);
+}
+
+/* The sky sits behind everything, so the body must not paint over it. */
+body {
+  background: none;
+}
+
+[data-site-sky] {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-color: var(--a-sky);
+}
+
+[data-site-sky]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: var(--a-dawn, 0);
+  background:
+    radial-gradient(60% 32% at 50% 100%, var(--a-dawn-glow), transparent),
+    radial-gradient(120% 55% at 50% 100%, var(--a-dawn-haze), transparent);
+}
+
+[data-site-nav]::before {
+  --a-night: inherit;
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 0;
+  background-color: color-mix(in oklab, var(--a-sky) 94%, transparent);
+  transition: opacity 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+[data-site-nav][data-scrolled]::before {
+  opacity: 1;
+}
+
+@keyframes a-night {
+  0%,
+  6% {
+    --a-night: 0;
+  }
+
+  45%,
+  82% {
+    --a-night: 1;
+  }
+
+  /* eases off as dawn comes up, so the horizon reads warm rather than muddy */
+  100% {
+    --a-night: 0.75;
+  }
+}
+
+@keyframes a-dawn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  @supports (animation-timeline: scroll()) {
+    :root {
+      timeline-scope: --a-dawn;
+    }
+
+    [data-site-sky],
+    [data-site-nav] {
+      animation: a-night linear both;
+      animation-timeline: scroll(root);
+    }
+
+    #download {
+      view-timeline: --a-dawn block;
+    }
+
+    [data-site-sky]::after {
+      animation: a-dawn linear both;
+      animation-timeline: --a-dawn;
+      animation-range: entry 0% cover 55%;
+    }
+  }
+}
+
+/* Reduced motion keeps a still version: a little of the night throughout, and the dawn only
+   behind the download section, where it scrolls in with the page rather than changing with it. */
+@media (prefers-reduced-motion: reduce) {
+  [data-site-sky],
+  [data-site-nav] {
+    --a-night: 0.5;
+  }
+
+  [data-site-dawn]::after {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: 20% 0 -30%;
+    background: radial-gradient(70% 50% at 50% 100%, var(--a-dawn-glow), transparent);
+    pointer-events: none;
+  }
+}

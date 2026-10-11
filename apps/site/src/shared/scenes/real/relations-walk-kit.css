@@ -1,0 +1,6 @@
+/* Offscreen, the app's endless CSS animations (wire pulses, spinners) hold still. */
+[data-scene-held] *,
+[data-scene-held] *::before,
+[data-scene-held] *::after {
+  animation-play-state: paused !important;
+}

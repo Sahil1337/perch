@@ -1,0 +1,7350 @@
+{
+ "version": 1,
+ "recordedAt": "2026-10-10T21:26:14.456Z",
+ "perchVersion": "0.2.0",
+ "server": {
+  "name": "perch",
+  "version": "0.2.0",
+  "pid": 0,
+  "url": "http://127.0.0.1:4600",
+  "startedAt": "2026-10-10T21:26:13.273Z",
+  "configDir": "~/.perch",
+  "queriesDir": "~/.perch/queries"
+ },
+ "connections": [
+  {
+   "id": "41d33762-ce25-4487-96f6-24bb21a52db3",
+   "name": "birdwatch",
+   "dialect": "postgres",
+   "host": "localhost",
+   "port": 5432,
+   "user": "birder",
+   "database": "perch_site_demo",
+   "createdAt": "2026-10-10T21:26:13.349Z",
+   "status": "connected",
+   "databases": [
+    "perch_site_demo",
+    "postgres"
+   ]
+  }
+ ],
+ "databases": {
+  "41d33762-ce25-4487-96f6-24bb21a52db3": [
+   "perch_site_demo",
+   "postgres"
+  ]
+ },
+ "schemas": {
+  "41d33762-ce25-4487-96f6-24bb21a52db3/perch_site_demo": {
+   "database": "perch_site_demo",
+   "schemas": [
+    {
+     "name": "public",
+     "tables": [
+      {
+       "schema": "public",
+       "name": "checklist_summary",
+       "kind": "view",
+       "columns": [
+        {
+         "name": "id",
+         "type": "integer",
+         "nullable": true,
+         "default": null,
+         "pk": false,
+         "position": 1
+        },
+        {
+         "name": "observer",
+         "type": "text",
+         "nullable": true,
+         "default": null,
+         "pk": false,
+         "position": 2
+        },
+        {
+         "name": "site",
+         "type": "text",
+         "nullable": true,
+         "default": null,
+         "pk": false,
+         "position": 3
+        },
+        {
+         "name": "started_at",
+         "type": "timestamp with time zone",
+         "nullable": true,
+         "default": null,
+         "pk": false,
+         "position": 4
+        },
+        {
+         "name": "species",
+         "type": "bigint",
+         "nullable": true,
+         "default": null,
+         "pk": false,
+         "position": 5
+        },
+        {
+         "name": "birds",
+         "type": "bigint",
+         "nullable": true,
+         "default": null,
+         "pk": false,
+         "position": 6
+        }
+       ],
+       "foreignKeys": []
+      },
+      {
+       "schema": "public",
+       "name": "checklists",
+       "kind": "table",
+       "columns": [
+        {
+         "name": "id",
+         "type": "integer",
+         "nullable": false,
+         "default": "nextval('checklists_id_seq'::regclass)",
+         "pk": true,
+         "position": 1
+        },
+        {
+         "name": "observer_id",
+         "type": "integer",
+         "nullable": false,
+         "default": null,
+         "pk": false,
+         "position": 2
+        },
+        {
+         "name": "site_id",
+         "type": "integer",
+         "nullable": false,
+         "default": null,
+         "pk": false,
+         "position": 3
+        },
+        {
+         "name": "started_at",
+         "type": "timestamp with time zone",
+         "nullable": false,
+         "default": null,
+         "pk": false,
+         "position": 4
+        },
+        {
+         "name": "duration_min",
+         "type": "integer",
+         "nullable": false,
+         "default": null,
+         "pk": false,
+         "position": 5
+        }
+       ],
+       "foreignKeys": [
+        {
+         "name": "checklists_observer_id_fkey",
+         "columns": [
+          "observer_id"
+         ],
+         "refSchema": "public",
+         "refTable": "observers",
+         "refColumns": [
+          "id"
+         ],
+         "onDelete": "NO ACTION",
+         "onUpdate": "NO ACTION"
+        },
+        {
+         "name": "checklists_site_id_fkey",
+         "columns": [
+          "site_id"
+         ],
+         "refSchema": "public",
+         "refTable": "sites",
+         "refColumns": [
+          "id"
+         ],
+         "onDelete": "NO ACTION",
+         "onUpdate": "NO ACTION"
+        }
+       ],
+       "rowEstimate": 94
+      },
+      {
+       "schema": "public",
+       "name": "families",
+       "kind": "table",
+       "columns": [
+        {
+         "name": "id",
+         "type": "integer",
+         "nullable": false,
+         "default": "nextval('families_id_seq'::regclass)",
+         "pk": true,
+         "position": 1
+        },
+        {
+         "name": "name",
+         "type": "text",
+         "nullable": false,
+         "default": null,
+         "pk": false,
+         "position": 2
+        },
+        {
+         "name": "latin_name",
+         "type": "text",
+         "nullable": false,
+         "default": null,
+         "pk": false,
+         "position": 3
+        }
+       ],
+       "foreignKeys": [],
+       "rowEstimate": 29
+      },
+      {
+       "schema": "public",
+       "name": "observers",
+       "kind": "table",
+       "columns": [
+        {
+         "name": "id",
+         "type": "integer",
+         "nullable": false,
+         "default": "nextval('observers_id_seq'::regclass)",
+         "pk": true,
+         "position": 1
+        },
+        {
+         "name": "name",
+         "type": "text",
+         "nullable": false,
+         "default": null,
+         "pk": false,
+         "position": 2
+        },
+        {
+         "name": "joined_on",
+         "type": "date",
+         "nullable": false,
+         "default": null,
+         "pk": false,
+         "position": 3
+        }
+       ],
+       "foreignKeys": [],
+       "rowEstimate": 6
+      },
+      {
+       "schema": "public",
+       "name": "sightings",
+       "kind": "table",
+       "columns": [
+        {
+         "name": "id",
+         "type": "integer",
+         "nullable": false,
+         "default": "nextval('sightings_id_seq'::regclass)",
+         "pk": true,
+         "position": 1
+        },
+        {
+         "name": "checklist_id",
+         "type": "integer",
+         "nullable": false,
+         "default": null,
+         "pk": false,
+         "position": 2
+        },
+        {
+         "name": "species_id",
+         "type": "integer",
+         "nullable": false,
+         "default": null,
+         "pk": false,
+         "position": 3
+        },
+        {
+         "name": "count",
+         "type": "integer",
+         "nullable": false,
+         "default": null,
+         "pk": false,
+         "position": 4
+        },
+        {
+         "name": "behaviour",
+         "type": "text",
+         "nullable": true,
+         "default": null,
+         "pk": false,
+         "position": 5
+        },
+        {
+         "name": "seen_at",
+         "type": "timestamp with time zone",
+         "nullable": false,
+         "default": null,
+         "pk": false,
+         "position": 6
+        }
+       ],
+       "foreignKeys": [
+        {
+         "name": "sightings_checklist_id_fkey",
+         "columns": [
+          "checklist_id"
+         ],
+         "refSchema": "public",
+         "refTable": "checklists",
+         "refColumns": [
+          "id"
+         ],
+         "onDelete": "CASCADE",
+         "onUpdate": "NO ACTION"
+        },
+        {
+         "name": "sightings_species_id_fkey",
+         "columns": [
+          "species_id"
+         ],
+         "refSchema": "public",
+         "refTable": "species",
+         "refColumns": [
+          "id"
+         ],
+         "onDelete": "NO ACTION",
+         "onUpdate": "NO ACTION"
+        }
+       ],
+       "rowEstimate": 433
+      },
+      {
+       "schema": "public",
+       "name": "sites",
+       "kind": "table",
+       "columns": [
+        {
+         "name": "id",
+         "type": "integer",
+         "nullable": false,
+         "default": "nextval('sites_id_seq'::regclass)",
+         "pk": true,
+         "position": 1
+        },
+        {
+         "name": "name",
+         "type": "text",
+         "nullable": false,
+         "default": null,
+         "pk": false,
+         "position": 2
+        },
+        {
+         "name": "region",
+         "type": "text",
+         "nullable": false,
+         "default": null,
+         "pk": false,
+         "position": 3
+        },
+        {
+         "name": "habitat",
+         "type": "text",
+         "nullable": false,
+         "default": null,
+         "pk": false,
+         "position": 4
+        },
+        {
+         "name": "lat",
+         "type": "numeric(7,4)",
+         "nullable": false,
+         "default": null,
+         "pk": false,
+         "position": 5
+        },
+        {
+         "name": "lon",
+         "type": "numeric(7,4)",
+         "nullable": false,
+         "default": null,
+         "pk": false,
+         "position": 6
+        }
+       ],
+       "foreignKeys": [],
+       "rowEstimate": 12
+      },
+      {
+       "schema": "public",
+       "name": "species",
+       "kind": "table",
+       "columns": [
+        {
+         "name": "id",
+         "type": "integer",
+         "nullable": false,
+         "default": "nextval('species_id_seq'::regclass)",
+         "pk": true,
+         "position": 1
+        },
+        {
+         "name": "common_name",
+         "type": "text",
+         "nullable": false,
+         "default": null,
+         "pk": false,
+         "position": 2
+        },
+        {
+         "name": "scientific_name",
+         "type": "text",
+         "nullable": false,
+         "default": null,
+         "pk": false,
+         "position": 3
+        },
+        {
+         "name": "family_id",
+         "type": "integer",
+         "nullable": false,
+         "default": null,
+         "pk": false,
+         "position": 4
+        },
+        {
+         "name": "status",
+         "type": "character(2)",
+         "nullable": false,
+         "default": null,
+         "pk": false,
+         "position": 5
+        },
+        {
+         "name": "migrant",
+         "type": "boolean",
+         "nullable": false,
+         "default": "false",
+         "pk": false,
+         "position": 6
+        },
+        {
+         "name": "last_seen_at",
+         "type": "timestamp with time zone",
+         "nullable": true,
+         "default": null,
+         "pk": false,
+         "position": 7
+        }
+       ],
+       "foreignKeys": [
+        {
+         "name": "species_family_id_fkey",
+         "columns": [
+          "family_id"
+         ],
+         "refSchema": "public",
+         "refTable": "families",
+         "refColumns": [
+          "id"
+         ],
+         "onDelete": "NO ACTION",
+         "onUpdate": "NO ACTION"
+        }
+       ],
+       "rowEstimate": 51
+      },
+      {
+       "schema": "public",
+       "name": "species_totals",
+       "kind": "view",
+       "columns": [
+        {
+         "name": "id",
+         "type": "integer",
+         "nullable": true,
+         "default": null,
+         "pk": false,
+         "position": 1
+        },
+        {
+         "name": "common_name",
+         "type": "text",
+         "nullable": true,
+         "default": null,
+         "pk": false,
+         "position": 2
+        },
+        {
+         "name": "family",
+         "type": "text",
+         "nullable": true,
+         "default": null,
+         "pk": false,
+         "position": 3
+        },
+        {
+         "name": "status",
+         "type": "character(2)",
+         "nullable": true,
+         "default": null,
+         "pk": false,
+         "position": 4
+        },
+        {
+         "name": "sightings",
+         "type": "bigint",
+         "nullable": true,
+         "default": null,
+         "pk": false,
+         "position": 5
+        },
+        {
+         "name": "birds",
+         "type": "bigint",
+         "nullable": true,
+         "default": null,
+         "pk": false,
+         "position": 6
+        },
+        {
+         "name": "last_seen_at",
+         "type": "timestamp with time zone",
+         "nullable": true,
+         "default": null,
+         "pk": false,
+         "position": 7
+        }
+       ],
+       "foreignKeys": []
+      }
+     ]
+    }
+   ],
+   "fetchedAt": "2026-10-10T21:26:13.372Z"
+  }
+ },
+ "connectionTests": {
+  "41d33762-ce25-4487-96f6-24bb21a52db3": {
+   "latencyMs": 0,
+   "serverVersion": "PostgreSQL 18.4 (Homebrew) on aarch64-apple-darwin25.6.0, compiled by Apple clang version 21.0.0 (clang-2100.1.1.101), 64-bit"
+  }
+ },
+ "settings": {
+  "autosave": true,
+  "autosaveDelayMs": 1200,
+  "maxRows": 1000,
+  "statementTimeoutMs": 0,
+  "workspaces": [
+   "~/birdwatch"
+  ],
+  "theme": "dark",
+  "keywordCase": "lower",
+  "completion": "smart",
+  "onboarded": true,
+  "recentWorkspaces": [
+   "~/.perch/queries"
+  ],
+  "historyMode": "queries",
+  "historyLimit": 500,
+  "historyMaxMb": 200
+ },
+ "roots": [
+  "~/birdwatch"
+ ],
+ "workspace": [
+  {
+   "path": "~/birdwatch/busiest-sites.sql",
+   "name": "busiest-sites.sql",
+   "kind": "file",
+   "size": 262,
+   "modifiedAt": "2026-10-10T21:26:13.237Z"
+  },
+  {
+   "path": "~/birdwatch/field-notes.sql",
+   "name": "field-notes.sql",
+   "kind": "file",
+   "size": 375,
+   "modifiedAt": "2026-10-10T21:26:13.237Z"
+  },
+  {
+   "path": "~/birdwatch/rare-sightings.sql",
+   "name": "rare-sightings.sql",
+   "kind": "file",
+   "size": 319,
+   "modifiedAt": "2026-10-10T21:26:13.237Z"
+  },
+  {
+   "path": "~/birdwatch/sightings-by-site.sql",
+   "name": "sightings-by-site.sql",
+   "kind": "file",
+   "size": 197,
+   "modifiedAt": "2026-10-10T21:26:13.237Z"
+  },
+  {
+   "path": "~/birdwatch/spring-migration.sql",
+   "name": "spring-migration.sql",
+   "kind": "file",
+   "size": 240,
+   "modifiedAt": "2026-10-10T21:26:13.237Z"
+  }
+ ],
+ "files": [
+  {
+   "content": "-- Which sites turned up the most species?\nselect t.name, t.habitat, count(distinct g.species_id) as species, sum(g.count) as birds\nfrom sites t\njoin checklists c on c.site_id = t.id\njoin sightings g on g.checklist_id = c.id\ngroup by t.id\norder by species desc;\n",
+   "modifiedAt": "2026-10-10T21:26:13.237Z",
+   "path": "~/birdwatch/busiest-sites.sql"
+  },
+  {
+   "content": "select count(*) as checklists, count(distinct observer_id) as observers from checklists;\n-- %%\nselect o.name, count(*) as checklists from checklists c join observers o on o.id = c.observer_id\ngroup by o.name order by checklists desc limit 3;\n-- %%\nselect extract(hour from seen_at) as hour, count(*) as sightings from sightings\ngroup by hour order by sightings desc limit 3;\n",
+   "modifiedAt": "2026-10-10T21:26:13.237Z",
+   "path": "~/birdwatch/field-notes.sql"
+  },
+  {
+   "content": "-- Red List species, most recent first\nselect s.common_name, s.status, t.name as site, g.count, to_char(g.seen_at, 'YYYY-MM-DD') as seen_on\nfrom sightings g\njoin species s on s.id = g.species_id\njoin checklists c on c.id = g.checklist_id\njoin sites t on t.id = c.site_id\nwhere s.status <> 'LC'\norder by g.seen_at desc;\n",
+   "modifiedAt": "2026-10-10T21:26:13.237Z",
+   "path": "~/birdwatch/rare-sightings.sql"
+  },
+  {
+   "content": "-- Birds counted at each site\nselect t.name, sum(g.count) as birds\nfrom sightings g\njoin checklists c on g.checklist_id = c.id\njoin sites t on c.site_id = t.id\ngroup by t.name\norder by birds desc;\n",
+   "modifiedAt": "2026-10-10T21:26:13.237Z",
+   "path": "~/birdwatch/sightings-by-site.sql"
+  },
+  {
+   "content": "-- First arrivals of spring\nselect s.common_name, to_char(min(g.seen_at), 'YYYY-MM-DD') as first_seen, sum(g.count) as birds\nfrom sightings g\njoin species s on s.id = g.species_id\nwhere s.migrant\ngroup by s.common_name\norder by first_seen;\n",
+   "modifiedAt": "2026-10-10T21:26:13.237Z",
+   "path": "~/birdwatch/spring-migration.sql"
+  }
+ ],
+ "discovery": {
+  "servers": [
+   {
+    "dialect": "postgres",
+    "host": "127.0.0.1",
+    "port": 5432,
+    "sources": [
+     "port",
+     "binary",
+     "brew"
+    ],
+    "version": "postgres (PostgreSQL) 18.4 (Homebrew)",
+    "reachable": true,
+    "suggestedUrl": "postgres://birder@127.0.0.1:5432/postgres"
+   }
+  ],
+  "osUser": "birder",
+  "scannedAt": "2026-10-10T21:26:14.194Z",
+  "durationMs": 821
+ },
+ "recordings": [
+  {
+   "key": "select s.common_name, to_char(min(g.seen_at), 'YYYY-MM-DD') as first_seen, sum(g.count) as birds from sightings g join species s on s.id = g.species_id where s.migrant group by s.common_name order by first_seen",
+   "kind": "run",
+   "scene": "hero",
+   "request": {
+    "sql": "-- First arrivals of spring\nselect s.common_name, to_char(min(g.seen_at), 'YYYY-MM-DD') as first_seen, sum(g.count) as birds\nfrom sightings g\njoin species s on s.id = g.species_id\nwhere s.migrant\ngroup by s.common_name\norder by first_seen;",
+    "maxRows": 1000
+   },
+   "record": {
+    "id": "56beff21-40c0-4997-9db4-cc0dbb09dfef",
+    "connectionId": "41d33762-ce25-4487-96f6-24bb21a52db3",
+    "database": "perch_site_demo",
+    "sql": "-- First arrivals of spring\nselect s.common_name, to_char(min(g.seen_at), 'YYYY-MM-DD') as first_seen, sum(g.count) as birds\nfrom sightings g\njoin species s on s.id = g.species_id\nwhere s.migrant\ngroup by s.common_name\norder by first_seen;",
+    "status": "done",
+    "startedAt": "2026-10-10T21:26:14.197Z",
+    "finishedAt": "2026-10-10T21:26:14.212Z",
+    "durationMs": 14,
+    "results": [
+     {
+      "index": 0,
+      "sql": "-- First arrivals of spring\nselect s.common_name, to_char(min(g.seen_at), 'YYYY-MM-DD') as first_seen, sum(g.count) as birds\nfrom sightings g\njoin species s on s.id = g.species_id\nwhere s.migrant\ngroup by s.common_name\norder by first_seen",
+      "columns": [
+       {
+        "name": "common_name",
+        "type": "text",
+        "align": "left",
+        "source": {
+         "table": "species",
+         "column": "common_name"
+        }
+       },
+       {
+        "name": "first_seen",
+        "type": "text",
+        "align": "left"
+       },
+       {
+        "name": "birds",
+        "type": "int8",
+        "align": "right"
+       }
+      ],
+      "rows": [
+       [
+        "Chiffchaff",
+        "2026-03-07",
+        "18"
+       ],
+       [
+        "Sand Martin",
+        "2026-03-13",
+        "253"
+       ],
+       [
+        "Garganey",
+        "2026-03-16",
+        "17"
+       ],
+       [
+        "Wheatear",
+        "2026-03-16",
+        "38"
+       ],
+       [
+        "Blackcap",
+        "2026-03-26",
+        "22"
+       ],
+       [
+        "Barn Swallow",
+        "2026-03-31",
+        "214"
+       ],
+       [
+        "Puffin",
+        "2026-03-31",
+        "595"
+       ],
+       [
+        "Willow Warbler",
+        "2026-04-05",
+        "16"
+       ],
+       [
+        "House Martin",
+        "2026-04-05",
+        "60"
+       ],
+       [
+        "Yellow Wagtail",
+        "2026-04-10",
+        "26"
+       ],
+       [
+        "Osprey",
+        "2026-04-12",
+        "9"
+       ],
+       [
+        "Kittiwake",
+        "2026-04-13",
+        "392"
+       ],
+       [
+        "Sedge Warbler",
+        "2026-04-16",
+        "11"
+       ],
+       [
+        "Nightingale",
+        "2026-04-19",
+        "6"
+       ],
+       [
+        "Whitethroat",
+        "2026-04-19",
+        "11"
+       ],
+       [
+        "Grasshopper Warbler",
+        "2026-04-19",
+        "1"
+       ],
+       [
+        "Cuckoo",
+        "2026-04-20",
+        "3"
+       ],
+       [
+        "Sandwich Tern",
+        "2026-04-22",
+        "73"
+       ],
+       [
+        "Whinchat",
+        "2026-04-25",
+        "9"
+       ],
+       [
+        "Redstart",
+        "2026-04-27",
+        "1"
+       ],
+       [
+        "Pied Flycatcher",
+        "2026-04-27",
+        "3"
+       ],
+       [
+        "Arctic Tern",
+        "2026-04-29",
+        "106"
+       ],
+       [
+        "Reed Warbler",
+        "2026-05-01",
+        "7"
+       ],
+       [
+        "Little Tern",
+        "2026-05-01",
+        "12"
+       ],
+       [
+        "Swift",
+        "2026-05-03",
+        "177"
+       ],
+       [
+        "Wryneck",
+        "2026-05-03",
+        "1"
+       ],
+       [
+        "Common Tern",
+        "2026-05-07",
+        "73"
+       ],
+       [
+        "Hobby",
+        "2026-05-15",
+        "8"
+       ],
+       [
+        "Turtle Dove",
+        "2026-05-17",
+        "1"
+       ],
+       [
+        "Golden Oriole",
+        "2026-05-19",
+        "1"
+       ],
+       [
+        "Wood Warbler",
+        "2026-05-20",
+        "2"
+       ],
+       [
+        "Spotted Flycatcher",
+        "2026-05-30",
+        "1"
+       ],
+       [
+        "Red-backed Shrike",
+        "2026-05-30",
+        "1"
+       ]
+      ],
+      "rowCount": 33,
+      "affectedRows": null,
+      "command": "SELECT",
+      "durationMs": 14,
+      "truncated": false,
+      "notices": []
+     }
+    ],
+    "source": "ui",
+    "workspace": "~/birdwatch"
+   }
+  },
+  {
+   "key": "select s.common_name, s.status, t.name as site, g.count, to_char(g.seen_at, 'YYYY-MM-DD') as seen_on from sightings g join species s on s.id = g.species_id join checklists c on c.id = g.checklist_id join sites t on t.id = c.site_id where s.status <> 'LC' order by g.seen_at desc",
+   "kind": "run",
+   "scene": "hero",
+   "request": {
+    "sql": "-- Red List species, most recent first\nselect s.common_name, s.status, t.name as site, g.count, to_char(g.seen_at, 'YYYY-MM-DD') as seen_on\nfrom sightings g\njoin species s on s.id = g.species_id\njoin checklists c on c.id = g.checklist_id\njoin sites t on t.id = c.site_id\nwhere s.status <> 'LC'\norder by g.seen_at desc;",
+    "maxRows": 1000
+   },
+   "record": {
+    "id": "906de653-e40a-4757-80e8-6e3b007b2658",
+    "connectionId": "41d33762-ce25-4487-96f6-24bb21a52db3",
+    "database": "perch_site_demo",
+    "sql": "-- Red List species, most recent first\nselect s.common_name, s.status, t.name as site, g.count, to_char(g.seen_at, 'YYYY-MM-DD') as seen_on\nfrom sightings g\njoin species s on s.id = g.species_id\njoin checklists c on c.id = g.checklist_id\njoin sites t on t.id = c.site_id\nwhere s.status <> 'LC'\norder by g.seen_at desc;",
+    "status": "done",
+    "startedAt": "2026-10-10T21:26:14.248Z",
+    "finishedAt": "2026-10-10T21:26:14.252Z",
+    "durationMs": 3,
+    "results": [
+     {
+      "index": 0,
+      "sql": "-- Red List species, most recent first\nselect s.common_name, s.status, t.name as site, g.count, to_char(g.seen_at, 'YYYY-MM-DD') as seen_on\nfrom sightings g\njoin species s on s.id = g.species_id\njoin checklists c on c.id = g.checklist_id\njoin sites t on t.id = c.site_id\nwhere s.status <> 'LC'\norder by g.seen_at desc",
+      "columns": [
+       {
+        "name": "common_name",
+        "type": "text",
+        "align": "left",
+        "source": {
+         "table": "species",
+         "column": "common_name"
+        }
+       },
+       {
+        "name": "status",
+        "type": "bpchar",
+        "align": "left",
+        "source": {
+         "table": "species",
+         "column": "status"
+        }
+       },
+       {
+        "name": "site",
+        "type": "text",
+        "align": "left",
+        "source": {
+         "table": "sites",
+         "column": "name"
+        }
+       },
+       {
+        "name": "count",
+        "type": "int4",
+        "align": "right",
+        "source": {
+         "table": "sightings",
+         "column": "count"
+        }
+       },
+       {
+        "name": "seen_on",
+        "type": "text",
+        "align": "left"
+       }
+      ],
+      "rows": [
+       [
+        "Lapwing",
+        "NT",
+        "Slimbridge",
+        17,
+        "2026-05-31"
+       ],
+       [
+        "Curlew",
+        "NT",
+        "Dungeness",
+        3,
+        "2026-05-25"
+       ],
+       [
+        "Oystercatcher",
+        "NT",
+        "Dungeness",
+        20,
+        "2026-05-25"
+       ],
+       [
+        "Kittiwake",
+        "VU",
+        "Farne Islands",
+        52,
+        "2026-05-23"
+       ],
+       [
+        "Oystercatcher",
+        "NT",
+        "Titchwell Marsh",
+        22,
+        "2026-05-21"
+       ],
+       [
+        "Oystercatcher",
+        "NT",
+        "Spurn Point",
+        10,
+        "2026-05-19"
+       ],
+       [
+        "Kittiwake",
+        "VU",
+        "Portland Bill",
+        45,
+        "2026-05-18"
+       ],
+       [
+        "Turtle Dove",
+        "VU",
+        "Bempton Cliffs",
+        1,
+        "2026-05-17"
+       ],
+       [
+        "Black-tailed Godwit",
+        "NT",
+        "Slimbridge",
+        7,
+        "2026-05-16"
+       ],
+       [
+        "Lapwing",
+        "NT",
+        "Dungeness",
+        12,
+        "2026-05-15"
+       ],
+       [
+        "Oystercatcher",
+        "NT",
+        "Dungeness",
+        20,
+        "2026-05-15"
+       ],
+       [
+        "Black-tailed Godwit",
+        "NT",
+        "Dungeness",
+        39,
+        "2026-05-15"
+       ],
+       [
+        "Oystercatcher",
+        "NT",
+        "Dungeness",
+        17,
+        "2026-05-13"
+       ],
+       [
+        "Black-tailed Godwit",
+        "NT",
+        "Spurn Point",
+        41,
+        "2026-05-11"
+       ],
+       [
+        "Curlew",
+        "NT",
+        "Farne Islands",
+        7,
+        "2026-05-07"
+       ],
+       [
+        "Puffin",
+        "VU",
+        "Farne Islands",
+        135,
+        "2026-05-06"
+       ],
+       [
+        "Kittiwake",
+        "VU",
+        "Farne Islands",
+        123,
+        "2026-05-06"
+       ],
+       [
+        "Puffin",
+        "VU",
+        "Farne Islands",
+        71,
+        "2026-05-05"
+       ],
+       [
+        "Curlew",
+        "NT",
+        "Portland Bill",
+        11,
+        "2026-05-04"
+       ],
+       [
+        "Oystercatcher",
+        "NT",
+        "Dungeness",
+        14,
+        "2026-05-01"
+       ],
+       [
+        "Puffin",
+        "VU",
+        "Bempton Cliffs",
+        50,
+        "2026-04-29"
+       ],
+       [
+        "Black-tailed Godwit",
+        "NT",
+        "Titchwell Marsh",
+        24,
+        "2026-04-28"
+       ],
+       [
+        "Oystercatcher",
+        "NT",
+        "Titchwell Marsh",
+        20,
+        "2026-04-28"
+       ],
+       [
+        "Curlew",
+        "NT",
+        "Titchwell Marsh",
+        5,
+        "2026-04-22"
+       ],
+       [
+        "Oystercatcher",
+        "NT",
+        "Titchwell Marsh",
+        18,
+        "2026-04-22"
+       ],
+       [
+        "Kittiwake",
+        "VU",
+        "Bempton Cliffs",
+        48,
+        "2026-04-19"
+       ],
+       [
+        "Lapwing",
+        "NT",
+        "Titchwell Marsh",
+        15,
+        "2026-04-17"
+       ],
+       [
+        "Oystercatcher",
+        "NT",
+        "Titchwell Marsh",
+        15,
+        "2026-04-17"
+       ],
+       [
+        "Lapwing",
+        "NT",
+        "Wicken Fen",
+        11,
+        "2026-04-13"
+       ],
+       [
+        "Puffin",
+        "VU",
+        "Bempton Cliffs",
+        68,
+        "2026-04-13"
+       ],
+       [
+        "Kittiwake",
+        "VU",
+        "Bempton Cliffs",
+        124,
+        "2026-04-13"
+       ],
+       [
+        "Lapwing",
+        "NT",
+        "Minsmere",
+        16,
+        "2026-04-12"
+       ],
+       [
+        "Curlew",
+        "NT",
+        "Minsmere",
+        4,
+        "2026-04-12"
+       ],
+       [
+        "Curlew",
+        "NT",
+        "Cley Marshes",
+        2,
+        "2026-04-10"
+       ],
+       [
+        "Oystercatcher",
+        "NT",
+        "Cley Marshes",
+        14,
+        "2026-04-10"
+       ],
+       [
+        "Curlew",
+        "NT",
+        "Farne Islands",
+        6,
+        "2026-04-09"
+       ],
+       [
+        "Black-tailed Godwit",
+        "NT",
+        "Spurn Point",
+        10,
+        "2026-04-08"
+       ],
+       [
+        "Lapwing",
+        "NT",
+        "Slimbridge",
+        19,
+        "2026-04-05"
+       ],
+       [
+        "Lapwing",
+        "NT",
+        "Wicken Fen",
+        11,
+        "2026-04-05"
+       ],
+       [
+        "Lapwing",
+        "NT",
+        "Titchwell Marsh",
+        16,
+        "2026-04-04"
+       ],
+       [
+        "Curlew",
+        "NT",
+        "Titchwell Marsh",
+        8,
+        "2026-04-04"
+       ],
+       [
+        "Curlew",
+        "NT",
+        "Portland Bill",
+        5,
+        "2026-04-03"
+       ],
+       [
+        "Puffin",
+        "VU",
+        "Portland Bill",
+        128,
+        "2026-04-03"
+       ],
+       [
+        "Lapwing",
+        "NT",
+        "Slimbridge",
+        7,
+        "2026-04-01"
+       ],
+       [
+        "Puffin",
+        "VU",
+        "Farne Islands",
+        143,
+        "2026-03-31"
+       ],
+       [
+        "Oystercatcher",
+        "NT",
+        "Farne Islands",
+        23,
+        "2026-03-31"
+       ],
+       [
+        "Lapwing",
+        "NT",
+        "Wicken Fen",
+        7,
+        "2026-03-31"
+       ],
+       [
+        "Black-tailed Godwit",
+        "NT",
+        "Wicken Fen",
+        40,
+        "2026-03-31"
+       ],
+       [
+        "Lapwing",
+        "NT",
+        "Titchwell Marsh",
+        4,
+        "2026-03-30"
+       ],
+       [
+        "Lapwing",
+        "NT",
+        "Slimbridge",
+        18,
+        "2026-03-28"
+       ],
+       [
+        "Black-tailed Godwit",
+        "NT",
+        "Slimbridge",
+        36,
+        "2026-03-28"
+       ],
+       [
+        "Curlew",
+        "NT",
+        "Slimbridge",
+        11,
+        "2026-03-28"
+       ],
+       [
+        "Curlew",
+        "NT",
+        "Cley Marshes",
+        4,
+        "2026-03-25"
+       ],
+       [
+        "Oystercatcher",
+        "NT",
+        "Titchwell Marsh",
+        17,
+        "2026-03-23"
+       ],
+       [
+        "Oystercatcher",
+        "NT",
+        "Titchwell Marsh",
+        15,
+        "2026-03-23"
+       ],
+       [
+        "Black-tailed Godwit",
+        "NT",
+        "Titchwell Marsh",
+        30,
+        "2026-03-23"
+       ],
+       [
+        "Black-tailed Godwit",
+        "NT",
+        "Loch Garten",
+        29,
+        "2026-03-22"
+       ],
+       [
+        "Black-tailed Godwit",
+        "NT",
+        "Spurn Point",
+        43,
+        "2026-03-20"
+       ],
+       [
+        "Lapwing",
+        "NT",
+        "Minsmere",
+        14,
+        "2026-03-18"
+       ],
+       [
+        "Oystercatcher",
+        "NT",
+        "Dungeness",
+        25,
+        "2026-03-16"
+       ],
+       [
+        "Oystercatcher",
+        "NT",
+        "Cley Marshes",
+        21,
+        "2026-03-15"
+       ],
+       [
+        "Lapwing",
+        "NT",
+        "Cley Marshes",
+        18,
+        "2026-03-15"
+       ],
+       [
+        "Black-tailed Godwit",
+        "NT",
+        "Cley Marshes",
+        40,
+        "2026-03-15"
+       ],
+       [
+        "Black-tailed Godwit",
+        "NT",
+        "Loch Garten",
+        43,
+        "2026-03-14"
+       ],
+       [
+        "Lapwing",
+        "NT",
+        "Titchwell Marsh",
+        13,
+        "2026-03-12"
+       ],
+       [
+        "Black-tailed Godwit",
+        "NT",
+        "Titchwell Marsh",
+        15,
+        "2026-03-12"
+       ],
+       [
+        "Oystercatcher",
+        "NT",
+        "Titchwell Marsh",
+        5,
+        "2026-03-12"
+       ],
+       [
+        "Oystercatcher",
+        "NT",
+        "Cley Marshes",
+        7,
+        "2026-03-09"
+       ],
+       [
+        "Lapwing",
+        "NT",
+        "Cley Marshes",
+        12,
+        "2026-03-09"
+       ],
+       [
+        "Lapwing",
+        "NT",
+        "Cley Marshes",
+        9,
+        "2026-03-09"
+       ],
+       [
+        "Black-tailed Godwit",
+        "NT",
+        "Cley Marshes",
+        44,
+        "2026-03-09"
+       ],
+       [
+        "Oystercatcher",
+        "NT",
+        "Portland Bill",
+        7,
+        "2026-03-05"
+       ],
+       [
+        "Oystercatcher",
+        "NT",
+        "Portland Bill",
+        17,
+        "2026-03-04"
+       ],
+       [
+        "Lapwing",
+        "NT",
+        "Slimbridge",
+        4,
+        "2026-03-02"
+       ],
+       [
+        "Black-tailed Godwit",
+        "NT",
+        "Loch Garten",
+        33,
+        "2026-03-01"
+       ]
+      ],
+      "rowCount": 75,
+      "affectedRows": null,
+      "command": "SELECT",
+      "durationMs": 3,
+      "truncated": false,
+      "notices": []
+     }
+    ],
+    "source": "ui",
+    "workspace": "~/birdwatch"
+   }
+  },
+  {
+   "key": "select t.name, t.habitat, count(distinct g.species_id) as species, sum(g.count) as birds from sites t join checklists c on c.site_id = t.id join sightings g on g.checklist_id = c.id group by t.id order by species desc",
+   "kind": "run",
+   "scene": "hero",
+   "request": {
+    "sql": "-- Which sites turned up the most species?\nselect t.name, t.habitat, count(distinct g.species_id) as species, sum(g.count) as birds\nfrom sites t\njoin checklists c on c.site_id = t.id\njoin sightings g on g.checklist_id = c.id\ngroup by t.id\norder by species desc;",
+    "maxRows": 1000
+   },
+   "record": {
+    "id": "69d3f82b-d666-4389-997d-4078bdd93373",
+    "connectionId": "41d33762-ce25-4487-96f6-24bb21a52db3",
+    "database": "perch_site_demo",
+    "sql": "-- Which sites turned up the most species?\nselect t.name, t.habitat, count(distinct g.species_id) as species, sum(g.count) as birds\nfrom sites t\njoin checklists c on c.site_id = t.id\njoin sightings g on g.checklist_id = c.id\ngroup by t.id\norder by species desc;",
+    "status": "done",
+    "startedAt": "2026-10-10T21:26:14.264Z",
+    "finishedAt": "2026-10-10T21:26:14.266Z",
+    "durationMs": 1,
+    "results": [
+     {
+      "index": 0,
+      "sql": "-- Which sites turned up the most species?\nselect t.name, t.habitat, count(distinct g.species_id) as species, sum(g.count) as birds\nfrom sites t\njoin checklists c on c.site_id = t.id\njoin sightings g on g.checklist_id = c.id\ngroup by t.id\norder by species desc",
+      "columns": [
+       {
+        "name": "name",
+        "type": "text",
+        "align": "left",
+        "source": {
+         "table": "sites",
+         "column": "name"
+        }
+       },
+       {
+        "name": "habitat",
+        "type": "text",
+        "align": "left",
+        "source": {
+         "table": "sites",
+         "column": "habitat"
+        }
+       },
+       {
+        "name": "species",
+        "type": "int8",
+        "align": "right"
+       },
+       {
+        "name": "birds",
+        "type": "int8",
+        "align": "right"
+       }
+      ],
+      "rows": [
+       [
+        "Minsmere",
+        "reedbed",
+        "27",
+        "186"
+       ],
+       [
+        "Cley Marshes",
+        "saltmarsh",
+        "25",
+        "387"
+       ],
+       [
+        "Dungeness",
+        "shingle",
+        "24",
+        "336"
+       ],
+       [
+        "Loch Garten",
+        "pine forest",
+        "23",
+        "251"
+       ],
+       [
+        "Wicken Fen",
+        "fen",
+        "21",
+        "203"
+       ],
+       [
+        "Titchwell Marsh",
+        "saltmarsh",
+        "21",
+        "691"
+       ],
+       [
+        "Bempton Cliffs",
+        "sea cliff",
+        "19",
+        "388"
+       ],
+       [
+        "Spurn Point",
+        "coastal spit",
+        "19",
+        "275"
+       ],
+       [
+        "Slimbridge",
+        "wetland",
+        "16",
+        "276"
+       ],
+       [
+        "Portland Bill",
+        "headland",
+        "16",
+        "464"
+       ],
+       [
+        "Farne Islands",
+        "island",
+        "13",
+        "734"
+       ],
+       [
+        "Nagshead",
+        "oak wood",
+        "9",
+        "44"
+       ]
+      ],
+      "rowCount": 12,
+      "affectedRows": null,
+      "command": "SELECT",
+      "durationMs": 1,
+      "truncated": false,
+      "notices": []
+     }
+    ],
+    "source": "ui",
+    "workspace": "~/birdwatch"
+   }
+  },
+  {
+   "key": "select t.name, sum(g.count) as birds from sightings g join checklists c on g.checklist_id = c.id join sites t on c.site_id = t.id group by t.name order by birds desc",
+   "kind": "run",
+   "scene": "completion",
+   "request": {
+    "sql": "-- Birds counted at each site\nselect t.name, sum(g.count) as birds\nfrom sightings g\njoin checklists c on g.checklist_id = c.id\njoin sites t on c.site_id = t.id\ngroup by t.name\norder by birds desc;",
+    "maxRows": 1000
+   },
+   "record": {
+    "id": "a42982db-bfb8-474f-ac12-468d721bd6cc",
+    "connectionId": "41d33762-ce25-4487-96f6-24bb21a52db3",
+    "database": "perch_site_demo",
+    "sql": "-- Birds counted at each site\nselect t.name, sum(g.count) as birds\nfrom sightings g\njoin checklists c on g.checklist_id = c.id\njoin sites t on c.site_id = t.id\ngroup by t.name\norder by birds desc;",
+    "status": "done",
+    "startedAt": "2026-10-10T21:26:14.280Z",
+    "finishedAt": "2026-10-10T21:26:14.281Z",
+    "durationMs": 1,
+    "results": [
+     {
+      "index": 0,
+      "sql": "-- Birds counted at each site\nselect t.name, sum(g.count) as birds\nfrom sightings g\njoin checklists c on g.checklist_id = c.id\njoin sites t on c.site_id = t.id\ngroup by t.name\norder by birds desc",
+      "columns": [
+       {
+        "name": "name",
+        "type": "text",
+        "align": "left",
+        "source": {
+         "table": "sites",
+         "column": "name"
+        }
+       },
+       {
+        "name": "birds",
+        "type": "int8",
+        "align": "right"
+       }
+      ],
+      "rows": [
+       [
+        "Farne Islands",
+        "734"
+       ],
+       [
+        "Titchwell Marsh",
+        "691"
+       ],
+       [
+        "Portland Bill",
+        "464"
+       ],
+       [
+        "Bempton Cliffs",
+        "388"
+       ],
+       [
+        "Cley Marshes",
+        "387"
+       ],
+       [
+        "Dungeness",
+        "336"
+       ],
+       [
+        "Slimbridge",
+        "276"
+       ],
+       [
+        "Spurn Point",
+        "275"
+       ],
+       [
+        "Loch Garten",
+        "251"
+       ],
+       [
+        "Wicken Fen",
+        "203"
+       ],
+       [
+        "Minsmere",
+        "186"
+       ],
+       [
+        "Nagshead",
+        "44"
+       ]
+      ],
+      "rowCount": 12,
+      "affectedRows": null,
+      "command": "SELECT",
+      "durationMs": 1,
+      "truncated": false,
+      "notices": []
+     }
+    ],
+    "source": "ui",
+    "workspace": "~/birdwatch"
+   }
+  },
+  {
+   "key": "select count(*) as checklists, count(distinct observer_id) as observers from checklists; select o.name, count(*) as checklists from checklists c join observers o on o.id = c.observer_id group by o.name order by checklists desc limit 3; select extract(hour from seen_at) as hour, count(*) as sightings from sightings group by hour order by sightings desc limit 3",
+   "kind": "run",
+   "scene": "notebook",
+   "request": {
+    "sql": "select count(*) as checklists, count(distinct observer_id) as observers from checklists;\n-- %%\nselect o.name, count(*) as checklists from checklists c join observers o on o.id = c.observer_id\ngroup by o.name order by checklists desc limit 3;\n-- %%\nselect extract(hour from seen_at) as hour, count(*) as sightings from sightings\ngroup by hour order by sightings desc limit 3;",
+    "maxRows": 1000
+   },
+   "record": {
+    "id": "46d6e61a-d07a-4dfd-bfa9-64b6b3f3064a",
+    "connectionId": "41d33762-ce25-4487-96f6-24bb21a52db3",
+    "database": "perch_site_demo",
+    "sql": "select count(*) as checklists, count(distinct observer_id) as observers from checklists;\n-- %%\nselect o.name, count(*) as checklists from checklists c join observers o on o.id = c.observer_id\ngroup by o.name order by checklists desc limit 3;\n-- %%\nselect extract(hour from seen_at) as hour, count(*) as sightings from sightings\ngroup by hour order by sightings desc limit 3;",
+    "status": "done",
+    "startedAt": "2026-10-10T21:26:14.301Z",
+    "finishedAt": "2026-10-10T21:26:14.305Z",
+    "durationMs": 3,
+    "results": [
+     {
+      "index": 0,
+      "sql": "select count(*) as checklists, count(distinct observer_id) as observers from checklists",
+      "columns": [
+       {
+        "name": "checklists",
+        "type": "int8",
+        "align": "right"
+       },
+       {
+        "name": "observers",
+        "type": "int8",
+        "align": "right"
+       }
+      ],
+      "rows": [
+       [
+        "94",
+        "6"
+       ]
+      ],
+      "rowCount": 1,
+      "affectedRows": null,
+      "command": "SELECT",
+      "durationMs": 0,
+      "truncated": false,
+      "notices": []
+     },
+     {
+      "index": 1,
+      "sql": "-- %%\nselect o.name, count(*) as checklists from checklists c join observers o on o.id = c.observer_id\ngroup by o.name order by checklists desc limit 3",
+      "columns": [
+       {
+        "name": "name",
+        "type": "text",
+        "align": "left",
+        "source": {
+         "table": "observers",
+         "column": "name"
+        }
+       },
+       {
+        "name": "checklists",
+        "type": "int8",
+        "align": "right"
+       }
+      ],
+      "rows": [
+       [
+        "Priya N.",
+        "18"
+       ],
+       [
+        "June A.",
+        "18"
+       ],
+       [
+        "Tom E.",
+        "17"
+       ]
+      ],
+      "rowCount": 3,
+      "affectedRows": null,
+      "command": "SELECT",
+      "durationMs": 1,
+      "truncated": false,
+      "notices": []
+     },
+     {
+      "index": 2,
+      "sql": "-- %%\nselect extract(hour from seen_at) as hour, count(*) as sightings from sightings\ngroup by hour order by sightings desc limit 3",
+      "columns": [
+       {
+        "name": "hour",
+        "type": "numeric",
+        "align": "right"
+       },
+       {
+        "name": "sightings",
+        "type": "int8",
+        "align": "right"
+       }
+      ],
+      "rows": [
+       [
+        "7",
+        "101"
+       ],
+       [
+        "8",
+        "99"
+       ],
+       [
+        "6",
+        "61"
+       ]
+      ],
+      "rowCount": 3,
+      "affectedRows": null,
+      "command": "SELECT",
+      "durationMs": 1,
+      "truncated": false,
+      "notices": []
+     }
+    ],
+    "source": "ui",
+    "workspace": "~/birdwatch"
+   }
+  },
+  {
+   "key": "select count(*) as checklists, count(distinct observer_id) as observers from checklists",
+   "kind": "run",
+   "scene": "notebook",
+   "request": {
+    "sql": "select count(*) as checklists, count(distinct observer_id) as observers from checklists;",
+    "maxRows": 1000
+   },
+   "record": {
+    "id": "c56bb859-199a-4953-a2a4-290e1d274eb8",
+    "connectionId": "41d33762-ce25-4487-96f6-24bb21a52db3",
+    "database": "perch_site_demo",
+    "sql": "select count(*) as checklists, count(distinct observer_id) as observers from checklists;",
+    "status": "done",
+    "startedAt": "2026-10-10T21:26:14.320Z",
+    "finishedAt": "2026-10-10T21:26:14.320Z",
+    "durationMs": 0,
+    "results": [
+     {
+      "index": 0,
+      "sql": "select count(*) as checklists, count(distinct observer_id) as observers from checklists",
+      "columns": [
+       {
+        "name": "checklists",
+        "type": "int8",
+        "align": "right"
+       },
+       {
+        "name": "observers",
+        "type": "int8",
+        "align": "right"
+       }
+      ],
+      "rows": [
+       [
+        "94",
+        "6"
+       ]
+      ],
+      "rowCount": 1,
+      "affectedRows": null,
+      "command": "SELECT",
+      "durationMs": 0,
+      "truncated": false,
+      "notices": []
+     }
+    ],
+    "source": "ui",
+    "workspace": "~/birdwatch"
+   }
+  },
+  {
+   "key": "select o.name, count(*) as checklists from checklists c join observers o on o.id = c.observer_id group by o.name order by checklists desc limit 3",
+   "kind": "run",
+   "scene": "notebook",
+   "request": {
+    "sql": "select o.name, count(*) as checklists from checklists c join observers o on o.id = c.observer_id\ngroup by o.name order by checklists desc limit 3;",
+    "maxRows": 1000
+   },
+   "record": {
+    "id": "d0768b78-0276-4dc3-89ab-a5842dc93d30",
+    "connectionId": "41d33762-ce25-4487-96f6-24bb21a52db3",
+    "database": "perch_site_demo",
+    "sql": "select o.name, count(*) as checklists from checklists c join observers o on o.id = c.observer_id\ngroup by o.name order by checklists desc limit 3;",
+    "status": "done",
+    "startedAt": "2026-10-10T21:26:14.335Z",
+    "finishedAt": "2026-10-10T21:26:14.336Z",
+    "durationMs": 0,
+    "results": [
+     {
+      "index": 0,
+      "sql": "select o.name, count(*) as checklists from checklists c join observers o on o.id = c.observer_id\ngroup by o.name order by checklists desc limit 3",
+      "columns": [
+       {
+        "name": "name",
+        "type": "text",
+        "align": "left",
+        "source": {
+         "table": "observers",
+         "column": "name"
+        }
+       },
+       {
+        "name": "checklists",
+        "type": "int8",
+        "align": "right"
+       }
+      ],
+      "rows": [
+       [
+        "Priya N.",
+        "18"
+       ],
+       [
+        "June A.",
+        "18"
+       ],
+       [
+        "Tom E.",
+        "17"
+       ]
+      ],
+      "rowCount": 3,
+      "affectedRows": null,
+      "command": "SELECT",
+      "durationMs": 0,
+      "truncated": false,
+      "notices": []
+     }
+    ],
+    "source": "ui",
+    "workspace": "~/birdwatch"
+   }
+  },
+  {
+   "key": "select extract(hour from seen_at) as hour, count(*) as sightings from sightings group by hour order by sightings desc limit 3",
+   "kind": "run",
+   "scene": "notebook",
+   "request": {
+    "sql": "select extract(hour from seen_at) as hour, count(*) as sightings from sightings\ngroup by hour order by sightings desc limit 3;",
+    "maxRows": 1000
+   },
+   "record": {
+    "id": "dc1ddb12-aa46-4842-a103-0e6af9f65bc9",
+    "connectionId": "41d33762-ce25-4487-96f6-24bb21a52db3",
+    "database": "perch_site_demo",
+    "sql": "select extract(hour from seen_at) as hour, count(*) as sightings from sightings\ngroup by hour order by sightings desc limit 3;",
+    "status": "done",
+    "startedAt": "2026-10-10T21:26:14.348Z",
+    "finishedAt": "2026-10-10T21:26:14.349Z",
+    "durationMs": 0,
+    "results": [
+     {
+      "index": 0,
+      "sql": "select extract(hour from seen_at) as hour, count(*) as sightings from sightings\ngroup by hour order by sightings desc limit 3",
+      "columns": [
+       {
+        "name": "hour",
+        "type": "numeric",
+        "align": "right"
+       },
+       {
+        "name": "sightings",
+        "type": "int8",
+        "align": "right"
+       }
+      ],
+      "rows": [
+       [
+        "7",
+        "101"
+       ],
+       [
+        "8",
+        "99"
+       ],
+       [
+        "6",
+        "61"
+       ]
+      ],
+      "rowCount": 3,
+      "affectedRows": null,
+      "command": "SELECT",
+      "durationMs": 0,
+      "truncated": false,
+      "notices": []
+     }
+    ],
+    "source": "ui",
+    "workspace": "~/birdwatch"
+   }
+  },
+  {
+   "key": "select * from species",
+   "kind": "run",
+   "scene": "explore",
+   "request": {
+    "sql": "select * from species",
+    "maxRows": 1000
+   },
+   "record": {
+    "id": "85f2e86f-5640-40a9-a038-8bcba5510535",
+    "connectionId": "41d33762-ce25-4487-96f6-24bb21a52db3",
+    "database": "perch_site_demo",
+    "sql": "select * from species",
+    "status": "done",
+    "startedAt": "2026-10-10T21:26:14.360Z",
+    "finishedAt": "2026-10-10T21:26:14.361Z",
+    "durationMs": 1,
+    "results": [
+     {
+      "index": 0,
+      "sql": "select * from species",
+      "columns": [
+       {
+        "name": "id",
+        "type": "int4",
+        "align": "right",
+        "source": {
+         "table": "species",
+         "column": "id"
+        }
+       },
+       {
+        "name": "common_name",
+        "type": "text",
+        "align": "left",
+        "source": {
+         "table": "species",
+         "column": "common_name"
+        }
+       },
+       {
+        "name": "scientific_name",
+        "type": "text",
+        "align": "left",
+        "source": {
+         "table": "species",
+         "column": "scientific_name"
+        }
+       },
+       {
+        "name": "family_id",
+        "type": "int4",
+        "align": "right",
+        "source": {
+         "table": "species",
+         "column": "family_id"
+        }
+       },
+       {
+        "name": "status",
+        "type": "bpchar",
+        "align": "left",
+        "source": {
+         "table": "species",
+         "column": "status"
+        }
+       },
+       {
+        "name": "migrant",
+        "type": "bool",
+        "align": "left",
+        "source": {
+         "table": "species",
+         "column": "migrant"
+        }
+       },
+       {
+        "name": "last_seen_at",
+        "type": "timestamptz",
+        "align": "right",
+        "source": {
+         "table": "species",
+         "column": "last_seen_at"
+        }
+       }
+      ],
+      "rows": [
+       [
+        8,
+        "Grasshopper Warbler",
+        "Locustella naevia",
+        7,
+        "LC",
+        true,
+        "2026-04-19T06:00:00.000Z"
+       ],
+       [
+        38,
+        "Great Tit",
+        "Parus major",
+        25,
+        "LC",
+        false,
+        "2026-04-26T16:43:00.000Z"
+       ],
+       [
+        10,
+        "Redstart",
+        "Phoenicurus phoenicurus",
+        8,
+        "LC",
+        true,
+        "2026-04-27T06:18:00.000Z"
+       ],
+       [
+        44,
+        "Kingfisher",
+        "Alcedo atthis",
+        23,
+        "LC",
+        false,
+        "2026-04-28T06:47:00.000Z"
+       ],
+       [
+        23,
+        "Wryneck",
+        "Jynx torquilla",
+        24,
+        "LC",
+        true,
+        "2026-05-03T09:24:00.000Z"
+       ],
+       [
+        40,
+        "Crested Tit",
+        "Lophophanes cristatus",
+        25,
+        "LC",
+        false,
+        "2026-05-04T05:39:00.000Z"
+       ],
+       [
+        32,
+        "Little Tern",
+        "Sternula albifrons",
+        11,
+        "LC",
+        true,
+        "2026-05-05T06:12:00.000Z"
+       ],
+       [
+        34,
+        "Puffin",
+        "Fratercula arctica",
+        12,
+        "VU",
+        true,
+        "2026-05-06T16:37:00.000Z"
+       ],
+       [
+        6,
+        "Sedge Warbler",
+        "Acrocephalus schoenobaenus",
+        6,
+        "LC",
+        true,
+        "2026-05-08T16:56:00.000Z"
+       ],
+       [
+        39,
+        "Blue Tit",
+        "Cyanistes caeruleus",
+        25,
+        "LC",
+        false,
+        "2026-05-08T16:01:00.000Z"
+       ],
+       [
+        7,
+        "Reed Warbler",
+        "Acrocephalus scirpaceus",
+        6,
+        "LC",
+        true,
+        "2026-05-14T05:57:00.000Z"
+       ],
+       [
+        46,
+        "Avocet",
+        "Recurvirostra avosetta",
+        15,
+        "LC",
+        false,
+        "2026-05-16T05:48:00.000Z"
+       ],
+       [
+        49,
+        "Black-tailed Godwit",
+        "Limosa limosa",
+        13,
+        "NT",
+        false,
+        "2026-05-16T05:45:00.000Z"
+       ],
+       [
+        28,
+        "Hobby",
+        "Falco subbuteo",
+        20,
+        "LC",
+        true,
+        "2026-05-16T16:22:00.000Z"
+       ],
+       [
+        43,
+        "Bittern",
+        "Botaurus stellaris",
+        22,
+        "LC",
+        false,
+        "2026-05-16T15:21:00.000Z"
+       ],
+       [
+        22,
+        "Turtle Dove",
+        "Streptopelia turtur",
+        17,
+        "VU",
+        true,
+        "2026-05-17T14:40:00.000Z"
+       ],
+       [
+        14,
+        "Wheatear",
+        "Oenanthe oenanthe",
+        8,
+        "LC",
+        true,
+        "2026-05-19T05:15:00.000Z"
+       ],
+       [
+        24,
+        "Golden Oriole",
+        "Oriolus oriolus",
+        29,
+        "LC",
+        true,
+        "2026-05-19T05:39:00.000Z"
+       ],
+       [
+        41,
+        "Skylark",
+        "Alauda arvensis",
+        27,
+        "LC",
+        false,
+        "2026-05-19T05:21:00.000Z"
+       ],
+       [
+        9,
+        "Nightingale",
+        "Luscinia megarhynchos",
+        8,
+        "LC",
+        true,
+        "2026-05-20T07:27:00.000Z"
+       ],
+       [
+        11,
+        "Pied Flycatcher",
+        "Ficedula hypoleuca",
+        8,
+        "LC",
+        true,
+        "2026-05-20T07:45:00.000Z"
+       ],
+       [
+        26,
+        "Garganey",
+        "Spatula querquedula",
+        21,
+        "LC",
+        true,
+        "2026-05-20T07:00:00.000Z"
+       ],
+       [
+        27,
+        "Osprey",
+        "Pandion haliaetus",
+        19,
+        "LC",
+        true,
+        "2026-05-21T06:05:00.000Z"
+       ],
+       [
+        18,
+        "House Martin",
+        "Delichon urbicum",
+        1,
+        "LC",
+        true,
+        "2026-05-23T07:02:00.000Z"
+       ],
+       [
+        33,
+        "Kittiwake",
+        "Rissa tridactyla",
+        11,
+        "VU",
+        true,
+        "2026-05-23T06:46:00.000Z"
+       ],
+       [
+        2,
+        "Willow Warbler",
+        "Phylloscopus trochilus",
+        4,
+        "LC",
+        true,
+        "2026-05-25T15:56:00.000Z"
+       ],
+       [
+        35,
+        "Blackbird",
+        "Turdus merula",
+        9,
+        "LC",
+        false,
+        "2026-05-25T16:13:00.000Z"
+       ],
+       [
+        48,
+        "Curlew",
+        "Numenius arquata",
+        13,
+        "NT",
+        false,
+        "2026-05-25T16:36:00.000Z"
+       ],
+       [
+        51,
+        "Oystercatcher",
+        "Haematopus ostralegus",
+        16,
+        "NT",
+        false,
+        "2026-05-25T16:22:00.000Z"
+       ],
+       [
+        4,
+        "Blackcap",
+        "Sylvia atricapilla",
+        5,
+        "LC",
+        true,
+        "2026-05-27T05:41:00.000Z"
+       ],
+       [
+        16,
+        "Yellow Wagtail",
+        "Motacilla flava",
+        10,
+        "LC",
+        true,
+        "2026-05-27T05:26:00.000Z"
+       ],
+       [
+        29,
+        "Common Tern",
+        "Sterna hirundo",
+        11,
+        "LC",
+        true,
+        "2026-05-27T07:33:00.000Z"
+       ],
+       [
+        30,
+        "Arctic Tern",
+        "Sterna paradisaea",
+        11,
+        "LC",
+        true,
+        "2026-05-27T07:27:00.000Z"
+       ],
+       [
+        19,
+        "Sand Martin",
+        "Riparia riparia",
+        1,
+        "LC",
+        true,
+        "2026-05-28T05:14:00.000Z"
+       ],
+       [
+        42,
+        "Grey Heron",
+        "Ardea cinerea",
+        22,
+        "LC",
+        false,
+        "2026-05-28T05:11:00.000Z"
+       ],
+       [
+        1,
+        "Chiffchaff",
+        "Phylloscopus collybita",
+        4,
+        "LC",
+        true,
+        "2026-05-30T05:56:00.000Z"
+       ],
+       [
+        3,
+        "Wood Warbler",
+        "Phylloscopus sibilatrix",
+        4,
+        "LC",
+        true,
+        "2026-05-30T04:59:00.000Z"
+       ],
+       [
+        5,
+        "Whitethroat",
+        "Curruca communis",
+        5,
+        "LC",
+        true,
+        "2026-05-30T05:22:00.000Z"
+       ],
+       [
+        12,
+        "Spotted Flycatcher",
+        "Muscicapa striata",
+        8,
+        "LC",
+        true,
+        "2026-05-30T06:09:00.000Z"
+       ],
+       [
+        21,
+        "Cuckoo",
+        "Cuculus canorus",
+        3,
+        "LC",
+        true,
+        "2026-05-30T05:45:00.000Z"
+       ],
+       [
+        25,
+        "Red-backed Shrike",
+        "Lanius collurio",
+        28,
+        "LC",
+        true,
+        "2026-05-30T04:50:00.000Z"
+       ],
+       [
+        31,
+        "Sandwich Tern",
+        "Thalasseus sandvicensis",
+        11,
+        "LC",
+        true,
+        "2026-05-30T05:06:00.000Z"
+       ],
+       [
+        50,
+        "Dunlin",
+        "Calidris alpina",
+        13,
+        "LC",
+        false,
+        "2026-05-30T04:45:00.000Z"
+       ],
+       [
+        15,
+        "Robin",
+        "Erithacus rubecula",
+        8,
+        "LC",
+        false,
+        "2026-05-31T07:35:00.000Z"
+       ],
+       [
+        20,
+        "Swift",
+        "Apus apus",
+        2,
+        "LC",
+        true,
+        "2026-05-31T07:09:00.000Z"
+       ],
+       [
+        36,
+        "Song Thrush",
+        "Turdus philomelos",
+        9,
+        "LC",
+        false,
+        "2026-05-31T06:24:00.000Z"
+       ],
+       [
+        13,
+        "Whinchat",
+        "Saxicola rubetra",
+        8,
+        "LC",
+        true,
+        "2026-05-31T14:05:00.000Z"
+       ],
+       [
+        17,
+        "Barn Swallow",
+        "Hirundo rustica",
+        1,
+        "LC",
+        true,
+        "2026-05-31T14:04:00.000Z"
+       ],
+       [
+        37,
+        "Wren",
+        "Troglodytes troglodytes",
+        26,
+        "LC",
+        false,
+        "2026-05-31T13:56:00.000Z"
+       ],
+       [
+        45,
+        "Marsh Harrier",
+        "Circus aeruginosus",
+        18,
+        "LC",
+        false,
+        "2026-05-31T13:45:00.000Z"
+       ],
+       [
+        47,
+        "Lapwing",
+        "Vanellus vanellus",
+        14,
+        "NT",
+        false,
+        "2026-05-31T13:39:00.000Z"
+       ]
+      ],
+      "rowCount": 51,
+      "affectedRows": null,
+      "command": "SELECT",
+      "durationMs": 1,
+      "truncated": false,
+      "notices": []
+     }
+    ],
+    "source": "ui",
+    "workspace": "~/birdwatch"
+   }
+  },
+  {
+   "key": "select * from families",
+   "kind": "run",
+   "scene": "explore",
+   "request": {
+    "sql": "select * from families",
+    "maxRows": 1000
+   },
+   "record": {
+    "id": "b585ef46-83c8-4ff6-931c-2c322a669af0",
+    "connectionId": "41d33762-ce25-4487-96f6-24bb21a52db3",
+    "database": "perch_site_demo",
+    "sql": "select * from families",
+    "status": "done",
+    "startedAt": "2026-10-10T21:26:14.375Z",
+    "finishedAt": "2026-10-10T21:26:14.376Z",
+    "durationMs": 1,
+    "results": [
+     {
+      "index": 0,
+      "sql": "select * from families",
+      "columns": [
+       {
+        "name": "id",
+        "type": "int4",
+        "align": "right",
+        "source": {
+         "table": "families",
+         "column": "id"
+        }
+       },
+       {
+        "name": "name",
+        "type": "text",
+        "align": "left",
+        "source": {
+         "table": "families",
+         "column": "name"
+        }
+       },
+       {
+        "name": "latin_name",
+        "type": "text",
+        "align": "left",
+        "source": {
+         "table": "families",
+         "column": "latin_name"
+        }
+       }
+      ],
+      "rows": [
+       [
+        1,
+        "Swallows & martins",
+        "Hirundinidae"
+       ],
+       [
+        2,
+        "Swifts",
+        "Apodidae"
+       ],
+       [
+        3,
+        "Cuckoos",
+        "Cuculidae"
+       ],
+       [
+        4,
+        "Leaf warblers",
+        "Phylloscopidae"
+       ],
+       [
+        5,
+        "Sylviid warblers",
+        "Sylviidae"
+       ],
+       [
+        6,
+        "Reed warblers",
+        "Acrocephalidae"
+       ],
+       [
+        7,
+        "Grassbirds",
+        "Locustellidae"
+       ],
+       [
+        8,
+        "Chats & flycatchers",
+        "Muscicapidae"
+       ],
+       [
+        9,
+        "Thrushes",
+        "Turdidae"
+       ],
+       [
+        10,
+        "Wagtails & pipits",
+        "Motacillidae"
+       ],
+       [
+        11,
+        "Gulls & terns",
+        "Laridae"
+       ],
+       [
+        12,
+        "Auks",
+        "Alcidae"
+       ],
+       [
+        13,
+        "Sandpipers",
+        "Scolopacidae"
+       ],
+       [
+        14,
+        "Plovers",
+        "Charadriidae"
+       ],
+       [
+        15,
+        "Avocets & stilts",
+        "Recurvirostridae"
+       ],
+       [
+        16,
+        "Oystercatchers",
+        "Haematopodidae"
+       ],
+       [
+        17,
+        "Pigeons & doves",
+        "Columbidae"
+       ],
+       [
+        18,
+        "Hawks & harriers",
+        "Accipitridae"
+       ],
+       [
+        19,
+        "Ospreys",
+        "Pandionidae"
+       ],
+       [
+        20,
+        "Falcons",
+        "Falconidae"
+       ],
+       [
+        21,
+        "Ducks & geese",
+        "Anatidae"
+       ],
+       [
+        22,
+        "Herons & bitterns",
+        "Ardeidae"
+       ],
+       [
+        23,
+        "Kingfishers",
+        "Alcedinidae"
+       ],
+       [
+        24,
+        "Woodpeckers",
+        "Picidae"
+       ],
+       [
+        25,
+        "Tits",
+        "Paridae"
+       ],
+       [
+        26,
+        "Wrens",
+        "Troglodytidae"
+       ],
+       [
+        27,
+        "Larks",
+        "Alaudidae"
+       ],
+       [
+        28,
+        "Shrikes",
+        "Laniidae"
+       ],
+       [
+        29,
+        "Orioles",
+        "Oriolidae"
+       ]
+      ],
+      "rowCount": 29,
+      "affectedRows": null,
+      "command": "SELECT",
+      "durationMs": 1,
+      "truncated": false,
+      "notices": []
+     }
+    ],
+    "source": "ui",
+    "workspace": "~/birdwatch"
+   }
+  },
+  {
+   "key": "select * from sites",
+   "kind": "run",
+   "scene": "explore",
+   "request": {
+    "sql": "select * from sites",
+    "maxRows": 1000
+   },
+   "record": {
+    "id": "80ac2396-ec6f-41cf-a538-2be10d3b7b24",
+    "connectionId": "41d33762-ce25-4487-96f6-24bb21a52db3",
+    "database": "perch_site_demo",
+    "sql": "select * from sites",
+    "status": "done",
+    "startedAt": "2026-10-10T21:26:14.391Z",
+    "finishedAt": "2026-10-10T21:26:14.391Z",
+    "durationMs": 0,
+    "results": [
+     {
+      "index": 0,
+      "sql": "select * from sites",
+      "columns": [
+       {
+        "name": "id",
+        "type": "int4",
+        "align": "right",
+        "source": {
+         "table": "sites",
+         "column": "id"
+        }
+       },
+       {
+        "name": "name",
+        "type": "text",
+        "align": "left",
+        "source": {
+         "table": "sites",
+         "column": "name"
+        }
+       },
+       {
+        "name": "region",
+        "type": "text",
+        "align": "left",
+        "source": {
+         "table": "sites",
+         "column": "region"
+        }
+       },
+       {
+        "name": "habitat",
+        "type": "text",
+        "align": "left",
+        "source": {
+         "table": "sites",
+         "column": "habitat"
+        }
+       },
+       {
+        "name": "lat",
+        "type": "numeric",
+        "align": "right",
+        "source": {
+         "table": "sites",
+         "column": "lat"
+        }
+       },
+       {
+        "name": "lon",
+        "type": "numeric",
+        "align": "right",
+        "source": {
+         "table": "sites",
+         "column": "lon"
+        }
+       }
+      ],
+      "rows": [
+       [
+        1,
+        "Minsmere",
+        "Suffolk",
+        "reedbed",
+        "52.2477",
+        "1.6187"
+       ],
+       [
+        2,
+        "Titchwell Marsh",
+        "Norfolk",
+        "saltmarsh",
+        "52.9631",
+        "0.6066"
+       ],
+       [
+        3,
+        "Cley Marshes",
+        "Norfolk",
+        "saltmarsh",
+        "52.9545",
+        "1.0544"
+       ],
+       [
+        4,
+        "Spurn Point",
+        "East Yorkshire",
+        "coastal spit",
+        "53.5781",
+        "0.1100"
+       ],
+       [
+        5,
+        "Bempton Cliffs",
+        "East Yorkshire",
+        "sea cliff",
+        "54.1466",
+        "-0.1700"
+       ],
+       [
+        6,
+        "Farne Islands",
+        "Northumberland",
+        "island",
+        "55.6290",
+        "-1.6290"
+       ],
+       [
+        7,
+        "Slimbridge",
+        "Gloucestershire",
+        "wetland",
+        "51.7414",
+        "-2.4061"
+       ],
+       [
+        8,
+        "Nagshead",
+        "Gloucestershire",
+        "oak wood",
+        "51.7860",
+        "-2.5640"
+       ],
+       [
+        9,
+        "Loch Garten",
+        "Highland",
+        "pine forest",
+        "57.2433",
+        "-3.6914"
+       ],
+       [
+        10,
+        "Dungeness",
+        "Kent",
+        "shingle",
+        "50.9136",
+        "0.9764"
+       ],
+       [
+        11,
+        "Portland Bill",
+        "Dorset",
+        "headland",
+        "50.5136",
+        "-2.4569"
+       ],
+       [
+        12,
+        "Wicken Fen",
+        "Cambridgeshire",
+        "fen",
+        "52.3104",
+        "0.2896"
+       ]
+      ],
+      "rowCount": 12,
+      "affectedRows": null,
+      "command": "SELECT",
+      "durationMs": 0,
+      "truncated": false,
+      "notices": []
+     }
+    ],
+    "source": "ui",
+    "workspace": "~/birdwatch"
+   }
+  },
+  {
+   "key": "select * from observers",
+   "kind": "run",
+   "scene": "explore",
+   "request": {
+    "sql": "select * from observers",
+    "maxRows": 1000
+   },
+   "record": {
+    "id": "de16b04e-1123-4b2d-abf1-eb412ead6653",
+    "connectionId": "41d33762-ce25-4487-96f6-24bb21a52db3",
+    "database": "perch_site_demo",
+    "sql": "select * from observers",
+    "status": "done",
+    "startedAt": "2026-10-10T21:26:14.407Z",
+    "finishedAt": "2026-10-10T21:26:14.408Z",
+    "durationMs": 1,
+    "results": [
+     {
+      "index": 0,
+      "sql": "select * from observers",
+      "columns": [
+       {
+        "name": "id",
+        "type": "int4",
+        "align": "right",
+        "source": {
+         "table": "observers",
+         "column": "id"
+        }
+       },
+       {
+        "name": "name",
+        "type": "text",
+        "align": "left",
+        "source": {
+         "table": "observers",
+         "column": "name"
+        }
+       },
+       {
+        "name": "joined_on",
+        "type": "date",
+        "align": "right",
+        "source": {
+         "table": "observers",
+         "column": "joined_on"
+        }
+       }
+      ],
+      "rows": [
+       [
+        1,
+        "Ines D.",
+        "2019-04-02T00:00:00.000Z"
+       ],
+       [
+        2,
+        "Tom E.",
+        "2021-03-15T00:00:00.000Z"
+       ],
+       [
+        3,
+        "Priya N.",
+        "2018-09-30T00:00:00.000Z"
+       ],
+       [
+        4,
+        "Owen P.",
+        "2022-05-11T00:00:00.000Z"
+       ],
+       [
+        5,
+        "June A.",
+        "2020-01-20T00:00:00.000Z"
+       ],
+       [
+        6,
+        "Lars H.",
+        "2023-02-08T00:00:00.000Z"
+       ]
+      ],
+      "rowCount": 6,
+      "affectedRows": null,
+      "command": "SELECT",
+      "durationMs": 1,
+      "truncated": false,
+      "notices": []
+     }
+    ],
+    "source": "ui",
+    "workspace": "~/birdwatch"
+   }
+  },
+  {
+   "key": "select * from checklists",
+   "kind": "run",
+   "scene": "explore",
+   "request": {
+    "sql": "select * from checklists",
+    "maxRows": 1000
+   },
+   "record": {
+    "id": "800446eb-3bdb-4f9f-9f12-4d80542047db",
+    "connectionId": "41d33762-ce25-4487-96f6-24bb21a52db3",
+    "database": "perch_site_demo",
+    "sql": "select * from checklists",
+    "status": "done",
+    "startedAt": "2026-10-10T21:26:14.421Z",
+    "finishedAt": "2026-10-10T21:26:14.422Z",
+    "durationMs": 0,
+    "results": [
+     {
+      "index": 0,
+      "sql": "select * from checklists",
+      "columns": [
+       {
+        "name": "id",
+        "type": "int4",
+        "align": "right",
+        "source": {
+         "table": "checklists",
+         "column": "id"
+        }
+       },
+       {
+        "name": "observer_id",
+        "type": "int4",
+        "align": "right",
+        "source": {
+         "table": "checklists",
+         "column": "observer_id"
+        }
+       },
+       {
+        "name": "site_id",
+        "type": "int4",
+        "align": "right",
+        "source": {
+         "table": "checklists",
+         "column": "site_id"
+        }
+       },
+       {
+        "name": "started_at",
+        "type": "timestamptz",
+        "align": "right",
+        "source": {
+         "table": "checklists",
+         "column": "started_at"
+        }
+       },
+       {
+        "name": "duration_min",
+        "type": "int4",
+        "align": "right",
+        "source": {
+         "table": "checklists",
+         "column": "duration_min"
+        }
+       }
+      ],
+      "rows": [
+       [
+        1,
+        2,
+        9,
+        "2026-03-01T17:35:00.000Z",
+        45
+       ],
+       [
+        2,
+        6,
+        7,
+        "2026-03-02T07:35:00.000Z",
+        75
+       ],
+       [
+        3,
+        6,
+        11,
+        "2026-03-04T06:40:00.000Z",
+        180
+       ],
+       [
+        4,
+        2,
+        11,
+        "2026-03-05T07:30:00.000Z",
+        210
+       ],
+       [
+        5,
+        3,
+        8,
+        "2026-03-05T08:20:00.000Z",
+        60
+       ],
+       [
+        6,
+        5,
+        5,
+        "2026-03-06T08:15:00.000Z",
+        45
+       ],
+       [
+        7,
+        3,
+        8,
+        "2026-03-07T06:15:00.000Z",
+        60
+       ],
+       [
+        8,
+        4,
+        8,
+        "2026-03-08T06:35:00.000Z",
+        60
+       ],
+       [
+        9,
+        6,
+        3,
+        "2026-03-09T06:25:00.000Z",
+        210
+       ],
+       [
+        10,
+        4,
+        3,
+        "2026-03-09T16:15:00.000Z",
+        210
+       ],
+       [
+        11,
+        1,
+        12,
+        "2026-03-11T07:15:00.000Z",
+        60
+       ],
+       [
+        12,
+        3,
+        2,
+        "2026-03-12T06:55:00.000Z",
+        75
+       ],
+       [
+        13,
+        6,
+        2,
+        "2026-03-13T07:40:00.000Z",
+        90
+       ],
+       [
+        14,
+        5,
+        9,
+        "2026-03-14T07:30:00.000Z",
+        180
+       ],
+       [
+        15,
+        3,
+        3,
+        "2026-03-15T08:00:00.000Z",
+        75
+       ],
+       [
+        16,
+        1,
+        10,
+        "2026-03-16T07:10:00.000Z",
+        120
+       ],
+       [
+        17,
+        4,
+        1,
+        "2026-03-18T07:05:00.000Z",
+        210
+       ],
+       [
+        18,
+        4,
+        4,
+        "2026-03-20T16:20:00.000Z",
+        75
+       ],
+       [
+        19,
+        5,
+        9,
+        "2026-03-22T06:00:00.000Z",
+        45
+       ],
+       [
+        20,
+        5,
+        2,
+        "2026-03-23T07:45:00.000Z",
+        180
+       ],
+       [
+        21,
+        3,
+        2,
+        "2026-03-23T08:15:00.000Z",
+        150
+       ],
+       [
+        22,
+        4,
+        3,
+        "2026-03-25T05:45:00.000Z",
+        90
+       ],
+       [
+        23,
+        3,
+        11,
+        "2026-03-26T07:45:00.000Z",
+        180
+       ],
+       [
+        24,
+        2,
+        9,
+        "2026-03-27T07:45:00.000Z",
+        45
+       ],
+       [
+        25,
+        1,
+        7,
+        "2026-03-28T07:05:00.000Z",
+        60
+       ],
+       [
+        26,
+        1,
+        8,
+        "2026-03-29T06:05:00.000Z",
+        150
+       ],
+       [
+        27,
+        6,
+        2,
+        "2026-03-29T06:10:00.000Z",
+        150
+       ],
+       [
+        28,
+        1,
+        2,
+        "2026-03-30T08:05:00.000Z",
+        90
+       ],
+       [
+        29,
+        4,
+        12,
+        "2026-03-31T06:15:00.000Z",
+        45
+       ],
+       [
+        30,
+        4,
+        6,
+        "2026-03-31T06:25:00.000Z",
+        60
+       ],
+       [
+        31,
+        2,
+        7,
+        "2026-04-01T05:55:00.000Z",
+        75
+       ],
+       [
+        32,
+        4,
+        11,
+        "2026-04-03T05:35:00.000Z",
+        120
+       ],
+       [
+        33,
+        4,
+        2,
+        "2026-04-04T06:35:00.000Z",
+        150
+       ],
+       [
+        34,
+        1,
+        12,
+        "2026-04-05T06:20:00.000Z",
+        60
+       ],
+       [
+        35,
+        3,
+        7,
+        "2026-04-05T06:50:00.000Z",
+        180
+       ],
+       [
+        36,
+        6,
+        9,
+        "2026-04-06T16:45:00.000Z",
+        180
+       ],
+       [
+        37,
+        5,
+        12,
+        "2026-04-08T06:05:00.000Z",
+        60
+       ],
+       [
+        38,
+        3,
+        4,
+        "2026-04-08T06:30:00.000Z",
+        150
+       ],
+       [
+        39,
+        3,
+        6,
+        "2026-04-09T07:05:00.000Z",
+        120
+       ],
+       [
+        40,
+        2,
+        3,
+        "2026-04-10T14:35:00.000Z",
+        150
+       ],
+       [
+        41,
+        6,
+        9,
+        "2026-04-10T15:00:00.000Z",
+        120
+       ],
+       [
+        42,
+        5,
+        1,
+        "2026-04-12T06:00:00.000Z",
+        210
+       ],
+       [
+        43,
+        5,
+        9,
+        "2026-04-12T07:20:00.000Z",
+        75
+       ],
+       [
+        44,
+        6,
+        5,
+        "2026-04-13T05:35:00.000Z",
+        60
+       ],
+       [
+        45,
+        5,
+        12,
+        "2026-04-13T05:45:00.000Z",
+        90
+       ],
+       [
+        46,
+        1,
+        8,
+        "2026-04-15T06:55:00.000Z",
+        210
+       ],
+       [
+        47,
+        2,
+        3,
+        "2026-04-16T07:15:00.000Z",
+        150
+       ],
+       [
+        48,
+        2,
+        2,
+        "2026-04-17T06:20:00.000Z",
+        75
+       ],
+       [
+        49,
+        2,
+        4,
+        "2026-04-18T07:25:00.000Z",
+        60
+       ],
+       [
+        50,
+        1,
+        5,
+        "2026-04-19T05:20:00.000Z",
+        45
+       ],
+       [
+        51,
+        5,
+        3,
+        "2026-04-19T07:15:00.000Z",
+        150
+       ],
+       [
+        52,
+        2,
+        8,
+        "2026-04-20T07:05:00.000Z",
+        180
+       ],
+       [
+        53,
+        2,
+        2,
+        "2026-04-22T05:50:00.000Z",
+        60
+       ],
+       [
+        54,
+        6,
+        9,
+        "2026-04-23T05:40:00.000Z",
+        210
+       ],
+       [
+        55,
+        3,
+        7,
+        "2026-04-25T14:55:00.000Z",
+        90
+       ],
+       [
+        56,
+        6,
+        8,
+        "2026-04-26T16:00:00.000Z",
+        90
+       ],
+       [
+        57,
+        1,
+        1,
+        "2026-04-27T06:00:00.000Z",
+        150
+       ],
+       [
+        58,
+        6,
+        2,
+        "2026-04-28T05:05:00.000Z",
+        150
+       ],
+       [
+        59,
+        6,
+        5,
+        "2026-04-29T14:35:00.000Z",
+        60
+       ],
+       [
+        60,
+        1,
+        10,
+        "2026-05-01T05:05:00.000Z",
+        210
+       ],
+       [
+        61,
+        3,
+        3,
+        "2026-05-01T06:10:00.000Z",
+        120
+       ],
+       [
+        62,
+        2,
+        4,
+        "2026-05-02T14:00:00.000Z",
+        150
+       ],
+       [
+        63,
+        3,
+        10,
+        "2026-05-03T07:15:00.000Z",
+        180
+       ],
+       [
+        64,
+        5,
+        9,
+        "2026-05-04T05:00:00.000Z",
+        90
+       ],
+       [
+        65,
+        1,
+        11,
+        "2026-05-04T07:00:00.000Z",
+        45
+       ],
+       [
+        66,
+        3,
+        10,
+        "2026-05-05T05:20:00.000Z",
+        210
+       ],
+       [
+        67,
+        2,
+        6,
+        "2026-05-05T05:40:00.000Z",
+        75
+       ],
+       [
+        68,
+        6,
+        6,
+        "2026-05-06T13:50:00.000Z",
+        210
+       ],
+       [
+        69,
+        3,
+        6,
+        "2026-05-07T05:25:00.000Z",
+        120
+       ],
+       [
+        70,
+        2,
+        3,
+        "2026-05-07T05:40:00.000Z",
+        120
+       ],
+       [
+        71,
+        4,
+        3,
+        "2026-05-08T14:05:00.000Z",
+        180
+       ],
+       [
+        72,
+        2,
+        1,
+        "2026-05-08T15:55:00.000Z",
+        150
+       ],
+       [
+        73,
+        6,
+        4,
+        "2026-05-09T05:25:00.000Z",
+        60
+       ],
+       [
+        74,
+        5,
+        12,
+        "2026-05-10T04:50:00.000Z",
+        150
+       ],
+       [
+        75,
+        5,
+        4,
+        "2026-05-11T06:55:00.000Z",
+        210
+       ],
+       [
+        76,
+        5,
+        10,
+        "2026-05-13T14:55:00.000Z",
+        180
+       ],
+       [
+        77,
+        5,
+        1,
+        "2026-05-14T05:30:00.000Z",
+        210
+       ],
+       [
+        78,
+        5,
+        10,
+        "2026-05-15T05:55:00.000Z",
+        180
+       ],
+       [
+        79,
+        3,
+        7,
+        "2026-05-16T05:10:00.000Z",
+        45
+       ],
+       [
+        80,
+        5,
+        7,
+        "2026-05-16T14:55:00.000Z",
+        150
+       ],
+       [
+        81,
+        4,
+        5,
+        "2026-05-17T14:40:00.000Z",
+        90
+       ],
+       [
+        82,
+        3,
+        11,
+        "2026-05-18T05:30:00.000Z",
+        90
+       ],
+       [
+        83,
+        2,
+        4,
+        "2026-05-19T05:05:00.000Z",
+        90
+       ],
+       [
+        84,
+        2,
+        9,
+        "2026-05-20T05:40:00.000Z",
+        150
+       ],
+       [
+        85,
+        5,
+        2,
+        "2026-05-21T04:45:00.000Z",
+        120
+       ],
+       [
+        86,
+        2,
+        6,
+        "2026-05-23T06:35:00.000Z",
+        60
+       ],
+       [
+        87,
+        4,
+        4,
+        "2026-05-25T06:05:00.000Z",
+        120
+       ],
+       [
+        88,
+        6,
+        10,
+        "2026-05-25T15:10:00.000Z",
+        90
+       ],
+       [
+        89,
+        5,
+        12,
+        "2026-05-27T05:25:00.000Z",
+        60
+       ],
+       [
+        90,
+        3,
+        2,
+        "2026-05-27T06:00:00.000Z",
+        210
+       ],
+       [
+        91,
+        3,
+        7,
+        "2026-05-28T04:55:00.000Z",
+        75
+       ],
+       [
+        92,
+        1,
+        1,
+        "2026-05-30T04:40:00.000Z",
+        90
+       ],
+       [
+        93,
+        6,
+        11,
+        "2026-05-31T05:05:00.000Z",
+        210
+       ],
+       [
+        94,
+        6,
+        7,
+        "2026-05-31T13:20:00.000Z",
+        45
+       ]
+      ],
+      "rowCount": 94,
+      "affectedRows": null,
+      "command": "SELECT",
+      "durationMs": 0,
+      "truncated": false,
+      "notices": []
+     }
+    ],
+    "source": "ui",
+    "workspace": "~/birdwatch"
+   }
+  },
+  {
+   "key": "select * from sightings",
+   "kind": "run",
+   "scene": "explore",
+   "request": {
+    "sql": "select * from sightings",
+    "maxRows": 1000
+   },
+   "record": {
+    "id": "5cd97a6d-a2c4-475b-8394-63317f98e8dd",
+    "connectionId": "41d33762-ce25-4487-96f6-24bb21a52db3",
+    "database": "perch_site_demo",
+    "sql": "select * from sightings",
+    "status": "done",
+    "startedAt": "2026-10-10T21:26:14.438Z",
+    "finishedAt": "2026-10-10T21:26:14.440Z",
+    "durationMs": 1,
+    "results": [
+     {
+      "index": 0,
+      "sql": "select * from sightings",
+      "columns": [
+       {
+        "name": "id",
+        "type": "int4",
+        "align": "right",
+        "source": {
+         "table": "sightings",
+         "column": "id"
+        }
+       },
+       {
+        "name": "checklist_id",
+        "type": "int4",
+        "align": "right",
+        "source": {
+         "table": "sightings",
+         "column": "checklist_id"
+        }
+       },
+       {
+        "name": "species_id",
+        "type": "int4",
+        "align": "right",
+        "source": {
+         "table": "sightings",
+         "column": "species_id"
+        }
+       },
+       {
+        "name": "count",
+        "type": "int4",
+        "align": "right",
+        "source": {
+         "table": "sightings",
+         "column": "count"
+        }
+       },
+       {
+        "name": "behaviour",
+        "type": "text",
+        "align": "left",
+        "source": {
+         "table": "sightings",
+         "column": "behaviour"
+        }
+       },
+       {
+        "name": "seen_at",
+        "type": "timestamptz",
+        "align": "right",
+        "source": {
+         "table": "sightings",
+         "column": "seen_at"
+        }
+       }
+      ],
+      "rows": [
+       [
+        1,
+        1,
+        36,
+        2,
+        "singing",
+        "2026-03-01T17:47:00.000Z"
+       ],
+       [
+        2,
+        1,
+        37,
+        2,
+        "singing",
+        "2026-03-01T17:36:00.000Z"
+       ],
+       [
+        3,
+        1,
+        39,
+        3,
+        "calling",
+        "2026-03-01T18:17:00.000Z"
+       ],
+       [
+        4,
+        1,
+        45,
+        2,
+        "flyover",
+        "2026-03-01T18:07:00.000Z"
+       ],
+       [
+        5,
+        1,
+        49,
+        33,
+        "displaying",
+        "2026-03-01T17:52:00.000Z"
+       ],
+       [
+        6,
+        2,
+        35,
+        3,
+        "singing",
+        "2026-03-02T08:21:00.000Z"
+       ],
+       [
+        7,
+        2,
+        37,
+        1,
+        "calling",
+        "2026-03-02T08:08:00.000Z"
+       ],
+       [
+        8,
+        2,
+        42,
+        2,
+        "roosting",
+        "2026-03-02T08:47:00.000Z"
+       ],
+       [
+        9,
+        2,
+        47,
+        4,
+        "calling",
+        "2026-03-02T08:33:00.000Z"
+       ],
+       [
+        10,
+        3,
+        15,
+        2,
+        "calling",
+        "2026-03-04T08:44:00.000Z"
+       ],
+       [
+        11,
+        3,
+        35,
+        1,
+        "singing",
+        "2026-03-04T09:18:00.000Z"
+       ],
+       [
+        12,
+        3,
+        36,
+        1,
+        "singing",
+        "2026-03-04T08:46:00.000Z"
+       ],
+       [
+        13,
+        3,
+        37,
+        1,
+        "foraging",
+        "2026-03-04T09:30:00.000Z"
+       ],
+       [
+        14,
+        3,
+        50,
+        15,
+        "foraging",
+        "2026-03-04T07:07:00.000Z"
+       ],
+       [
+        15,
+        3,
+        51,
+        17,
+        "displaying",
+        "2026-03-04T09:11:00.000Z"
+       ],
+       [
+        16,
+        4,
+        15,
+        1,
+        "calling",
+        "2026-03-05T09:14:00.000Z"
+       ],
+       [
+        17,
+        4,
+        35,
+        2,
+        "calling",
+        "2026-03-05T07:54:00.000Z"
+       ],
+       [
+        18,
+        4,
+        36,
+        1,
+        "foraging",
+        "2026-03-05T10:35:00.000Z"
+       ],
+       [
+        19,
+        4,
+        37,
+        2,
+        "singing",
+        "2026-03-05T07:51:00.000Z"
+       ],
+       [
+        20,
+        4,
+        50,
+        37,
+        "displaying",
+        "2026-03-05T08:05:00.000Z"
+       ],
+       [
+        21,
+        4,
+        51,
+        7,
+        "foraging",
+        "2026-03-05T09:17:00.000Z"
+       ],
+       [
+        22,
+        5,
+        15,
+        2,
+        "singing",
+        "2026-03-05T08:32:00.000Z"
+       ],
+       [
+        23,
+        5,
+        35,
+        2,
+        "singing",
+        "2026-03-05T09:20:00.000Z"
+       ],
+       [
+        24,
+        5,
+        36,
+        2,
+        "calling",
+        "2026-03-05T08:44:00.000Z"
+       ],
+       [
+        25,
+        5,
+        37,
+        1,
+        "foraging",
+        "2026-03-05T09:01:00.000Z"
+       ],
+       [
+        26,
+        6,
+        15,
+        3,
+        "singing",
+        "2026-03-06T08:52:00.000Z"
+       ],
+       [
+        27,
+        6,
+        35,
+        1,
+        "singing",
+        "2026-03-06T08:59:00.000Z"
+       ],
+       [
+        28,
+        6,
+        37,
+        1,
+        "calling",
+        "2026-03-06T08:24:00.000Z"
+       ],
+       [
+        29,
+        7,
+        1,
+        1,
+        "singing",
+        "2026-03-07T06:19:00.000Z"
+       ],
+       [
+        30,
+        7,
+        35,
+        2,
+        "calling",
+        "2026-03-07T06:36:00.000Z"
+       ],
+       [
+        31,
+        7,
+        36,
+        1,
+        "foraging",
+        "2026-03-07T07:10:00.000Z"
+       ],
+       [
+        32,
+        7,
+        39,
+        1,
+        "calling",
+        "2026-03-07T06:30:00.000Z"
+       ],
+       [
+        33,
+        8,
+        1,
+        1,
+        "singing",
+        "2026-03-08T07:14:00.000Z"
+       ],
+       [
+        34,
+        8,
+        36,
+        1,
+        "singing",
+        "2026-03-08T06:41:00.000Z"
+       ],
+       [
+        35,
+        8,
+        39,
+        4,
+        "calling",
+        "2026-03-08T06:48:00.000Z"
+       ],
+       [
+        36,
+        9,
+        44,
+        1,
+        "flyover",
+        "2026-03-09T07:35:00.000Z"
+       ],
+       [
+        37,
+        9,
+        45,
+        1,
+        "flyover",
+        "2026-03-09T09:22:00.000Z"
+       ],
+       [
+        38,
+        9,
+        47,
+        9,
+        "foraging",
+        "2026-03-09T08:43:00.000Z"
+       ],
+       [
+        39,
+        9,
+        49,
+        44,
+        "foraging",
+        "2026-03-09T08:21:00.000Z"
+       ],
+       [
+        40,
+        9,
+        50,
+        32,
+        "calling",
+        "2026-03-09T08:40:00.000Z"
+       ],
+       [
+        41,
+        10,
+        37,
+        3,
+        "singing",
+        "2026-03-09T16:43:00.000Z"
+       ],
+       [
+        42,
+        10,
+        41,
+        2,
+        "singing",
+        "2026-03-09T16:31:00.000Z"
+       ],
+       [
+        43,
+        10,
+        42,
+        2,
+        "flyover",
+        "2026-03-09T17:12:00.000Z"
+       ],
+       [
+        44,
+        10,
+        47,
+        12,
+        "displaying",
+        "2026-03-09T16:34:00.000Z"
+       ],
+       [
+        45,
+        10,
+        51,
+        7,
+        "calling",
+        "2026-03-09T19:01:00.000Z"
+       ],
+       [
+        46,
+        11,
+        36,
+        1,
+        "calling",
+        "2026-03-11T07:30:00.000Z"
+       ],
+       [
+        47,
+        11,
+        39,
+        3,
+        "foraging",
+        "2026-03-11T08:13:00.000Z"
+       ],
+       [
+        48,
+        11,
+        45,
+        1,
+        "displaying",
+        "2026-03-11T07:22:00.000Z"
+       ],
+       [
+        49,
+        11,
+        46,
+        18,
+        "displaying",
+        "2026-03-11T07:26:00.000Z"
+       ],
+       [
+        50,
+        12,
+        37,
+        1,
+        "singing",
+        "2026-03-12T07:22:00.000Z"
+       ],
+       [
+        51,
+        12,
+        46,
+        19,
+        "foraging",
+        "2026-03-12T08:08:00.000Z"
+       ],
+       [
+        52,
+        12,
+        47,
+        13,
+        "calling",
+        "2026-03-12T08:03:00.000Z"
+       ],
+       [
+        53,
+        12,
+        49,
+        15,
+        "foraging",
+        "2026-03-12T07:17:00.000Z"
+       ],
+       [
+        54,
+        12,
+        50,
+        15,
+        "calling",
+        "2026-03-12T07:37:00.000Z"
+       ],
+       [
+        55,
+        12,
+        51,
+        5,
+        "displaying",
+        "2026-03-12T07:08:00.000Z"
+       ],
+       [
+        56,
+        13,
+        19,
+        24,
+        "flyover",
+        "2026-03-13T08:21:00.000Z"
+       ],
+       [
+        57,
+        13,
+        39,
+        2,
+        "singing",
+        "2026-03-13T08:39:00.000Z"
+       ],
+       [
+        58,
+        13,
+        43,
+        1,
+        "booming",
+        "2026-03-13T08:57:00.000Z"
+       ],
+       [
+        59,
+        13,
+        50,
+        56,
+        "foraging",
+        "2026-03-13T09:10:00.000Z"
+       ],
+       [
+        60,
+        14,
+        19,
+        25,
+        "flyover",
+        "2026-03-14T10:30:00.000Z"
+       ],
+       [
+        61,
+        14,
+        35,
+        1,
+        "singing",
+        "2026-03-14T07:31:00.000Z"
+       ],
+       [
+        62,
+        14,
+        36,
+        2,
+        "singing",
+        "2026-03-14T10:26:00.000Z"
+       ],
+       [
+        63,
+        14,
+        38,
+        3,
+        "foraging",
+        "2026-03-14T09:51:00.000Z"
+       ],
+       [
+        64,
+        14,
+        44,
+        1,
+        "flyover",
+        "2026-03-14T09:27:00.000Z"
+       ],
+       [
+        65,
+        14,
+        49,
+        43,
+        "foraging",
+        "2026-03-14T07:44:00.000Z"
+       ],
+       [
+        66,
+        15,
+        37,
+        1,
+        "singing",
+        "2026-03-15T08:26:00.000Z"
+       ],
+       [
+        67,
+        15,
+        39,
+        3,
+        "singing",
+        "2026-03-15T08:25:00.000Z"
+       ],
+       [
+        68,
+        15,
+        44,
+        1,
+        "flyover",
+        "2026-03-15T09:02:00.000Z"
+       ],
+       [
+        69,
+        15,
+        47,
+        18,
+        "calling",
+        "2026-03-15T09:02:00.000Z"
+       ],
+       [
+        70,
+        15,
+        49,
+        40,
+        "roosting",
+        "2026-03-15T08:53:00.000Z"
+       ],
+       [
+        71,
+        15,
+        51,
+        21,
+        "foraging",
+        "2026-03-15T09:09:00.000Z"
+       ],
+       [
+        72,
+        16,
+        14,
+        1,
+        "foraging",
+        "2026-03-16T07:51:00.000Z"
+       ],
+       [
+        73,
+        16,
+        26,
+        2,
+        "foraging",
+        "2026-03-16T08:04:00.000Z"
+       ],
+       [
+        74,
+        16,
+        35,
+        1,
+        "singing",
+        "2026-03-16T08:48:00.000Z"
+       ],
+       [
+        75,
+        16,
+        37,
+        1,
+        "singing",
+        "2026-03-16T08:36:00.000Z"
+       ],
+       [
+        76,
+        16,
+        50,
+        60,
+        "calling",
+        "2026-03-16T07:49:00.000Z"
+       ],
+       [
+        77,
+        16,
+        51,
+        25,
+        "displaying",
+        "2026-03-16T07:16:00.000Z"
+       ],
+       [
+        78,
+        17,
+        35,
+        2,
+        "foraging",
+        "2026-03-18T07:42:00.000Z"
+       ],
+       [
+        79,
+        17,
+        38,
+        1,
+        "calling",
+        "2026-03-18T10:24:00.000Z"
+       ],
+       [
+        80,
+        17,
+        43,
+        1,
+        "booming",
+        "2026-03-18T07:52:00.000Z"
+       ],
+       [
+        81,
+        17,
+        46,
+        15,
+        "calling",
+        "2026-03-18T09:27:00.000Z"
+       ],
+       [
+        82,
+        17,
+        47,
+        14,
+        "calling",
+        "2026-03-18T09:33:00.000Z"
+       ],
+       [
+        83,
+        18,
+        14,
+        1,
+        "calling",
+        "2026-03-20T16:38:00.000Z"
+       ],
+       [
+        84,
+        18,
+        15,
+        2,
+        "singing",
+        "2026-03-20T17:16:00.000Z"
+       ],
+       [
+        85,
+        18,
+        35,
+        1,
+        "calling",
+        "2026-03-20T16:41:00.000Z"
+       ],
+       [
+        86,
+        18,
+        41,
+        1,
+        "singing",
+        "2026-03-20T16:36:00.000Z"
+       ],
+       [
+        87,
+        18,
+        46,
+        16,
+        "displaying",
+        "2026-03-20T17:35:00.000Z"
+       ],
+       [
+        88,
+        18,
+        49,
+        43,
+        "foraging",
+        "2026-03-20T16:24:00.000Z"
+       ],
+       [
+        89,
+        19,
+        19,
+        9,
+        "flyover",
+        "2026-03-22T06:35:00.000Z"
+       ],
+       [
+        90,
+        19,
+        35,
+        3,
+        "foraging",
+        "2026-03-22T06:07:00.000Z"
+       ],
+       [
+        91,
+        19,
+        36,
+        2,
+        "singing",
+        "2026-03-22T06:21:00.000Z"
+       ],
+       [
+        92,
+        19,
+        39,
+        4,
+        "singing",
+        "2026-03-22T06:38:00.000Z"
+       ],
+       [
+        93,
+        19,
+        42,
+        1,
+        "roosting",
+        "2026-03-22T06:33:00.000Z"
+       ],
+       [
+        94,
+        19,
+        49,
+        29,
+        "roosting",
+        "2026-03-22T06:19:00.000Z"
+       ],
+       [
+        95,
+        20,
+        19,
+        9,
+        "flyover",
+        "2026-03-23T09:35:00.000Z"
+       ],
+       [
+        96,
+        20,
+        41,
+        2,
+        "displaying",
+        "2026-03-23T08:14:00.000Z"
+       ],
+       [
+        97,
+        20,
+        49,
+        30,
+        "foraging",
+        "2026-03-23T09:22:00.000Z"
+       ],
+       [
+        98,
+        20,
+        51,
+        17,
+        "foraging",
+        "2026-03-23T10:40:00.000Z"
+       ],
+       [
+        99,
+        21,
+        14,
+        3,
+        "foraging",
+        "2026-03-23T09:57:00.000Z"
+       ],
+       [
+        100,
+        21,
+        39,
+        3,
+        "foraging",
+        "2026-03-23T10:45:00.000Z"
+       ],
+       [
+        101,
+        21,
+        41,
+        1,
+        "singing",
+        "2026-03-23T09:33:00.000Z"
+       ],
+       [
+        102,
+        21,
+        51,
+        15,
+        "roosting",
+        "2026-03-23T10:36:00.000Z"
+       ],
+       [
+        103,
+        22,
+        37,
+        1,
+        "foraging",
+        "2026-03-25T06:38:00.000Z"
+       ],
+       [
+        104,
+        22,
+        39,
+        3,
+        "calling",
+        "2026-03-25T06:33:00.000Z"
+       ],
+       [
+        105,
+        22,
+        44,
+        1,
+        "flyover",
+        "2026-03-25T06:50:00.000Z"
+       ],
+       [
+        106,
+        22,
+        48,
+        4,
+        "foraging",
+        "2026-03-25T06:57:00.000Z"
+       ],
+       [
+        107,
+        23,
+        1,
+        2,
+        "foraging",
+        "2026-03-26T09:12:00.000Z"
+       ],
+       [
+        108,
+        23,
+        4,
+        3,
+        "calling",
+        "2026-03-26T08:21:00.000Z"
+       ],
+       [
+        109,
+        23,
+        14,
+        4,
+        "calling",
+        "2026-03-26T09:40:00.000Z"
+       ],
+       [
+        110,
+        23,
+        15,
+        1,
+        "singing",
+        "2026-03-26T10:29:00.000Z"
+       ],
+       [
+        111,
+        23,
+        35,
+        1,
+        "singing",
+        "2026-03-26T09:30:00.000Z"
+       ],
+       [
+        112,
+        24,
+        19,
+        6,
+        "foraging",
+        "2026-03-27T08:24:00.000Z"
+       ],
+       [
+        113,
+        24,
+        26,
+        4,
+        "foraging",
+        "2026-03-27T08:27:00.000Z"
+       ],
+       [
+        114,
+        24,
+        36,
+        1,
+        "singing",
+        "2026-03-27T08:20:00.000Z"
+       ],
+       [
+        115,
+        24,
+        46,
+        12,
+        "foraging",
+        "2026-03-27T08:28:00.000Z"
+       ],
+       [
+        116,
+        25,
+        47,
+        18,
+        "displaying",
+        "2026-03-28T07:58:00.000Z"
+       ],
+       [
+        117,
+        25,
+        48,
+        11,
+        "foraging",
+        "2026-03-28T07:21:00.000Z"
+       ],
+       [
+        118,
+        25,
+        49,
+        36,
+        "foraging",
+        "2026-03-28T07:54:00.000Z"
+       ],
+       [
+        119,
+        26,
+        4,
+        1,
+        "calling",
+        "2026-03-29T06:29:00.000Z"
+       ],
+       [
+        120,
+        26,
+        35,
+        1,
+        "singing",
+        "2026-03-29T06:15:00.000Z"
+       ],
+       [
+        121,
+        26,
+        37,
+        1,
+        "singing",
+        "2026-03-29T08:22:00.000Z"
+       ],
+       [
+        122,
+        26,
+        38,
+        1,
+        "singing",
+        "2026-03-29T07:37:00.000Z"
+       ],
+       [
+        123,
+        26,
+        39,
+        1,
+        "singing",
+        "2026-03-29T07:57:00.000Z"
+       ],
+       [
+        124,
+        27,
+        19,
+        24,
+        "flyover",
+        "2026-03-29T07:01:00.000Z"
+       ],
+       [
+        125,
+        27,
+        41,
+        1,
+        "singing",
+        "2026-03-29T07:34:00.000Z"
+       ],
+       [
+        126,
+        27,
+        43,
+        1,
+        "booming",
+        "2026-03-29T07:49:00.000Z"
+       ],
+       [
+        127,
+        27,
+        46,
+        5,
+        "roosting",
+        "2026-03-29T07:22:00.000Z"
+       ],
+       [
+        128,
+        27,
+        50,
+        12,
+        "displaying",
+        "2026-03-29T06:18:00.000Z"
+       ],
+       [
+        129,
+        28,
+        19,
+        13,
+        "flyover",
+        "2026-03-30T09:35:00.000Z"
+       ],
+       [
+        130,
+        28,
+        26,
+        3,
+        "roosting",
+        "2026-03-30T09:16:00.000Z"
+       ],
+       [
+        131,
+        28,
+        39,
+        3,
+        "foraging",
+        "2026-03-30T09:24:00.000Z"
+       ],
+       [
+        132,
+        28,
+        42,
+        2,
+        "flyover",
+        "2026-03-30T09:35:00.000Z"
+       ],
+       [
+        133,
+        28,
+        47,
+        4,
+        "displaying",
+        "2026-03-30T09:30:00.000Z"
+       ],
+       [
+        134,
+        28,
+        50,
+        34,
+        "foraging",
+        "2026-03-30T08:12:00.000Z"
+       ],
+       [
+        135,
+        29,
+        17,
+        8,
+        "foraging",
+        "2026-03-31T06:46:00.000Z"
+       ],
+       [
+        136,
+        29,
+        19,
+        28,
+        "flyover",
+        "2026-03-31T06:38:00.000Z"
+       ],
+       [
+        137,
+        29,
+        35,
+        1,
+        "calling",
+        "2026-03-31T06:21:00.000Z"
+       ],
+       [
+        138,
+        29,
+        37,
+        1,
+        "singing",
+        "2026-03-31T06:54:00.000Z"
+       ],
+       [
+        139,
+        29,
+        47,
+        7,
+        "foraging",
+        "2026-03-31T06:22:00.000Z"
+       ],
+       [
+        140,
+        29,
+        49,
+        40,
+        "foraging",
+        "2026-03-31T06:15:00.000Z"
+       ],
+       [
+        141,
+        30,
+        14,
+        3,
+        "foraging",
+        "2026-03-31T06:59:00.000Z"
+       ],
+       [
+        142,
+        30,
+        17,
+        16,
+        "flyover",
+        "2026-03-31T06:25:00.000Z"
+       ],
+       [
+        143,
+        30,
+        34,
+        143,
+        "nesting",
+        "2026-03-31T06:58:00.000Z"
+       ],
+       [
+        144,
+        30,
+        51,
+        23,
+        "calling",
+        "2026-03-31T06:32:00.000Z"
+       ],
+       [
+        145,
+        31,
+        17,
+        10,
+        "flyover",
+        "2026-04-01T06:51:00.000Z"
+       ],
+       [
+        146,
+        31,
+        19,
+        16,
+        "flyover",
+        "2026-04-01T06:17:00.000Z"
+       ],
+       [
+        147,
+        31,
+        35,
+        1,
+        "calling",
+        "2026-04-01T06:51:00.000Z"
+       ],
+       [
+        148,
+        31,
+        39,
+        4,
+        "singing",
+        "2026-04-01T06:16:00.000Z"
+       ],
+       [
+        149,
+        31,
+        43,
+        1,
+        "booming",
+        "2026-04-01T06:41:00.000Z"
+       ],
+       [
+        150,
+        31,
+        47,
+        7,
+        "foraging",
+        "2026-04-01T07:01:00.000Z"
+       ],
+       [
+        151,
+        32,
+        1,
+        1,
+        "calling",
+        "2026-04-03T07:18:00.000Z"
+       ],
+       [
+        152,
+        32,
+        17,
+        10,
+        "flyover",
+        "2026-04-03T05:45:00.000Z"
+       ],
+       [
+        153,
+        32,
+        34,
+        128,
+        "roosting",
+        "2026-04-03T07:10:00.000Z"
+       ],
+       [
+        154,
+        32,
+        48,
+        5,
+        "roosting",
+        "2026-04-03T07:19:00.000Z"
+       ],
+       [
+        155,
+        32,
+        50,
+        33,
+        "foraging",
+        "2026-04-03T05:49:00.000Z"
+       ],
+       [
+        156,
+        33,
+        19,
+        26,
+        "flyover",
+        "2026-04-04T08:10:00.000Z"
+       ],
+       [
+        157,
+        33,
+        43,
+        1,
+        "flyover",
+        "2026-04-04T08:11:00.000Z"
+       ],
+       [
+        158,
+        33,
+        47,
+        16,
+        "displaying",
+        "2026-04-04T08:58:00.000Z"
+       ],
+       [
+        159,
+        33,
+        48,
+        8,
+        "calling",
+        "2026-04-04T07:01:00.000Z"
+       ],
+       [
+        160,
+        33,
+        50,
+        59,
+        "displaying",
+        "2026-04-04T08:53:00.000Z"
+       ],
+       [
+        161,
+        34,
+        1,
+        1,
+        "singing",
+        "2026-04-05T07:00:00.000Z"
+       ],
+       [
+        162,
+        34,
+        2,
+        2,
+        "singing",
+        "2026-04-05T06:44:00.000Z"
+       ],
+       [
+        163,
+        34,
+        37,
+        2,
+        "singing",
+        "2026-04-05T06:41:00.000Z"
+       ],
+       [
+        164,
+        34,
+        43,
+        1,
+        "booming",
+        "2026-04-05T06:31:00.000Z"
+       ],
+       [
+        165,
+        34,
+        45,
+        1,
+        "flyover",
+        "2026-04-05T07:10:00.000Z"
+       ],
+       [
+        166,
+        34,
+        47,
+        11,
+        "displaying",
+        "2026-04-05T07:11:00.000Z"
+       ],
+       [
+        167,
+        35,
+        18,
+        8,
+        "foraging",
+        "2026-04-05T08:58:00.000Z"
+       ],
+       [
+        168,
+        35,
+        45,
+        2,
+        "hunting",
+        "2026-04-05T07:23:00.000Z"
+       ],
+       [
+        169,
+        35,
+        47,
+        19,
+        "calling",
+        "2026-04-05T07:53:00.000Z"
+       ],
+       [
+        170,
+        36,
+        4,
+        1,
+        "singing",
+        "2026-04-06T19:04:00.000Z"
+       ],
+       [
+        171,
+        36,
+        36,
+        1,
+        "singing",
+        "2026-04-06T17:00:00.000Z"
+       ],
+       [
+        172,
+        36,
+        38,
+        3,
+        "singing",
+        "2026-04-06T19:31:00.000Z"
+       ],
+       [
+        173,
+        37,
+        14,
+        3,
+        "calling",
+        "2026-04-08T06:07:00.000Z"
+       ],
+       [
+        174,
+        37,
+        15,
+        1,
+        "singing",
+        "2026-04-08T06:47:00.000Z"
+       ],
+       [
+        175,
+        37,
+        46,
+        17,
+        "displaying",
+        "2026-04-08T06:16:00.000Z"
+       ],
+       [
+        176,
+        38,
+        15,
+        3,
+        "calling",
+        "2026-04-08T08:56:00.000Z"
+       ],
+       [
+        177,
+        38,
+        37,
+        1,
+        "calling",
+        "2026-04-08T07:31:00.000Z"
+       ],
+       [
+        178,
+        38,
+        49,
+        10,
+        "displaying",
+        "2026-04-08T07:46:00.000Z"
+       ],
+       [
+        179,
+        39,
+        14,
+        5,
+        "foraging",
+        "2026-04-09T08:03:00.000Z"
+       ],
+       [
+        180,
+        39,
+        17,
+        5,
+        "flyover",
+        "2026-04-09T08:08:00.000Z"
+       ],
+       [
+        181,
+        39,
+        48,
+        6,
+        "displaying",
+        "2026-04-09T07:54:00.000Z"
+       ],
+       [
+        182,
+        40,
+        17,
+        12,
+        "flyover",
+        "2026-04-10T15:38:00.000Z"
+       ],
+       [
+        183,
+        40,
+        39,
+        2,
+        "singing",
+        "2026-04-10T15:49:00.000Z"
+       ],
+       [
+        184,
+        40,
+        44,
+        1,
+        "fishing",
+        "2026-04-10T15:11:00.000Z"
+       ],
+       [
+        185,
+        40,
+        48,
+        2,
+        "displaying",
+        "2026-04-10T16:42:00.000Z"
+       ],
+       [
+        186,
+        40,
+        51,
+        14,
+        "displaying",
+        "2026-04-10T15:07:00.000Z"
+       ],
+       [
+        187,
+        41,
+        4,
+        3,
+        "singing",
+        "2026-04-10T15:04:00.000Z"
+       ],
+       [
+        188,
+        41,
+        16,
+        1,
+        "calling",
+        "2026-04-10T15:07:00.000Z"
+       ],
+       [
+        189,
+        41,
+        17,
+        4,
+        "flyover",
+        "2026-04-10T15:29:00.000Z"
+       ],
+       [
+        190,
+        41,
+        36,
+        2,
+        "foraging",
+        "2026-04-10T16:06:00.000Z"
+       ],
+       [
+        191,
+        41,
+        40,
+        1,
+        "calling",
+        "2026-04-10T16:27:00.000Z"
+       ],
+       [
+        192,
+        41,
+        45,
+        1,
+        "hunting",
+        "2026-04-10T15:36:00.000Z"
+       ],
+       [
+        193,
+        42,
+        18,
+        11,
+        "flyover",
+        "2026-04-12T06:22:00.000Z"
+       ],
+       [
+        194,
+        42,
+        36,
+        1,
+        "singing",
+        "2026-04-12T08:45:00.000Z"
+       ],
+       [
+        195,
+        42,
+        45,
+        1,
+        "flyover",
+        "2026-04-12T09:26:00.000Z"
+       ],
+       [
+        196,
+        42,
+        47,
+        16,
+        "calling",
+        "2026-04-12T09:29:00.000Z"
+       ],
+       [
+        197,
+        42,
+        48,
+        4,
+        "roosting",
+        "2026-04-12T07:25:00.000Z"
+       ],
+       [
+        198,
+        43,
+        4,
+        3,
+        "singing",
+        "2026-04-12T08:08:00.000Z"
+       ],
+       [
+        199,
+        43,
+        16,
+        3,
+        "calling",
+        "2026-04-12T07:37:00.000Z"
+       ],
+       [
+        200,
+        43,
+        27,
+        2,
+        "nesting",
+        "2026-04-12T08:32:00.000Z"
+       ],
+       [
+        201,
+        43,
+        36,
+        2,
+        "foraging",
+        "2026-04-12T08:27:00.000Z"
+       ],
+       [
+        202,
+        44,
+        14,
+        3,
+        "calling",
+        "2026-04-13T06:23:00.000Z"
+       ],
+       [
+        203,
+        44,
+        17,
+        8,
+        "flyover",
+        "2026-04-13T06:15:00.000Z"
+       ],
+       [
+        204,
+        44,
+        33,
+        124,
+        "flyover",
+        "2026-04-13T06:11:00.000Z"
+       ],
+       [
+        205,
+        44,
+        34,
+        68,
+        "nesting",
+        "2026-04-13T06:19:00.000Z"
+       ],
+       [
+        206,
+        44,
+        36,
+        1,
+        "calling",
+        "2026-04-13T06:22:00.000Z"
+       ],
+       [
+        207,
+        45,
+        15,
+        1,
+        "singing",
+        "2026-04-13T06:23:00.000Z"
+       ],
+       [
+        208,
+        45,
+        16,
+        3,
+        "foraging",
+        "2026-04-13T05:55:00.000Z"
+       ],
+       [
+        209,
+        45,
+        27,
+        2,
+        "fishing",
+        "2026-04-13T07:10:00.000Z"
+       ],
+       [
+        210,
+        45,
+        47,
+        11,
+        "foraging",
+        "2026-04-13T06:38:00.000Z"
+       ],
+       [
+        211,
+        46,
+        1,
+        3,
+        "singing",
+        "2026-04-15T09:01:00.000Z"
+       ],
+       [
+        212,
+        46,
+        4,
+        1,
+        "foraging",
+        "2026-04-15T09:33:00.000Z"
+       ],
+       [
+        213,
+        46,
+        39,
+        3,
+        "calling",
+        "2026-04-15T09:54:00.000Z"
+       ],
+       [
+        214,
+        47,
+        6,
+        2,
+        "singing",
+        "2026-04-16T07:16:00.000Z"
+       ],
+       [
+        215,
+        47,
+        41,
+        2,
+        "displaying",
+        "2026-04-16T08:06:00.000Z"
+       ],
+       [
+        216,
+        47,
+        45,
+        1,
+        "displaying",
+        "2026-04-16T09:29:00.000Z"
+       ],
+       [
+        217,
+        47,
+        50,
+        43,
+        "foraging",
+        "2026-04-16T09:08:00.000Z"
+       ],
+       [
+        218,
+        48,
+        14,
+        2,
+        "calling",
+        "2026-04-17T07:17:00.000Z"
+       ],
+       [
+        219,
+        48,
+        39,
+        1,
+        "calling",
+        "2026-04-17T07:01:00.000Z"
+       ],
+       [
+        220,
+        48,
+        41,
+        1,
+        "singing",
+        "2026-04-17T06:50:00.000Z"
+       ],
+       [
+        221,
+        48,
+        47,
+        15,
+        "calling",
+        "2026-04-17T07:35:00.000Z"
+       ],
+       [
+        222,
+        48,
+        51,
+        15,
+        "displaying",
+        "2026-04-17T07:25:00.000Z"
+       ],
+       [
+        223,
+        49,
+        2,
+        1,
+        "foraging",
+        "2026-04-18T08:20:00.000Z"
+       ],
+       [
+        224,
+        49,
+        35,
+        1,
+        "singing",
+        "2026-04-18T07:58:00.000Z"
+       ],
+       [
+        225,
+        49,
+        41,
+        2,
+        "singing",
+        "2026-04-18T07:37:00.000Z"
+       ],
+       [
+        226,
+        50,
+        2,
+        2,
+        "singing",
+        "2026-04-19T05:25:00.000Z"
+       ],
+       [
+        227,
+        50,
+        5,
+        2,
+        "singing",
+        "2026-04-19T05:30:00.000Z"
+       ],
+       [
+        228,
+        50,
+        8,
+        1,
+        "singing",
+        "2026-04-19T06:00:00.000Z"
+       ],
+       [
+        229,
+        50,
+        9,
+        1,
+        "singing",
+        "2026-04-19T05:51:00.000Z"
+       ],
+       [
+        230,
+        50,
+        33,
+        48,
+        "flyover",
+        "2026-04-19T05:25:00.000Z"
+       ],
+       [
+        231,
+        50,
+        35,
+        2,
+        "foraging",
+        "2026-04-19T05:50:00.000Z"
+       ],
+       [
+        232,
+        51,
+        17,
+        3,
+        "flyover",
+        "2026-04-19T08:22:00.000Z"
+       ],
+       [
+        233,
+        51,
+        18,
+        3,
+        "flyover",
+        "2026-04-19T07:54:00.000Z"
+       ],
+       [
+        234,
+        51,
+        37,
+        1,
+        "foraging",
+        "2026-04-19T09:00:00.000Z"
+       ],
+       [
+        235,
+        52,
+        1,
+        1,
+        "singing",
+        "2026-04-20T09:26:00.000Z"
+       ],
+       [
+        236,
+        52,
+        4,
+        2,
+        "calling",
+        "2026-04-20T07:15:00.000Z"
+       ],
+       [
+        237,
+        52,
+        21,
+        1,
+        "flyover",
+        "2026-04-20T08:52:00.000Z"
+       ],
+       [
+        238,
+        52,
+        35,
+        1,
+        "foraging",
+        "2026-04-20T09:01:00.000Z"
+       ],
+       [
+        239,
+        52,
+        36,
+        2,
+        "calling",
+        "2026-04-20T07:38:00.000Z"
+       ],
+       [
+        240,
+        53,
+        17,
+        10,
+        "foraging",
+        "2026-04-22T06:05:00.000Z"
+       ],
+       [
+        241,
+        53,
+        19,
+        17,
+        "foraging",
+        "2026-04-22T05:53:00.000Z"
+       ],
+       [
+        242,
+        53,
+        31,
+        21,
+        "calling",
+        "2026-04-22T06:25:00.000Z"
+       ],
+       [
+        243,
+        53,
+        48,
+        5,
+        "calling",
+        "2026-04-22T06:18:00.000Z"
+       ],
+       [
+        244,
+        53,
+        51,
+        18,
+        "calling",
+        "2026-04-22T06:18:00.000Z"
+       ],
+       [
+        245,
+        54,
+        4,
+        1,
+        "singing",
+        "2026-04-23T08:53:00.000Z"
+       ],
+       [
+        246,
+        54,
+        18,
+        2,
+        "flyover",
+        "2026-04-23T07:41:00.000Z"
+       ],
+       [
+        247,
+        54,
+        35,
+        1,
+        "singing",
+        "2026-04-23T08:56:00.000Z"
+       ],
+       [
+        248,
+        54,
+        37,
+        1,
+        "singing",
+        "2026-04-23T07:28:00.000Z"
+       ],
+       [
+        249,
+        55,
+        13,
+        2,
+        "foraging",
+        "2026-04-25T16:10:00.000Z"
+       ],
+       [
+        250,
+        55,
+        19,
+        10,
+        "flyover",
+        "2026-04-25T16:17:00.000Z"
+       ],
+       [
+        251,
+        55,
+        26,
+        1,
+        "roosting",
+        "2026-04-25T15:48:00.000Z"
+       ],
+       [
+        252,
+        55,
+        39,
+        2,
+        "singing",
+        "2026-04-25T15:47:00.000Z"
+       ],
+       [
+        253,
+        55,
+        43,
+        1,
+        "flyover",
+        "2026-04-25T16:14:00.000Z"
+       ],
+       [
+        254,
+        56,
+        1,
+        1,
+        "singing",
+        "2026-04-26T16:01:00.000Z"
+       ],
+       [
+        255,
+        56,
+        37,
+        3,
+        "singing",
+        "2026-04-26T16:38:00.000Z"
+       ],
+       [
+        256,
+        56,
+        38,
+        3,
+        "singing",
+        "2026-04-26T16:43:00.000Z"
+       ],
+       [
+        257,
+        57,
+        6,
+        2,
+        "singing",
+        "2026-04-27T08:20:00.000Z"
+       ],
+       [
+        258,
+        57,
+        9,
+        1,
+        "singing",
+        "2026-04-27T07:09:00.000Z"
+       ],
+       [
+        259,
+        57,
+        10,
+        1,
+        "singing",
+        "2026-04-27T06:18:00.000Z"
+       ],
+       [
+        260,
+        57,
+        11,
+        2,
+        "foraging",
+        "2026-04-27T07:50:00.000Z"
+       ],
+       [
+        261,
+        57,
+        14,
+        3,
+        "calling",
+        "2026-04-27T08:00:00.000Z"
+       ],
+       [
+        262,
+        57,
+        35,
+        3,
+        "foraging",
+        "2026-04-27T06:38:00.000Z"
+       ],
+       [
+        263,
+        57,
+        50,
+        18,
+        "calling",
+        "2026-04-27T06:55:00.000Z"
+       ],
+       [
+        264,
+        58,
+        44,
+        1,
+        "fishing",
+        "2026-04-28T06:47:00.000Z"
+       ],
+       [
+        265,
+        58,
+        46,
+        9,
+        "foraging",
+        "2026-04-28T07:28:00.000Z"
+       ],
+       [
+        266,
+        58,
+        49,
+        24,
+        "displaying",
+        "2026-04-28T06:48:00.000Z"
+       ],
+       [
+        267,
+        58,
+        51,
+        20,
+        "calling",
+        "2026-04-28T05:43:00.000Z"
+       ],
+       [
+        268,
+        59,
+        1,
+        1,
+        "calling",
+        "2026-04-29T15:31:00.000Z"
+       ],
+       [
+        269,
+        59,
+        4,
+        1,
+        "calling",
+        "2026-04-29T15:28:00.000Z"
+       ],
+       [
+        270,
+        59,
+        9,
+        1,
+        "singing",
+        "2026-04-29T15:05:00.000Z"
+       ],
+       [
+        271,
+        59,
+        30,
+        38,
+        "fishing",
+        "2026-04-29T15:21:00.000Z"
+       ],
+       [
+        272,
+        59,
+        34,
+        50,
+        "roosting",
+        "2026-04-29T14:42:00.000Z"
+       ],
+       [
+        273,
+        59,
+        41,
+        3,
+        "singing",
+        "2026-04-29T14:37:00.000Z"
+       ],
+       [
+        274,
+        60,
+        2,
+        4,
+        "singing",
+        "2026-05-01T06:14:00.000Z"
+       ],
+       [
+        275,
+        60,
+        13,
+        2,
+        "foraging",
+        "2026-05-01T06:38:00.000Z"
+       ],
+       [
+        276,
+        60,
+        37,
+        1,
+        "calling",
+        "2026-05-01T06:08:00.000Z"
+       ],
+       [
+        277,
+        60,
+        46,
+        13,
+        "foraging",
+        "2026-05-01T08:18:00.000Z"
+       ],
+       [
+        278,
+        60,
+        51,
+        14,
+        "roosting",
+        "2026-05-01T05:41:00.000Z"
+       ],
+       [
+        279,
+        61,
+        7,
+        4,
+        "calling",
+        "2026-05-01T07:49:00.000Z"
+       ],
+       [
+        280,
+        61,
+        14,
+        3,
+        "calling",
+        "2026-05-01T06:13:00.000Z"
+       ],
+       [
+        281,
+        61,
+        26,
+        2,
+        "foraging",
+        "2026-05-01T07:23:00.000Z"
+       ],
+       [
+        282,
+        61,
+        32,
+        7,
+        "fishing",
+        "2026-05-01T06:34:00.000Z"
+       ],
+       [
+        283,
+        61,
+        41,
+        2,
+        "displaying",
+        "2026-05-01T07:41:00.000Z"
+       ],
+       [
+        284,
+        62,
+        2,
+        3,
+        "singing",
+        "2026-05-02T15:51:00.000Z"
+       ],
+       [
+        285,
+        62,
+        4,
+        1,
+        "singing",
+        "2026-05-02T14:42:00.000Z"
+       ],
+       [
+        286,
+        62,
+        5,
+        2,
+        "foraging",
+        "2026-05-02T14:16:00.000Z"
+       ],
+       [
+        287,
+        62,
+        14,
+        2,
+        "foraging",
+        "2026-05-02T15:04:00.000Z"
+       ],
+       [
+        288,
+        62,
+        16,
+        6,
+        "flyover",
+        "2026-05-02T14:55:00.000Z"
+       ],
+       [
+        289,
+        62,
+        35,
+        2,
+        "calling",
+        "2026-05-02T15:24:00.000Z"
+       ],
+       [
+        290,
+        63,
+        1,
+        2,
+        "foraging",
+        "2026-05-03T07:34:00.000Z"
+       ],
+       [
+        291,
+        63,
+        5,
+        1,
+        "singing",
+        "2026-05-03T08:12:00.000Z"
+       ],
+       [
+        292,
+        63,
+        6,
+        4,
+        "singing",
+        "2026-05-03T10:07:00.000Z"
+       ],
+       [
+        293,
+        63,
+        20,
+        12,
+        "screaming",
+        "2026-05-03T09:01:00.000Z"
+       ],
+       [
+        294,
+        63,
+        23,
+        1,
+        "foraging",
+        "2026-05-03T09:24:00.000Z"
+       ],
+       [
+        295,
+        63,
+        35,
+        2,
+        "calling",
+        "2026-05-03T08:43:00.000Z"
+       ],
+       [
+        296,
+        63,
+        50,
+        24,
+        "calling",
+        "2026-05-03T10:06:00.000Z"
+       ],
+       [
+        297,
+        64,
+        6,
+        1,
+        "singing",
+        "2026-05-04T06:00:00.000Z"
+       ],
+       [
+        298,
+        64,
+        17,
+        9,
+        "foraging",
+        "2026-05-04T06:19:00.000Z"
+       ],
+       [
+        299,
+        64,
+        27,
+        1,
+        "nesting",
+        "2026-05-04T05:11:00.000Z"
+       ],
+       [
+        300,
+        64,
+        40,
+        1,
+        "calling",
+        "2026-05-04T05:39:00.000Z"
+       ],
+       [
+        301,
+        65,
+        17,
+        16,
+        "flyover",
+        "2026-05-04T07:35:00.000Z"
+       ],
+       [
+        302,
+        65,
+        20,
+        31,
+        "flyover",
+        "2026-05-04T07:06:00.000Z"
+       ],
+       [
+        303,
+        65,
+        48,
+        11,
+        "displaying",
+        "2026-05-04T07:10:00.000Z"
+       ],
+       [
+        304,
+        66,
+        15,
+        2,
+        "foraging",
+        "2026-05-05T05:43:00.000Z"
+       ],
+       [
+        305,
+        66,
+        17,
+        11,
+        "foraging",
+        "2026-05-05T07:02:00.000Z"
+       ],
+       [
+        306,
+        66,
+        18,
+        9,
+        "foraging",
+        "2026-05-05T08:06:00.000Z"
+       ],
+       [
+        307,
+        67,
+        17,
+        10,
+        "flyover",
+        "2026-05-05T05:46:00.000Z"
+       ],
+       [
+        308,
+        67,
+        18,
+        9,
+        "foraging",
+        "2026-05-05T06:24:00.000Z"
+       ],
+       [
+        309,
+        67,
+        20,
+        19,
+        "flyover",
+        "2026-05-05T06:07:00.000Z"
+       ],
+       [
+        310,
+        67,
+        32,
+        5,
+        "nesting",
+        "2026-05-05T06:12:00.000Z"
+       ],
+       [
+        311,
+        67,
+        34,
+        71,
+        "nesting",
+        "2026-05-05T06:22:00.000Z"
+       ],
+       [
+        312,
+        68,
+        33,
+        123,
+        "flyover",
+        "2026-05-06T15:24:00.000Z"
+       ],
+       [
+        313,
+        68,
+        34,
+        135,
+        "roosting",
+        "2026-05-06T16:37:00.000Z"
+       ],
+       [
+        314,
+        68,
+        37,
+        1,
+        "foraging",
+        "2026-05-06T16:04:00.000Z"
+       ],
+       [
+        315,
+        69,
+        18,
+        3,
+        "foraging",
+        "2026-05-07T07:23:00.000Z"
+       ],
+       [
+        316,
+        69,
+        31,
+        17,
+        "fishing",
+        "2026-05-07T06:35:00.000Z"
+       ],
+       [
+        317,
+        69,
+        48,
+        7,
+        "roosting",
+        "2026-05-07T07:12:00.000Z"
+       ],
+       [
+        318,
+        70,
+        20,
+        24,
+        "screaming",
+        "2026-05-07T07:01:00.000Z"
+       ],
+       [
+        319,
+        70,
+        21,
+        1,
+        "calling",
+        "2026-05-07T05:58:00.000Z"
+       ],
+       [
+        320,
+        70,
+        27,
+        1,
+        "fishing",
+        "2026-05-07T07:05:00.000Z"
+       ],
+       [
+        321,
+        70,
+        29,
+        5,
+        "nesting",
+        "2026-05-07T06:38:00.000Z"
+       ],
+       [
+        322,
+        70,
+        45,
+        2,
+        "displaying",
+        "2026-05-07T06:55:00.000Z"
+       ],
+       [
+        323,
+        70,
+        46,
+        9,
+        "roosting",
+        "2026-05-07T06:08:00.000Z"
+       ],
+       [
+        324,
+        71,
+        6,
+        2,
+        "singing",
+        "2026-05-08T16:56:00.000Z"
+       ],
+       [
+        325,
+        71,
+        19,
+        28,
+        "foraging",
+        "2026-05-08T15:24:00.000Z"
+       ],
+       [
+        326,
+        71,
+        39,
+        4,
+        "singing",
+        "2026-05-08T16:01:00.000Z"
+       ],
+       [
+        327,
+        71,
+        43,
+        1,
+        "booming",
+        "2026-05-08T16:19:00.000Z"
+       ],
+       [
+        328,
+        72,
+        5,
+        2,
+        "singing",
+        "2026-05-08T17:00:00.000Z"
+       ],
+       [
+        329,
+        72,
+        15,
+        1,
+        "singing",
+        "2026-05-08T16:27:00.000Z"
+       ],
+       [
+        330,
+        72,
+        50,
+        15,
+        "foraging",
+        "2026-05-08T17:37:00.000Z"
+       ],
+       [
+        331,
+        73,
+        1,
+        2,
+        "singing",
+        "2026-05-09T06:10:00.000Z"
+       ],
+       [
+        332,
+        73,
+        9,
+        1,
+        "singing",
+        "2026-05-09T05:38:00.000Z"
+       ],
+       [
+        333,
+        73,
+        16,
+        5,
+        "flyover",
+        "2026-05-09T05:43:00.000Z"
+       ],
+       [
+        334,
+        73,
+        31,
+        11,
+        "calling",
+        "2026-05-09T06:20:00.000Z"
+       ],
+       [
+        335,
+        74,
+        20,
+        21,
+        "flyover",
+        "2026-05-10T06:28:00.000Z"
+       ],
+       [
+        336,
+        74,
+        27,
+        2,
+        "fishing",
+        "2026-05-10T06:53:00.000Z"
+       ],
+       [
+        337,
+        74,
+        29,
+        4,
+        "fishing",
+        "2026-05-10T06:12:00.000Z"
+       ],
+       [
+        338,
+        74,
+        35,
+        1,
+        "calling",
+        "2026-05-10T07:17:00.000Z"
+       ],
+       [
+        339,
+        74,
+        36,
+        2,
+        "singing",
+        "2026-05-10T06:31:00.000Z"
+       ],
+       [
+        340,
+        75,
+        1,
+        1,
+        "singing",
+        "2026-05-11T09:26:00.000Z"
+       ],
+       [
+        341,
+        75,
+        20,
+        19,
+        "screaming",
+        "2026-05-11T09:31:00.000Z"
+       ],
+       [
+        342,
+        75,
+        49,
+        41,
+        "displaying",
+        "2026-05-11T08:28:00.000Z"
+       ],
+       [
+        343,
+        76,
+        15,
+        1,
+        "calling",
+        "2026-05-13T15:30:00.000Z"
+       ],
+       [
+        344,
+        76,
+        29,
+        13,
+        "calling",
+        "2026-05-13T16:34:00.000Z"
+       ],
+       [
+        345,
+        76,
+        41,
+        3,
+        "displaying",
+        "2026-05-13T16:16:00.000Z"
+       ],
+       [
+        346,
+        76,
+        42,
+        2,
+        "roosting",
+        "2026-05-13T15:18:00.000Z"
+       ],
+       [
+        347,
+        76,
+        51,
+        17,
+        "calling",
+        "2026-05-13T17:49:00.000Z"
+       ],
+       [
+        348,
+        77,
+        4,
+        2,
+        "singing",
+        "2026-05-14T05:49:00.000Z"
+       ],
+       [
+        349,
+        77,
+        7,
+        3,
+        "calling",
+        "2026-05-14T05:57:00.000Z"
+       ],
+       [
+        350,
+        77,
+        16,
+        4,
+        "foraging",
+        "2026-05-14T07:32:00.000Z"
+       ],
+       [
+        351,
+        77,
+        17,
+        12,
+        "flyover",
+        "2026-05-14T08:02:00.000Z"
+       ],
+       [
+        352,
+        78,
+        2,
+        3,
+        "singing",
+        "2026-05-15T08:28:00.000Z"
+       ],
+       [
+        353,
+        78,
+        5,
+        2,
+        "calling",
+        "2026-05-15T07:44:00.000Z"
+       ],
+       [
+        354,
+        78,
+        28,
+        3,
+        "hunting",
+        "2026-05-15T07:43:00.000Z"
+       ],
+       [
+        355,
+        78,
+        47,
+        12,
+        "foraging",
+        "2026-05-15T08:33:00.000Z"
+       ],
+       [
+        356,
+        78,
+        49,
+        39,
+        "calling",
+        "2026-05-15T06:18:00.000Z"
+       ],
+       [
+        357,
+        78,
+        51,
+        20,
+        "displaying",
+        "2026-05-15T06:28:00.000Z"
+       ],
+       [
+        358,
+        79,
+        13,
+        2,
+        "foraging",
+        "2026-05-16T05:42:00.000Z"
+       ],
+       [
+        359,
+        79,
+        28,
+        2,
+        "flyover",
+        "2026-05-16T05:55:00.000Z"
+       ],
+       [
+        360,
+        79,
+        46,
+        22,
+        "calling",
+        "2026-05-16T05:48:00.000Z"
+       ],
+       [
+        361,
+        79,
+        49,
+        7,
+        "foraging",
+        "2026-05-16T05:45:00.000Z"
+       ],
+       [
+        362,
+        80,
+        26,
+        3,
+        "roosting",
+        "2026-05-16T16:54:00.000Z"
+       ],
+       [
+        363,
+        80,
+        28,
+        3,
+        "hunting",
+        "2026-05-16T16:22:00.000Z"
+       ],
+       [
+        364,
+        80,
+        35,
+        1,
+        "singing",
+        "2026-05-16T16:10:00.000Z"
+       ],
+       [
+        365,
+        80,
+        43,
+        1,
+        "booming",
+        "2026-05-16T15:21:00.000Z"
+       ],
+       [
+        366,
+        81,
+        15,
+        2,
+        "calling",
+        "2026-05-17T15:33:00.000Z"
+       ],
+       [
+        367,
+        81,
+        16,
+        1,
+        "calling",
+        "2026-05-17T14:53:00.000Z"
+       ],
+       [
+        368,
+        81,
+        20,
+        6,
+        "flyover",
+        "2026-05-17T15:36:00.000Z"
+       ],
+       [
+        369,
+        81,
+        22,
+        1,
+        "purring",
+        "2026-05-17T14:40:00.000Z"
+       ],
+       [
+        370,
+        81,
+        30,
+        17,
+        "nesting",
+        "2026-05-17T14:56:00.000Z"
+       ],
+       [
+        371,
+        81,
+        41,
+        2,
+        "singing",
+        "2026-05-17T15:35:00.000Z"
+       ],
+       [
+        372,
+        82,
+        17,
+        4,
+        "flyover",
+        "2026-05-18T06:04:00.000Z"
+       ],
+       [
+        373,
+        82,
+        29,
+        14,
+        "nesting",
+        "2026-05-18T06:02:00.000Z"
+       ],
+       [
+        374,
+        82,
+        30,
+        24,
+        "nesting",
+        "2026-05-18T06:56:00.000Z"
+       ],
+       [
+        375,
+        82,
+        33,
+        45,
+        "nesting",
+        "2026-05-18T05:38:00.000Z"
+       ],
+       [
+        376,
+        83,
+        14,
+        5,
+        "calling",
+        "2026-05-19T05:15:00.000Z"
+       ],
+       [
+        377,
+        83,
+        17,
+        6,
+        "flyover",
+        "2026-05-19T05:09:00.000Z"
+       ],
+       [
+        378,
+        83,
+        24,
+        1,
+        "singing",
+        "2026-05-19T05:39:00.000Z"
+       ],
+       [
+        379,
+        83,
+        41,
+        3,
+        "displaying",
+        "2026-05-19T05:21:00.000Z"
+       ],
+       [
+        380,
+        83,
+        51,
+        10,
+        "foraging",
+        "2026-05-19T05:16:00.000Z"
+       ],
+       [
+        381,
+        84,
+        3,
+        1,
+        "foraging",
+        "2026-05-20T07:49:00.000Z"
+       ],
+       [
+        382,
+        84,
+        9,
+        2,
+        "singing",
+        "2026-05-20T07:27:00.000Z"
+       ],
+       [
+        383,
+        84,
+        11,
+        1,
+        "nesting",
+        "2026-05-20T07:45:00.000Z"
+       ],
+       [
+        384,
+        84,
+        26,
+        2,
+        "roosting",
+        "2026-05-20T07:00:00.000Z"
+       ],
+       [
+        385,
+        84,
+        29,
+        11,
+        "fishing",
+        "2026-05-20T06:49:00.000Z"
+       ],
+       [
+        386,
+        84,
+        35,
+        2,
+        "singing",
+        "2026-05-20T05:42:00.000Z"
+       ],
+       [
+        387,
+        85,
+        18,
+        6,
+        "flyover",
+        "2026-05-21T05:44:00.000Z"
+       ],
+       [
+        388,
+        85,
+        27,
+        1,
+        "nesting",
+        "2026-05-21T06:05:00.000Z"
+       ],
+       [
+        389,
+        85,
+        51,
+        22,
+        "displaying",
+        "2026-05-21T06:17:00.000Z"
+       ],
+       [
+        390,
+        86,
+        17,
+        9,
+        "flyover",
+        "2026-05-23T07:03:00.000Z"
+       ],
+       [
+        391,
+        86,
+        18,
+        9,
+        "foraging",
+        "2026-05-23T07:02:00.000Z"
+       ],
+       [
+        392,
+        86,
+        29,
+        6,
+        "fishing",
+        "2026-05-23T07:12:00.000Z"
+       ],
+       [
+        393,
+        86,
+        33,
+        52,
+        "nesting",
+        "2026-05-23T06:46:00.000Z"
+       ],
+       [
+        394,
+        86,
+        50,
+        57,
+        "roosting",
+        "2026-05-23T06:48:00.000Z"
+       ],
+       [
+        395,
+        87,
+        4,
+        1,
+        "foraging",
+        "2026-05-25T07:50:00.000Z"
+       ],
+       [
+        396,
+        87,
+        16,
+        1,
+        "calling",
+        "2026-05-25T07:35:00.000Z"
+       ],
+       [
+        397,
+        87,
+        20,
+        9,
+        "flyover",
+        "2026-05-25T06:26:00.000Z"
+       ],
+       [
+        398,
+        87,
+        50,
+        61,
+        "displaying",
+        "2026-05-25T06:23:00.000Z"
+       ],
+       [
+        399,
+        88,
+        2,
+        1,
+        "foraging",
+        "2026-05-25T15:56:00.000Z"
+       ],
+       [
+        400,
+        88,
+        13,
+        1,
+        "foraging",
+        "2026-05-25T15:25:00.000Z"
+       ],
+       [
+        401,
+        88,
+        35,
+        3,
+        "calling",
+        "2026-05-25T16:13:00.000Z"
+       ],
+       [
+        402,
+        88,
+        42,
+        1,
+        "flyover",
+        "2026-05-25T15:10:00.000Z"
+       ],
+       [
+        403,
+        88,
+        48,
+        3,
+        "calling",
+        "2026-05-25T16:36:00.000Z"
+       ],
+       [
+        404,
+        88,
+        51,
+        20,
+        "foraging",
+        "2026-05-25T16:22:00.000Z"
+       ],
+       [
+        405,
+        89,
+        4,
+        2,
+        "foraging",
+        "2026-05-27T05:41:00.000Z"
+       ],
+       [
+        406,
+        89,
+        16,
+        2,
+        "flyover",
+        "2026-05-27T05:26:00.000Z"
+       ],
+       [
+        407,
+        89,
+        37,
+        2,
+        "calling",
+        "2026-05-27T05:43:00.000Z"
+       ],
+       [
+        408,
+        89,
+        42,
+        3,
+        "roosting",
+        "2026-05-27T05:54:00.000Z"
+       ],
+       [
+        409,
+        90,
+        17,
+        13,
+        "foraging",
+        "2026-05-27T08:23:00.000Z"
+       ],
+       [
+        410,
+        90,
+        29,
+        20,
+        "nesting",
+        "2026-05-27T07:33:00.000Z"
+       ],
+       [
+        411,
+        90,
+        30,
+        27,
+        "fishing",
+        "2026-05-27T07:27:00.000Z"
+       ],
+       [
+        412,
+        91,
+        13,
+        1,
+        "calling",
+        "2026-05-28T05:08:00.000Z"
+       ],
+       [
+        413,
+        91,
+        17,
+        16,
+        "flyover",
+        "2026-05-28T05:33:00.000Z"
+       ],
+       [
+        414,
+        91,
+        19,
+        18,
+        "flyover",
+        "2026-05-28T05:14:00.000Z"
+       ],
+       [
+        415,
+        91,
+        42,
+        2,
+        "fishing",
+        "2026-05-28T05:11:00.000Z"
+       ],
+       [
+        416,
+        91,
+        45,
+        2,
+        "hunting",
+        "2026-05-28T05:03:00.000Z"
+       ],
+       [
+        417,
+        92,
+        1,
+        1,
+        "calling",
+        "2026-05-30T05:56:00.000Z"
+       ],
+       [
+        418,
+        92,
+        3,
+        1,
+        "singing",
+        "2026-05-30T04:59:00.000Z"
+       ],
+       [
+        419,
+        92,
+        5,
+        2,
+        "foraging",
+        "2026-05-30T05:22:00.000Z"
+       ],
+       [
+        420,
+        92,
+        12,
+        1,
+        "calling",
+        "2026-05-30T06:09:00.000Z"
+       ],
+       [
+        421,
+        92,
+        21,
+        1,
+        "calling",
+        "2026-05-30T05:45:00.000Z"
+       ],
+       [
+        422,
+        92,
+        25,
+        1,
+        "foraging",
+        "2026-05-30T04:50:00.000Z"
+       ],
+       [
+        423,
+        92,
+        31,
+        24,
+        "calling",
+        "2026-05-30T05:06:00.000Z"
+       ],
+       [
+        424,
+        92,
+        50,
+        20,
+        "calling",
+        "2026-05-30T04:45:00.000Z"
+       ],
+       [
+        425,
+        93,
+        15,
+        1,
+        "singing",
+        "2026-05-31T07:35:00.000Z"
+       ],
+       [
+        426,
+        93,
+        17,
+        6,
+        "foraging",
+        "2026-05-31T05:30:00.000Z"
+       ],
+       [
+        427,
+        93,
+        20,
+        36,
+        "screaming",
+        "2026-05-31T07:09:00.000Z"
+       ],
+       [
+        428,
+        93,
+        36,
+        1,
+        "singing",
+        "2026-05-31T06:24:00.000Z"
+       ],
+       [
+        429,
+        94,
+        13,
+        1,
+        "calling",
+        "2026-05-31T14:05:00.000Z"
+       ],
+       [
+        430,
+        94,
+        17,
+        16,
+        "flyover",
+        "2026-05-31T14:04:00.000Z"
+       ],
+       [
+        431,
+        94,
+        37,
+        2,
+        "singing",
+        "2026-05-31T13:56:00.000Z"
+       ],
+       [
+        432,
+        94,
+        45,
+        1,
+        "displaying",
+        "2026-05-31T13:45:00.000Z"
+       ],
+       [
+        433,
+        94,
+        47,
+        17,
+        "calling",
+        "2026-05-31T13:39:00.000Z"
+       ]
+      ],
+      "rowCount": 433,
+      "affectedRows": null,
+      "command": "SELECT",
+      "durationMs": 1,
+      "truncated": false,
+      "notices": []
+     }
+    ],
+    "source": "ui",
+    "workspace": "~/birdwatch"
+   }
+  }
+ ]
+}

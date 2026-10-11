@@ -1,0 +1,56 @@
+/* The values the window chrome needs that no theme token holds: macOS's own window-control colours
+   (fixed in every theme, as on the real window) and the address pill's 12px, which the app's
+   desktop type scale skips. Everything else in the frame is a token. */
+[data-perch-frame] {
+  --frame-close: #ff5f57;
+  --frame-minimize: #febc2e;
+  --frame-zoom: #28c840;
+  --frame-address-size: 12px;
+}
+
+/* Away from the viewport a window's app is skipped whole, style, layout and paint, so a page of
+   workspaces costs only what the ones near the view cost. Its box is fixed, so nothing moves when
+   it is drawn again. */
+[data-perch-frame-app] {
+  content-visibility: auto;
+}
+
+/* Scrollbars are the visitor's operating system, not the product; the legacy scenes hid them too. */
+[data-perch-frame-app] * {
+  scrollbar-width: none;
+}
+[data-perch-frame-app] *::-webkit-scrollbar {
+  display: none;
+}
+
+/* Tailwind declares the theme's --color-* aliases once, at :root, where they resolve against the
+   page's palette and are inherited already resolved. Utilities read the raw tokens and follow the
+   .dark below; CodeMirror's chrome reads the aliases, so they are declared again inside the dark
+   window (and inside a popup the window opened, which portals out to <body>). */
+[data-perch-frame] .dark,
+[data-base-ui-portal].dark {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-success-foreground: var(--success-foreground);
+  --color-destructive: var(--destructive);
+  --color-sidebar: var(--sidebar);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+}
+
+/* The app draws few focus rings of its own, and the frame scales the ones it does draw down to a
+   hairline. Once the visitor has the scene, whatever has keyboard focus gets a ring that stays
+   2px on the page at any scale. The editor is left to its caret, as in the app. */
+[data-perch-frame-app] :focus-visible:not(.cm-content) {
+  outline: calc(2px / var(--frame-scale)) solid var(--ring);
+  outline-offset: calc(-1px / var(--frame-scale));
+}

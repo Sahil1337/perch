@@ -1,0 +1,5 @@
+/* Before the entrance: the toolbar and legend are there, the cards and wires are not yet. */
+[data-scene-pre] > div > div,
+[data-scene-pre] > div > svg {
+  opacity: 0;
+}

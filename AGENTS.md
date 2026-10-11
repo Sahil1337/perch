@@ -139,6 +139,14 @@ land is a committed `*.test.ts`.
   `apps/server/webui/static/`, which is the directory `//go:embed` reads. Both are build output
   and gitignored; `webui/static/.gitkeep` is committed because the embed needs the directory to
   exist in a clean checkout.
+- **The landing page is `apps/site`** (`@perch/site`), a multi-page Vite + React app that Vercel
+  deploys with Root Directory `apps/site`. It is not part of the root `build`, because the binary
+  doesn't carry it, but `typecheck` and `lint` cover it. Its product scenes are the real
+  `@perch/ui` workspace running on a `WorkspaceApi` that replays recordings
+  (`src/shared/replay/`). Recordings come from a real perch and Postgres via
+  `scripts/record*.ts`, so re-record them; don't hand-edit them. `public/legacy/` is captured
+  output too (`capture/`, which also holds the sample database), used for scenes that are not yet
+  real; treat it the same way.
 - **MIT licensed.** New workspaces inherit it; `apps/server` keeps its own `LICENSE` copy so the
   shipped half of the repo carries its licence next to it.
 

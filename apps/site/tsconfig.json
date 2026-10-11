@@ -1,0 +1,9 @@
+{
+  "extends": "@perch/tsconfig/react.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "types": ["vite/client"]
+  },
+  "include": ["src", "lab", "vite.config.ts"],
+  "exclude": ["node_modules", "dist", "public"]
+}
