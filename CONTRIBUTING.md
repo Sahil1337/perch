@@ -60,8 +60,8 @@ perch/
 ├─ packages/sql/       @perch/sql — statement splitter + formatter the frontend needs
 ├─ packages/tsconfig/  @perch/tsconfig — base / node / react presets
 ├─ eslint.config.js    one ESLint config for the repo, every workspace                      
-├─ turbo.json          Turborepo tasks — `dev` and `start`; everything else fans out directly
-├─ scripts/dev.mjs     picks the API's port, then hands both halves to turbo
+├─ turbo.json          Turborepo tasks: `dev:server`, `dev:ui` and `start`
+├─ scripts/dev.mjs     `bun run dev`: picks the API's port, runs both halves, one log stream
 └─ docs/               architecture/, api/, design/
 ```
 
@@ -75,10 +75,13 @@ workspace that does not define the script is skipped rather than failing the run
 | `dev`             | both halves: `vite dev` on :5173 + `perch serve` on a free port (scripts/dev.mjs) |
 | `dev:server`      | just the server (`go run . serve --no-open` on :4600)                             |
 | `dev:ui`          | just the UI (`vite dev` on :5173, expects the API on :4600)                       |
+| `dev:site`        | the landing page alone (`vite dev` on :5180); `dev` never starts it               |
+| `start:site`      | builds the landing page and serves the build on :5180                             |
+| `build:site`      | builds the landing page into `apps/site/dist`                                     |
 | `build`           | `@perch/web` then `perch`, in that order — the binary embeds the web bundle       |
 | `start`           | runs the built app: `perch serve` on :4600, serving the built UI and the API      |
 | `typecheck`       | `tsc --noEmit` across the TypeScript workspaces; `go build ./...` for the server  |
-| `lint`            | one ESLint run over apps/web and packages/ui, then `go vet` in apps/server        |
+| `lint`            | one ESLint run over apps/web, apps/site and packages/ui, then `go vet`            |
 | `smoke`           | end-to-end smoke against a local Postgres; drives the built binary, so build first |
 | `perch -- <args>` | runs the `perch` binary from the server workspace (needs a build)                 |
 | `clean`           | removes node_modules and all build output                                         |

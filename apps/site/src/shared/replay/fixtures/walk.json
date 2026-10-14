@@ -1,0 +1,3356 @@
+[
+  {
+    "key": "select * from species s limit 25; select count(*) from species s",
+    "kind": "probe",
+    "scene": "walk",
+    "request": {
+      "sql": "select *\nfrom species s\nlimit 25;\nselect count(*)\nfrom species s",
+      "maxRows": 25,
+      "readOnly": true,
+      "record": false
+    },
+    "record": {
+      "id": "walk-1",
+      "connectionId": "23e3a6d2-40c6-473a-8790-6143a2bb9ce8",
+      "database": "perch_site_demo",
+      "sql": "select *\nfrom species s\nlimit 25;\nselect count(*)\nfrom species s",
+      "status": "done",
+      "startedAt": "2026-10-10T21:12:54.416Z",
+      "finishedAt": "2026-10-10T21:12:54.424Z",
+      "durationMs": 7,
+      "results": [
+        {
+          "index": 0,
+          "sql": "select *\nfrom species s\nlimit 25",
+          "columns": [
+            {
+              "name": "id",
+              "type": "int4",
+              "align": "right",
+              "source": {
+                "table": "species",
+                "column": "id"
+              }
+            },
+            {
+              "name": "common_name",
+              "type": "text",
+              "align": "left",
+              "source": {
+                "table": "species",
+                "column": "common_name"
+              }
+            },
+            {
+              "name": "scientific_name",
+              "type": "text",
+              "align": "left",
+              "source": {
+                "table": "species",
+                "column": "scientific_name"
+              }
+            },
+            {
+              "name": "family_id",
+              "type": "int4",
+              "align": "right",
+              "source": {
+                "table": "species",
+                "column": "family_id"
+              }
+            },
+            {
+              "name": "status",
+              "type": "bpchar",
+              "align": "left",
+              "source": {
+                "table": "species",
+                "column": "status"
+              }
+            },
+            {
+              "name": "migrant",
+              "type": "bool",
+              "align": "left",
+              "source": {
+                "table": "species",
+                "column": "migrant"
+              }
+            },
+            {
+              "name": "last_seen_at",
+              "type": "timestamptz",
+              "align": "right",
+              "source": {
+                "table": "species",
+                "column": "last_seen_at"
+              }
+            }
+          ],
+          "rows": [
+            [
+              8,
+              "Grasshopper Warbler",
+              "Locustella naevia",
+              7,
+              "LC",
+              true,
+              "2026-04-19T06:00:00.000Z"
+            ],
+            [
+              38,
+              "Great Tit",
+              "Parus major",
+              25,
+              "LC",
+              false,
+              "2026-04-26T16:43:00.000Z"
+            ],
+            [
+              10,
+              "Redstart",
+              "Phoenicurus phoenicurus",
+              8,
+              "LC",
+              true,
+              "2026-04-27T06:18:00.000Z"
+            ],
+            [
+              44,
+              "Kingfisher",
+              "Alcedo atthis",
+              23,
+              "LC",
+              false,
+              "2026-04-28T06:47:00.000Z"
+            ],
+            [
+              23,
+              "Wryneck",
+              "Jynx torquilla",
+              24,
+              "LC",
+              true,
+              "2026-05-03T09:24:00.000Z"
+            ],
+            [
+              40,
+              "Crested Tit",
+              "Lophophanes cristatus",
+              25,
+              "LC",
+              false,
+              "2026-05-04T05:39:00.000Z"
+            ],
+            [
+              32,
+              "Little Tern",
+              "Sternula albifrons",
+              11,
+              "LC",
+              true,
+              "2026-05-05T06:12:00.000Z"
+            ],
+            [
+              34,
+              "Puffin",
+              "Fratercula arctica",
+              12,
+              "VU",
+              true,
+              "2026-05-06T16:37:00.000Z"
+            ],
+            [
+              6,
+              "Sedge Warbler",
+              "Acrocephalus schoenobaenus",
+              6,
+              "LC",
+              true,
+              "2026-05-08T16:56:00.000Z"
+            ],
+            [
+              39,
+              "Blue Tit",
+              "Cyanistes caeruleus",
+              25,
+              "LC",
+              false,
+              "2026-05-08T16:01:00.000Z"
+            ],
+            [
+              7,
+              "Reed Warbler",
+              "Acrocephalus scirpaceus",
+              6,
+              "LC",
+              true,
+              "2026-05-14T05:57:00.000Z"
+            ],
+            [
+              46,
+              "Avocet",
+              "Recurvirostra avosetta",
+              15,
+              "LC",
+              false,
+              "2026-05-16T05:48:00.000Z"
+            ],
+            [
+              49,
+              "Black-tailed Godwit",
+              "Limosa limosa",
+              13,
+              "NT",
+              false,
+              "2026-05-16T05:45:00.000Z"
+            ],
+            [
+              28,
+              "Hobby",
+              "Falco subbuteo",
+              20,
+              "LC",
+              true,
+              "2026-05-16T16:22:00.000Z"
+            ],
+            [
+              43,
+              "Bittern",
+              "Botaurus stellaris",
+              22,
+              "LC",
+              false,
+              "2026-05-16T15:21:00.000Z"
+            ],
+            [
+              22,
+              "Turtle Dove",
+              "Streptopelia turtur",
+              17,
+              "VU",
+              true,
+              "2026-05-17T14:40:00.000Z"
+            ],
+            [
+              14,
+              "Wheatear",
+              "Oenanthe oenanthe",
+              8,
+              "LC",
+              true,
+              "2026-05-19T05:15:00.000Z"
+            ],
+            [
+              24,
+              "Golden Oriole",
+              "Oriolus oriolus",
+              29,
+              "LC",
+              true,
+              "2026-05-19T05:39:00.000Z"
+            ],
+            [
+              41,
+              "Skylark",
+              "Alauda arvensis",
+              27,
+              "LC",
+              false,
+              "2026-05-19T05:21:00.000Z"
+            ],
+            [
+              9,
+              "Nightingale",
+              "Luscinia megarhynchos",
+              8,
+              "LC",
+              true,
+              "2026-05-20T07:27:00.000Z"
+            ],
+            [
+              11,
+              "Pied Flycatcher",
+              "Ficedula hypoleuca",
+              8,
+              "LC",
+              true,
+              "2026-05-20T07:45:00.000Z"
+            ],
+            [
+              26,
+              "Garganey",
+              "Spatula querquedula",
+              21,
+              "LC",
+              true,
+              "2026-05-20T07:00:00.000Z"
+            ],
+            [
+              27,
+              "Osprey",
+              "Pandion haliaetus",
+              19,
+              "LC",
+              true,
+              "2026-05-21T06:05:00.000Z"
+            ],
+            [
+              18,
+              "House Martin",
+              "Delichon urbicum",
+              1,
+              "LC",
+              true,
+              "2026-05-23T07:02:00.000Z"
+            ],
+            [
+              33,
+              "Kittiwake",
+              "Rissa tridactyla",
+              11,
+              "VU",
+              true,
+              "2026-05-23T06:46:00.000Z"
+            ]
+          ],
+          "rowCount": 25,
+          "affectedRows": null,
+          "command": "SELECT",
+          "durationMs": 7,
+          "truncated": false,
+          "notices": []
+        },
+        {
+          "index": 1,
+          "sql": "select count(*)\nfrom species s",
+          "columns": [
+            {
+              "name": "count",
+              "type": "int8",
+              "align": "right"
+            }
+          ],
+          "rows": [
+            [
+              "51"
+            ]
+          ],
+          "rowCount": 1,
+          "affectedRows": null,
+          "command": "SELECT",
+          "durationMs": 0,
+          "truncated": false,
+          "notices": []
+        }
+      ],
+      "source": "ui"
+    }
+  },
+  {
+    "key": "select * from families f limit 25; select count(*) from families f",
+    "kind": "probe",
+    "scene": "walk",
+    "request": {
+      "sql": "select *\nfrom families f\nlimit 25;\nselect count(*)\nfrom families f",
+      "maxRows": 25,
+      "readOnly": true,
+      "record": false
+    },
+    "record": {
+      "id": "walk-2",
+      "connectionId": "23e3a6d2-40c6-473a-8790-6143a2bb9ce8",
+      "database": "perch_site_demo",
+      "sql": "select *\nfrom families f\nlimit 25;\nselect count(*)\nfrom families f",
+      "status": "done",
+      "startedAt": "2026-10-10T21:12:54.429Z",
+      "finishedAt": "2026-10-10T21:12:54.431Z",
+      "durationMs": 1,
+      "results": [
+        {
+          "index": 0,
+          "sql": "select *\nfrom families f\nlimit 25",
+          "columns": [
+            {
+              "name": "id",
+              "type": "int4",
+              "align": "right",
+              "source": {
+                "table": "families",
+                "column": "id"
+              }
+            },
+            {
+              "name": "name",
+              "type": "text",
+              "align": "left",
+              "source": {
+                "table": "families",
+                "column": "name"
+              }
+            },
+            {
+              "name": "latin_name",
+              "type": "text",
+              "align": "left",
+              "source": {
+                "table": "families",
+                "column": "latin_name"
+              }
+            }
+          ],
+          "rows": [
+            [
+              1,
+              "Swallows & martins",
+              "Hirundinidae"
+            ],
+            [
+              2,
+              "Swifts",
+              "Apodidae"
+            ],
+            [
+              3,
+              "Cuckoos",
+              "Cuculidae"
+            ],
+            [
+              4,
+              "Leaf warblers",
+              "Phylloscopidae"
+            ],
+            [
+              5,
+              "Sylviid warblers",
+              "Sylviidae"
+            ],
+            [
+              6,
+              "Reed warblers",
+              "Acrocephalidae"
+            ],
+            [
+              7,
+              "Grassbirds",
+              "Locustellidae"
+            ],
+            [
+              8,
+              "Chats & flycatchers",
+              "Muscicapidae"
+            ],
+            [
+              9,
+              "Thrushes",
+              "Turdidae"
+            ],
+            [
+              10,
+              "Wagtails & pipits",
+              "Motacillidae"
+            ],
+            [
+              11,
+              "Gulls & terns",
+              "Laridae"
+            ],
+            [
+              12,
+              "Auks",
+              "Alcidae"
+            ],
+            [
+              13,
+              "Sandpipers",
+              "Scolopacidae"
+            ],
+            [
+              14,
+              "Plovers",
+              "Charadriidae"
+            ],
+            [
+              15,
+              "Avocets & stilts",
+              "Recurvirostridae"
+            ],
+            [
+              16,
+              "Oystercatchers",
+              "Haematopodidae"
+            ],
+            [
+              17,
+              "Pigeons & doves",
+              "Columbidae"
+            ],
+            [
+              18,
+              "Hawks & harriers",
+              "Accipitridae"
+            ],
+            [
+              19,
+              "Ospreys",
+              "Pandionidae"
+            ],
+            [
+              20,
+              "Falcons",
+              "Falconidae"
+            ],
+            [
+              21,
+              "Ducks & geese",
+              "Anatidae"
+            ],
+            [
+              22,
+              "Herons & bitterns",
+              "Ardeidae"
+            ],
+            [
+              23,
+              "Kingfishers",
+              "Alcedinidae"
+            ],
+            [
+              24,
+              "Woodpeckers",
+              "Picidae"
+            ],
+            [
+              25,
+              "Tits",
+              "Paridae"
+            ]
+          ],
+          "rowCount": 25,
+          "affectedRows": null,
+          "command": "SELECT",
+          "durationMs": 1,
+          "truncated": false,
+          "notices": []
+        },
+        {
+          "index": 1,
+          "sql": "select count(*)\nfrom families f",
+          "columns": [
+            {
+              "name": "count",
+              "type": "int8",
+              "align": "right"
+            }
+          ],
+          "rows": [
+            [
+              "29"
+            ]
+          ],
+          "rowCount": 1,
+          "affectedRows": null,
+          "command": "SELECT",
+          "durationMs": 0,
+          "truncated": false,
+          "notices": []
+        }
+      ],
+      "source": "ui"
+    }
+  },
+  {
+    "key": "select * from species s join families f on f.id = s.family_id limit 25; select count(*) from ( select * from species s join families f on f.id = s.family_id ) as _perch_walk_count; select * from species s left join families f on f.id = s.family_id limit 25",
+    "kind": "probe",
+    "scene": "walk",
+    "request": {
+      "sql": "select *\nfrom species s\njoin families f on f.id = s.family_id\nlimit 25;\nselect count(*) from (\nselect *\nfrom species s\njoin families f on f.id = s.family_id\n) as _perch_walk_count;\nselect *\nfrom species s\nleft join families f on f.id = s.family_id\nlimit 25",
+      "maxRows": 25,
+      "readOnly": true,
+      "record": false
+    },
+    "record": {
+      "id": "walk-3",
+      "connectionId": "23e3a6d2-40c6-473a-8790-6143a2bb9ce8",
+      "database": "perch_site_demo",
+      "sql": "select *\nfrom species s\njoin families f on f.id = s.family_id\nlimit 25;\nselect count(*) from (\nselect *\nfrom species s\njoin families f on f.id = s.family_id\n) as _perch_walk_count;\nselect *\nfrom species s\nleft join families f on f.id = s.family_id\nlimit 25",
+      "status": "done",
+      "startedAt": "2026-10-10T21:12:54.465Z",
+      "finishedAt": "2026-10-10T21:12:54.468Z",
+      "durationMs": 2,
+      "results": [
+        {
+          "index": 0,
+          "sql": "select *\nfrom species s\njoin families f on f.id = s.family_id\nlimit 25",
+          "columns": [
+            {
+              "name": "id",
+              "type": "int4",
+              "align": "right",
+              "source": {
+                "table": "species",
+                "column": "id"
+              }
+            },
+            {
+              "name": "common_name",
+              "type": "text",
+              "align": "left",
+              "source": {
+                "table": "species",
+                "column": "common_name"
+              }
+            },
+            {
+              "name": "scientific_name",
+              "type": "text",
+              "align": "left",
+              "source": {
+                "table": "species",
+                "column": "scientific_name"
+              }
+            },
+            {
+              "name": "family_id",
+              "type": "int4",
+              "align": "right",
+              "source": {
+                "table": "species",
+                "column": "family_id"
+              }
+            },
+            {
+              "name": "status",
+              "type": "bpchar",
+              "align": "left",
+              "source": {
+                "table": "species",
+                "column": "status"
+              }
+            },
+            {
+              "name": "migrant",
+              "type": "bool",
+              "align": "left",
+              "source": {
+                "table": "species",
+                "column": "migrant"
+              }
+            },
+            {
+              "name": "last_seen_at",
+              "type": "timestamptz",
+              "align": "right",
+              "source": {
+                "table": "species",
+                "column": "last_seen_at"
+              }
+            },
+            {
+              "name": "id",
+              "type": "int4",
+              "align": "right",
+              "source": {
+                "table": "families",
+                "column": "id"
+              }
+            },
+            {
+              "name": "name",
+              "type": "text",
+              "align": "left",
+              "source": {
+                "table": "families",
+                "column": "name"
+              }
+            },
+            {
+              "name": "latin_name",
+              "type": "text",
+              "align": "left",
+              "source": {
+                "table": "families",
+                "column": "latin_name"
+              }
+            }
+          ],
+          "rows": [
+            [
+              8,
+              "Grasshopper Warbler",
+              "Locustella naevia",
+              7,
+              "LC",
+              true,
+              "2026-04-19T06:00:00.000Z",
+              7,
+              "Grassbirds",
+              "Locustellidae"
+            ],
+            [
+              38,
+              "Great Tit",
+              "Parus major",
+              25,
+              "LC",
+              false,
+              "2026-04-26T16:43:00.000Z",
+              25,
+              "Tits",
+              "Paridae"
+            ],
+            [
+              10,
+              "Redstart",
+              "Phoenicurus phoenicurus",
+              8,
+              "LC",
+              true,
+              "2026-04-27T06:18:00.000Z",
+              8,
+              "Chats & flycatchers",
+              "Muscicapidae"
+            ],
+            [
+              44,
+              "Kingfisher",
+              "Alcedo atthis",
+              23,
+              "LC",
+              false,
+              "2026-04-28T06:47:00.000Z",
+              23,
+              "Kingfishers",
+              "Alcedinidae"
+            ],
+            [
+              23,
+              "Wryneck",
+              "Jynx torquilla",
+              24,
+              "LC",
+              true,
+              "2026-05-03T09:24:00.000Z",
+              24,
+              "Woodpeckers",
+              "Picidae"
+            ],
+            [
+              40,
+              "Crested Tit",
+              "Lophophanes cristatus",
+              25,
+              "LC",
+              false,
+              "2026-05-04T05:39:00.000Z",
+              25,
+              "Tits",
+              "Paridae"
+            ],
+            [
+              32,
+              "Little Tern",
+              "Sternula albifrons",
+              11,
+              "LC",
+              true,
+              "2026-05-05T06:12:00.000Z",
+              11,
+              "Gulls & terns",
+              "Laridae"
+            ],
+            [
+              34,
+              "Puffin",
+              "Fratercula arctica",
+              12,
+              "VU",
+              true,
+              "2026-05-06T16:37:00.000Z",
+              12,
+              "Auks",
+              "Alcidae"
+            ],
+            [
+              6,
+              "Sedge Warbler",
+              "Acrocephalus schoenobaenus",
+              6,
+              "LC",
+              true,
+              "2026-05-08T16:56:00.000Z",
+              6,
+              "Reed warblers",
+              "Acrocephalidae"
+            ],
+            [
+              39,
+              "Blue Tit",
+              "Cyanistes caeruleus",
+              25,
+              "LC",
+              false,
+              "2026-05-08T16:01:00.000Z",
+              25,
+              "Tits",
+              "Paridae"
+            ],
+            [
+              7,
+              "Reed Warbler",
+              "Acrocephalus scirpaceus",
+              6,
+              "LC",
+              true,
+              "2026-05-14T05:57:00.000Z",
+              6,
+              "Reed warblers",
+              "Acrocephalidae"
+            ],
+            [
+              46,
+              "Avocet",
+              "Recurvirostra avosetta",
+              15,
+              "LC",
+              false,
+              "2026-05-16T05:48:00.000Z",
+              15,
+              "Avocets & stilts",
+              "Recurvirostridae"
+            ],
+            [
+              49,
+              "Black-tailed Godwit",
+              "Limosa limosa",
+              13,
+              "NT",
+              false,
+              "2026-05-16T05:45:00.000Z",
+              13,
+              "Sandpipers",
+              "Scolopacidae"
+            ],
+            [
+              28,
+              "Hobby",
+              "Falco subbuteo",
+              20,
+              "LC",
+              true,
+              "2026-05-16T16:22:00.000Z",
+              20,
+              "Falcons",
+              "Falconidae"
+            ],
+            [
+              43,
+              "Bittern",
+              "Botaurus stellaris",
+              22,
+              "LC",
+              false,
+              "2026-05-16T15:21:00.000Z",
+              22,
+              "Herons & bitterns",
+              "Ardeidae"
+            ],
+            [
+              22,
+              "Turtle Dove",
+              "Streptopelia turtur",
+              17,
+              "VU",
+              true,
+              "2026-05-17T14:40:00.000Z",
+              17,
+              "Pigeons & doves",
+              "Columbidae"
+            ],
+            [
+              14,
+              "Wheatear",
+              "Oenanthe oenanthe",
+              8,
+              "LC",
+              true,
+              "2026-05-19T05:15:00.000Z",
+              8,
+              "Chats & flycatchers",
+              "Muscicapidae"
+            ],
+            [
+              24,
+              "Golden Oriole",
+              "Oriolus oriolus",
+              29,
+              "LC",
+              true,
+              "2026-05-19T05:39:00.000Z",
+              29,
+              "Orioles",
+              "Oriolidae"
+            ],
+            [
+              41,
+              "Skylark",
+              "Alauda arvensis",
+              27,
+              "LC",
+              false,
+              "2026-05-19T05:21:00.000Z",
+              27,
+              "Larks",
+              "Alaudidae"
+            ],
+            [
+              9,
+              "Nightingale",
+              "Luscinia megarhynchos",
+              8,
+              "LC",
+              true,
+              "2026-05-20T07:27:00.000Z",
+              8,
+              "Chats & flycatchers",
+              "Muscicapidae"
+            ],
+            [
+              11,
+              "Pied Flycatcher",
+              "Ficedula hypoleuca",
+              8,
+              "LC",
+              true,
+              "2026-05-20T07:45:00.000Z",
+              8,
+              "Chats & flycatchers",
+              "Muscicapidae"
+            ],
+            [
+              26,
+              "Garganey",
+              "Spatula querquedula",
+              21,
+              "LC",
+              true,
+              "2026-05-20T07:00:00.000Z",
+              21,
+              "Ducks & geese",
+              "Anatidae"
+            ],
+            [
+              27,
+              "Osprey",
+              "Pandion haliaetus",
+              19,
+              "LC",
+              true,
+              "2026-05-21T06:05:00.000Z",
+              19,
+              "Ospreys",
+              "Pandionidae"
+            ],
+            [
+              18,
+              "House Martin",
+              "Delichon urbicum",
+              1,
+              "LC",
+              true,
+              "2026-05-23T07:02:00.000Z",
+              1,
+              "Swallows & martins",
+              "Hirundinidae"
+            ],
+            [
+              33,
+              "Kittiwake",
+              "Rissa tridactyla",
+              11,
+              "VU",
+              true,
+              "2026-05-23T06:46:00.000Z",
+              11,
+              "Gulls & terns",
+              "Laridae"
+            ]
+          ],
+          "rowCount": 25,
+          "affectedRows": null,
+          "command": "SELECT",
+          "durationMs": 1,
+          "truncated": false,
+          "notices": []
+        },
+        {
+          "index": 1,
+          "sql": "select count(*) from (\nselect *\nfrom species s\njoin families f on f.id = s.family_id\n) as _perch_walk_count",
+          "columns": [
+            {
+              "name": "count",
+              "type": "int8",
+              "align": "right"
+            }
+          ],
+          "rows": [
+            [
+              "51"
+            ]
+          ],
+          "rowCount": 1,
+          "affectedRows": null,
+          "command": "SELECT",
+          "durationMs": 0,
+          "truncated": false,
+          "notices": []
+        },
+        {
+          "index": 2,
+          "sql": "select *\nfrom species s\nleft join families f on f.id = s.family_id\nlimit 25",
+          "columns": [
+            {
+              "name": "id",
+              "type": "int4",
+              "align": "right",
+              "source": {
+                "table": "species",
+                "column": "id"
+              }
+            },
+            {
+              "name": "common_name",
+              "type": "text",
+              "align": "left",
+              "source": {
+                "table": "species",
+                "column": "common_name"
+              }
+            },
+            {
+              "name": "scientific_name",
+              "type": "text",
+              "align": "left",
+              "source": {
+                "table": "species",
+                "column": "scientific_name"
+              }
+            },
+            {
+              "name": "family_id",
+              "type": "int4",
+              "align": "right",
+              "source": {
+                "table": "species",
+                "column": "family_id"
+              }
+            },
+            {
+              "name": "status",
+              "type": "bpchar",
+              "align": "left",
+              "source": {
+                "table": "species",
+                "column": "status"
+              }
+            },
+            {
+              "name": "migrant",
+              "type": "bool",
+              "align": "left",
+              "source": {
+                "table": "species",
+                "column": "migrant"
+              }
+            },
+            {
+              "name": "last_seen_at",
+              "type": "timestamptz",
+              "align": "right",
+              "source": {
+                "table": "species",
+                "column": "last_seen_at"
+              }
+            },
+            {
+              "name": "id",
+              "type": "int4",
+              "align": "right",
+              "source": {
+                "table": "families",
+                "column": "id"
+              }
+            },
+            {
+              "name": "name",
+              "type": "text",
+              "align": "left",
+              "source": {
+                "table": "families",
+                "column": "name"
+              }
+            },
+            {
+              "name": "latin_name",
+              "type": "text",
+              "align": "left",
+              "source": {
+                "table": "families",
+                "column": "latin_name"
+              }
+            }
+          ],
+          "rows": [
+            [
+              8,
+              "Grasshopper Warbler",
+              "Locustella naevia",
+              7,
+              "LC",
+              true,
+              "2026-04-19T06:00:00.000Z",
+              7,
+              "Grassbirds",
+              "Locustellidae"
+            ],
+            [
+              38,
+              "Great Tit",
+              "Parus major",
+              25,
+              "LC",
+              false,
+              "2026-04-26T16:43:00.000Z",
+              25,
+              "Tits",
+              "Paridae"
+            ],
+            [
+              10,
+              "Redstart",
+              "Phoenicurus phoenicurus",
+              8,
+              "LC",
+              true,
+              "2026-04-27T06:18:00.000Z",
+              8,
+              "Chats & flycatchers",
+              "Muscicapidae"
+            ],
+            [
+              44,
+              "Kingfisher",
+              "Alcedo atthis",
+              23,
+              "LC",
+              false,
+              "2026-04-28T06:47:00.000Z",
+              23,
+              "Kingfishers",
+              "Alcedinidae"
+            ],
+            [
+              23,
+              "Wryneck",
+              "Jynx torquilla",
+              24,
+              "LC",
+              true,
+              "2026-05-03T09:24:00.000Z",
+              24,
+              "Woodpeckers",
+              "Picidae"
+            ],
+            [
+              40,
+              "Crested Tit",
+              "Lophophanes cristatus",
+              25,
+              "LC",
+              false,
+              "2026-05-04T05:39:00.000Z",
+              25,
+              "Tits",
+              "Paridae"
+            ],
+            [
+              32,
+              "Little Tern",
+              "Sternula albifrons",
+              11,
+              "LC",
+              true,
+              "2026-05-05T06:12:00.000Z",
+              11,
+              "Gulls & terns",
+              "Laridae"
+            ],
+            [
+              34,
+              "Puffin",
+              "Fratercula arctica",
+              12,
+              "VU",
+              true,
+              "2026-05-06T16:37:00.000Z",
+              12,
+              "Auks",
+              "Alcidae"
+            ],
+            [
+              6,
+              "Sedge Warbler",
+              "Acrocephalus schoenobaenus",
+              6,
+              "LC",
+              true,
+              "2026-05-08T16:56:00.000Z",
+              6,
+              "Reed warblers",
+              "Acrocephalidae"
+            ],
+            [
+              39,
+              "Blue Tit",
+              "Cyanistes caeruleus",
+              25,
+              "LC",
+              false,
+              "2026-05-08T16:01:00.000Z",
+              25,
+              "Tits",
+              "Paridae"
+            ],
+            [
+              7,
+              "Reed Warbler",
+              "Acrocephalus scirpaceus",
+              6,
+              "LC",
+              true,
+              "2026-05-14T05:57:00.000Z",
+              6,
+              "Reed warblers",
+              "Acrocephalidae"
+            ],
+            [
+              46,
+              "Avocet",
+              "Recurvirostra avosetta",
+              15,
+              "LC",
+              false,
+              "2026-05-16T05:48:00.000Z",
+              15,
+              "Avocets & stilts",
+              "Recurvirostridae"
+            ],
+            [
+              49,
+              "Black-tailed Godwit",
+              "Limosa limosa",
+              13,
+              "NT",
+              false,
+              "2026-05-16T05:45:00.000Z",
+              13,
+              "Sandpipers",
+              "Scolopacidae"
+            ],
+            [
+              28,
+              "Hobby",
+              "Falco subbuteo",
+              20,
+              "LC",
+              true,
+              "2026-05-16T16:22:00.000Z",
+              20,
+              "Falcons",
+              "Falconidae"
+            ],
+            [
+              43,
+              "Bittern",
+              "Botaurus stellaris",
+              22,
+              "LC",
+              false,
+              "2026-05-16T15:21:00.000Z",
+              22,
+              "Herons & bitterns",
+              "Ardeidae"
+            ],
+            [
+              22,
+              "Turtle Dove",
+              "Streptopelia turtur",
+              17,
+              "VU",
+              true,
+              "2026-05-17T14:40:00.000Z",
+              17,
+              "Pigeons & doves",
+              "Columbidae"
+            ],
+            [
+              14,
+              "Wheatear",
+              "Oenanthe oenanthe",
+              8,
+              "LC",
+              true,
+              "2026-05-19T05:15:00.000Z",
+              8,
+              "Chats & flycatchers",
+              "Muscicapidae"
+            ],
+            [
+              24,
+              "Golden Oriole",
+              "Oriolus oriolus",
+              29,
+              "LC",
+              true,
+              "2026-05-19T05:39:00.000Z",
+              29,
+              "Orioles",
+              "Oriolidae"
+            ],
+            [
+              41,
+              "Skylark",
+              "Alauda arvensis",
+              27,
+              "LC",
+              false,
+              "2026-05-19T05:21:00.000Z",
+              27,
+              "Larks",
+              "Alaudidae"
+            ],
+            [
+              9,
+              "Nightingale",
+              "Luscinia megarhynchos",
+              8,
+              "LC",
+              true,
+              "2026-05-20T07:27:00.000Z",
+              8,
+              "Chats & flycatchers",
+              "Muscicapidae"
+            ],
+            [
+              11,
+              "Pied Flycatcher",
+              "Ficedula hypoleuca",
+              8,
+              "LC",
+              true,
+              "2026-05-20T07:45:00.000Z",
+              8,
+              "Chats & flycatchers",
+              "Muscicapidae"
+            ],
+            [
+              26,
+              "Garganey",
+              "Spatula querquedula",
+              21,
+              "LC",
+              true,
+              "2026-05-20T07:00:00.000Z",
+              21,
+              "Ducks & geese",
+              "Anatidae"
+            ],
+            [
+              27,
+              "Osprey",
+              "Pandion haliaetus",
+              19,
+              "LC",
+              true,
+              "2026-05-21T06:05:00.000Z",
+              19,
+              "Ospreys",
+              "Pandionidae"
+            ],
+            [
+              18,
+              "House Martin",
+              "Delichon urbicum",
+              1,
+              "LC",
+              true,
+              "2026-05-23T07:02:00.000Z",
+              1,
+              "Swallows & martins",
+              "Hirundinidae"
+            ],
+            [
+              33,
+              "Kittiwake",
+              "Rissa tridactyla",
+              11,
+              "VU",
+              true,
+              "2026-05-23T06:46:00.000Z",
+              11,
+              "Gulls & terns",
+              "Laridae"
+            ]
+          ],
+          "rowCount": 25,
+          "affectedRows": null,
+          "command": "SELECT",
+          "durationMs": 0,
+          "truncated": false,
+          "notices": []
+        }
+      ],
+      "source": "ui"
+    }
+  },
+  {
+    "key": "select * from species s join families f on f.id = s.family_id where s.migrant limit 25; select count(*) from ( select * from species s join families f on f.id = s.family_id where s.migrant ) as _perch_walk_count; select *, (s.migrant) as _perch_walk_pass from species s join families f on f.id = s.family_id limit 25",
+    "kind": "probe",
+    "scene": "walk",
+    "request": {
+      "sql": "select *\nfrom species s\njoin families f on f.id = s.family_id\nwhere s.migrant\nlimit 25;\nselect count(*) from (\nselect *\nfrom species s\njoin families f on f.id = s.family_id\nwhere s.migrant\n) as _perch_walk_count;\nselect *, (s.migrant) as _perch_walk_pass\nfrom species s\njoin families f on f.id = s.family_id\nlimit 25",
+      "maxRows": 25,
+      "readOnly": true,
+      "record": false
+    },
+    "record": {
+      "id": "walk-4",
+      "connectionId": "23e3a6d2-40c6-473a-8790-6143a2bb9ce8",
+      "database": "perch_site_demo",
+      "sql": "select *\nfrom species s\njoin families f on f.id = s.family_id\nwhere s.migrant\nlimit 25;\nselect count(*) from (\nselect *\nfrom species s\njoin families f on f.id = s.family_id\nwhere s.migrant\n) as _perch_walk_count;\nselect *, (s.migrant) as _perch_walk_pass\nfrom species s\njoin families f on f.id = s.family_id\nlimit 25",
+      "status": "done",
+      "startedAt": "2026-10-10T21:12:54.505Z",
+      "finishedAt": "2026-10-10T21:12:54.507Z",
+      "durationMs": 2,
+      "results": [
+        {
+          "index": 0,
+          "sql": "select *\nfrom species s\njoin families f on f.id = s.family_id\nwhere s.migrant\nlimit 25",
+          "columns": [
+            {
+              "name": "id",
+              "type": "int4",
+              "align": "right",
+              "source": {
+                "table": "species",
+                "column": "id"
+              }
+            },
+            {
+              "name": "common_name",
+              "type": "text",
+              "align": "left",
+              "source": {
+                "table": "species",
+                "column": "common_name"
+              }
+            },
+            {
+              "name": "scientific_name",
+              "type": "text",
+              "align": "left",
+              "source": {
+                "table": "species",
+                "column": "scientific_name"
+              }
+            },
+            {
+              "name": "family_id",
+              "type": "int4",
+              "align": "right",
+              "source": {
+                "table": "species",
+                "column": "family_id"
+              }
+            },
+            {
+              "name": "status",
+              "type": "bpchar",
+              "align": "left",
+              "source": {
+                "table": "species",
+                "column": "status"
+              }
+            },
+            {
+              "name": "migrant",
+              "type": "bool",
+              "align": "left",
+              "source": {
+                "table": "species",
+                "column": "migrant"
+              }
+            },
+            {
+              "name": "last_seen_at",
+              "type": "timestamptz",
+              "align": "right",
+              "source": {
+                "table": "species",
+                "column": "last_seen_at"
+              }
+            },
+            {
+              "name": "id",
+              "type": "int4",
+              "align": "right",
+              "source": {
+                "table": "families",
+                "column": "id"
+              }
+            },
+            {
+              "name": "name",
+              "type": "text",
+              "align": "left",
+              "source": {
+                "table": "families",
+                "column": "name"
+              }
+            },
+            {
+              "name": "latin_name",
+              "type": "text",
+              "align": "left",
+              "source": {
+                "table": "families",
+                "column": "latin_name"
+              }
+            }
+          ],
+          "rows": [
+            [
+              8,
+              "Grasshopper Warbler",
+              "Locustella naevia",
+              7,
+              "LC",
+              true,
+              "2026-04-19T06:00:00.000Z",
+              7,
+              "Grassbirds",
+              "Locustellidae"
+            ],
+            [
+              10,
+              "Redstart",
+              "Phoenicurus phoenicurus",
+              8,
+              "LC",
+              true,
+              "2026-04-27T06:18:00.000Z",
+              8,
+              "Chats & flycatchers",
+              "Muscicapidae"
+            ],
+            [
+              23,
+              "Wryneck",
+              "Jynx torquilla",
+              24,
+              "LC",
+              true,
+              "2026-05-03T09:24:00.000Z",
+              24,
+              "Woodpeckers",
+              "Picidae"
+            ],
+            [
+              32,
+              "Little Tern",
+              "Sternula albifrons",
+              11,
+              "LC",
+              true,
+              "2026-05-05T06:12:00.000Z",
+              11,
+              "Gulls & terns",
+              "Laridae"
+            ],
+            [
+              34,
+              "Puffin",
+              "Fratercula arctica",
+              12,
+              "VU",
+              true,
+              "2026-05-06T16:37:00.000Z",
+              12,
+              "Auks",
+              "Alcidae"
+            ],
+            [
+              6,
+              "Sedge Warbler",
+              "Acrocephalus schoenobaenus",
+              6,
+              "LC",
+              true,
+              "2026-05-08T16:56:00.000Z",
+              6,
+              "Reed warblers",
+              "Acrocephalidae"
+            ],
+            [
+              7,
+              "Reed Warbler",
+              "Acrocephalus scirpaceus",
+              6,
+              "LC",
+              true,
+              "2026-05-14T05:57:00.000Z",
+              6,
+              "Reed warblers",
+              "Acrocephalidae"
+            ],
+            [
+              28,
+              "Hobby",
+              "Falco subbuteo",
+              20,
+              "LC",
+              true,
+              "2026-05-16T16:22:00.000Z",
+              20,
+              "Falcons",
+              "Falconidae"
+            ],
+            [
+              22,
+              "Turtle Dove",
+              "Streptopelia turtur",
+              17,
+              "VU",
+              true,
+              "2026-05-17T14:40:00.000Z",
+              17,
+              "Pigeons & doves",
+              "Columbidae"
+            ],
+            [
+              14,
+              "Wheatear",
+              "Oenanthe oenanthe",
+              8,
+              "LC",
+              true,
+              "2026-05-19T05:15:00.000Z",
+              8,
+              "Chats & flycatchers",
+              "Muscicapidae"
+            ],
+            [
+              24,
+              "Golden Oriole",
+              "Oriolus oriolus",
+              29,
+              "LC",
+              true,
+              "2026-05-19T05:39:00.000Z",
+              29,
+              "Orioles",
+              "Oriolidae"
+            ],
+            [
+              9,
+              "Nightingale",
+              "Luscinia megarhynchos",
+              8,
+              "LC",
+              true,
+              "2026-05-20T07:27:00.000Z",
+              8,
+              "Chats & flycatchers",
+              "Muscicapidae"
+            ],
+            [
+              11,
+              "Pied Flycatcher",
+              "Ficedula hypoleuca",
+              8,
+              "LC",
+              true,
+              "2026-05-20T07:45:00.000Z",
+              8,
+              "Chats & flycatchers",
+              "Muscicapidae"
+            ],
+            [
+              26,
+              "Garganey",
+              "Spatula querquedula",
+              21,
+              "LC",
+              true,
+              "2026-05-20T07:00:00.000Z",
+              21,
+              "Ducks & geese",
+              "Anatidae"
+            ],
+            [
+              27,
+              "Osprey",
+              "Pandion haliaetus",
+              19,
+              "LC",
+              true,
+              "2026-05-21T06:05:00.000Z",
+              19,
+              "Ospreys",
+              "Pandionidae"
+            ],
+            [
+              18,
+              "House Martin",
+              "Delichon urbicum",
+              1,
+              "LC",
+              true,
+              "2026-05-23T07:02:00.000Z",
+              1,
+              "Swallows & martins",
+              "Hirundinidae"
+            ],
+            [
+              33,
+              "Kittiwake",
+              "Rissa tridactyla",
+              11,
+              "VU",
+              true,
+              "2026-05-23T06:46:00.000Z",
+              11,
+              "Gulls & terns",
+              "Laridae"
+            ],
+            [
+              2,
+              "Willow Warbler",
+              "Phylloscopus trochilus",
+              4,
+              "LC",
+              true,
+              "2026-05-25T15:56:00.000Z",
+              4,
+              "Leaf warblers",
+              "Phylloscopidae"
+            ],
+            [
+              4,
+              "Blackcap",
+              "Sylvia atricapilla",
+              5,
+              "LC",
+              true,
+              "2026-05-27T05:41:00.000Z",
+              5,
+              "Sylviid warblers",
+              "Sylviidae"
+            ],
+            [
+              16,
+              "Yellow Wagtail",
+              "Motacilla flava",
+              10,
+              "LC",
+              true,
+              "2026-05-27T05:26:00.000Z",
+              10,
+              "Wagtails & pipits",
+              "Motacillidae"
+            ],
+            [
+              29,
+              "Common Tern",
+              "Sterna hirundo",
+              11,
+              "LC",
+              true,
+              "2026-05-27T07:33:00.000Z",
+              11,
+              "Gulls & terns",
+              "Laridae"
+            ],
+            [
+              30,
+              "Arctic Tern",
+              "Sterna paradisaea",
+              11,
+              "LC",
+              true,
+              "2026-05-27T07:27:00.000Z",
+              11,
+              "Gulls & terns",
+              "Laridae"
+            ],
+            [
+              19,
+              "Sand Martin",
+              "Riparia riparia",
+              1,
+              "LC",
+              true,
+              "2026-05-28T05:14:00.000Z",
+              1,
+              "Swallows & martins",
+              "Hirundinidae"
+            ],
+            [
+              1,
+              "Chiffchaff",
+              "Phylloscopus collybita",
+              4,
+              "LC",
+              true,
+              "2026-05-30T05:56:00.000Z",
+              4,
+              "Leaf warblers",
+              "Phylloscopidae"
+            ],
+            [
+              3,
+              "Wood Warbler",
+              "Phylloscopus sibilatrix",
+              4,
+              "LC",
+              true,
+              "2026-05-30T04:59:00.000Z",
+              4,
+              "Leaf warblers",
+              "Phylloscopidae"
+            ]
+          ],
+          "rowCount": 25,
+          "affectedRows": null,
+          "command": "SELECT",
+          "durationMs": 0,
+          "truncated": false,
+          "notices": []
+        },
+        {
+          "index": 1,
+          "sql": "select count(*) from (\nselect *\nfrom species s\njoin families f on f.id = s.family_id\nwhere s.migrant\n) as _perch_walk_count",
+          "columns": [
+            {
+              "name": "count",
+              "type": "int8",
+              "align": "right"
+            }
+          ],
+          "rows": [
+            [
+              "33"
+            ]
+          ],
+          "rowCount": 1,
+          "affectedRows": null,
+          "command": "SELECT",
+          "durationMs": 0,
+          "truncated": false,
+          "notices": []
+        },
+        {
+          "index": 2,
+          "sql": "select *, (s.migrant) as _perch_walk_pass\nfrom species s\njoin families f on f.id = s.family_id\nlimit 25",
+          "columns": [
+            {
+              "name": "id",
+              "type": "int4",
+              "align": "right",
+              "source": {
+                "table": "species",
+                "column": "id"
+              }
+            },
+            {
+              "name": "common_name",
+              "type": "text",
+              "align": "left",
+              "source": {
+                "table": "species",
+                "column": "common_name"
+              }
+            },
+            {
+              "name": "scientific_name",
+              "type": "text",
+              "align": "left",
+              "source": {
+                "table": "species",
+                "column": "scientific_name"
+              }
+            },
+            {
+              "name": "family_id",
+              "type": "int4",
+              "align": "right",
+              "source": {
+                "table": "species",
+                "column": "family_id"
+              }
+            },
+            {
+              "name": "status",
+              "type": "bpchar",
+              "align": "left",
+              "source": {
+                "table": "species",
+                "column": "status"
+              }
+            },
+            {
+              "name": "migrant",
+              "type": "bool",
+              "align": "left",
+              "source": {
+                "table": "species",
+                "column": "migrant"
+              }
+            },
+            {
+              "name": "last_seen_at",
+              "type": "timestamptz",
+              "align": "right",
+              "source": {
+                "table": "species",
+                "column": "last_seen_at"
+              }
+            },
+            {
+              "name": "id",
+              "type": "int4",
+              "align": "right",
+              "source": {
+                "table": "families",
+                "column": "id"
+              }
+            },
+            {
+              "name": "name",
+              "type": "text",
+              "align": "left",
+              "source": {
+                "table": "families",
+                "column": "name"
+              }
+            },
+            {
+              "name": "latin_name",
+              "type": "text",
+              "align": "left",
+              "source": {
+                "table": "families",
+                "column": "latin_name"
+              }
+            },
+            {
+              "name": "_perch_walk_pass",
+              "type": "bool",
+              "align": "left",
+              "source": {
+                "table": "species",
+                "column": "migrant"
+              }
+            }
+          ],
+          "rows": [
+            [
+              8,
+              "Grasshopper Warbler",
+              "Locustella naevia",
+              7,
+              "LC",
+              true,
+              "2026-04-19T06:00:00.000Z",
+              7,
+              "Grassbirds",
+              "Locustellidae",
+              true
+            ],
+            [
+              38,
+              "Great Tit",
+              "Parus major",
+              25,
+              "LC",
+              false,
+              "2026-04-26T16:43:00.000Z",
+              25,
+              "Tits",
+              "Paridae",
+              false
+            ],
+            [
+              10,
+              "Redstart",
+              "Phoenicurus phoenicurus",
+              8,
+              "LC",
+              true,
+              "2026-04-27T06:18:00.000Z",
+              8,
+              "Chats & flycatchers",
+              "Muscicapidae",
+              true
+            ],
+            [
+              44,
+              "Kingfisher",
+              "Alcedo atthis",
+              23,
+              "LC",
+              false,
+              "2026-04-28T06:47:00.000Z",
+              23,
+              "Kingfishers",
+              "Alcedinidae",
+              false
+            ],
+            [
+              23,
+              "Wryneck",
+              "Jynx torquilla",
+              24,
+              "LC",
+              true,
+              "2026-05-03T09:24:00.000Z",
+              24,
+              "Woodpeckers",
+              "Picidae",
+              true
+            ],
+            [
+              40,
+              "Crested Tit",
+              "Lophophanes cristatus",
+              25,
+              "LC",
+              false,
+              "2026-05-04T05:39:00.000Z",
+              25,
+              "Tits",
+              "Paridae",
+              false
+            ],
+            [
+              32,
+              "Little Tern",
+              "Sternula albifrons",
+              11,
+              "LC",
+              true,
+              "2026-05-05T06:12:00.000Z",
+              11,
+              "Gulls & terns",
+              "Laridae",
+              true
+            ],
+            [
+              34,
+              "Puffin",
+              "Fratercula arctica",
+              12,
+              "VU",
+              true,
+              "2026-05-06T16:37:00.000Z",
+              12,
+              "Auks",
+              "Alcidae",
+              true
+            ],
+            [
+              6,
+              "Sedge Warbler",
+              "Acrocephalus schoenobaenus",
+              6,
+              "LC",
+              true,
+              "2026-05-08T16:56:00.000Z",
+              6,
+              "Reed warblers",
+              "Acrocephalidae",
+              true
+            ],
+            [
+              39,
+              "Blue Tit",
+              "Cyanistes caeruleus",
+              25,
+              "LC",
+              false,
+              "2026-05-08T16:01:00.000Z",
+              25,
+              "Tits",
+              "Paridae",
+              false
+            ],
+            [
+              7,
+              "Reed Warbler",
+              "Acrocephalus scirpaceus",
+              6,
+              "LC",
+              true,
+              "2026-05-14T05:57:00.000Z",
+              6,
+              "Reed warblers",
+              "Acrocephalidae",
+              true
+            ],
+            [
+              46,
+              "Avocet",
+              "Recurvirostra avosetta",
+              15,
+              "LC",
+              false,
+              "2026-05-16T05:48:00.000Z",
+              15,
+              "Avocets & stilts",
+              "Recurvirostridae",
+              false
+            ],
+            [
+              49,
+              "Black-tailed Godwit",
+              "Limosa limosa",
+              13,
+              "NT",
+              false,
+              "2026-05-16T05:45:00.000Z",
+              13,
+              "Sandpipers",
+              "Scolopacidae",
+              false
+            ],
+            [
+              28,
+              "Hobby",
+              "Falco subbuteo",
+              20,
+              "LC",
+              true,
+              "2026-05-16T16:22:00.000Z",
+              20,
+              "Falcons",
+              "Falconidae",
+              true
+            ],
+            [
+              43,
+              "Bittern",
+              "Botaurus stellaris",
+              22,
+              "LC",
+              false,
+              "2026-05-16T15:21:00.000Z",
+              22,
+              "Herons & bitterns",
+              "Ardeidae",
+              false
+            ],
+            [
+              22,
+              "Turtle Dove",
+              "Streptopelia turtur",
+              17,
+              "VU",
+              true,
+              "2026-05-17T14:40:00.000Z",
+              17,
+              "Pigeons & doves",
+              "Columbidae",
+              true
+            ],
+            [
+              14,
+              "Wheatear",
+              "Oenanthe oenanthe",
+              8,
+              "LC",
+              true,
+              "2026-05-19T05:15:00.000Z",
+              8,
+              "Chats & flycatchers",
+              "Muscicapidae",
+              true
+            ],
+            [
+              24,
+              "Golden Oriole",
+              "Oriolus oriolus",
+              29,
+              "LC",
+              true,
+              "2026-05-19T05:39:00.000Z",
+              29,
+              "Orioles",
+              "Oriolidae",
+              true
+            ],
+            [
+              41,
+              "Skylark",
+              "Alauda arvensis",
+              27,
+              "LC",
+              false,
+              "2026-05-19T05:21:00.000Z",
+              27,
+              "Larks",
+              "Alaudidae",
+              false
+            ],
+            [
+              9,
+              "Nightingale",
+              "Luscinia megarhynchos",
+              8,
+              "LC",
+              true,
+              "2026-05-20T07:27:00.000Z",
+              8,
+              "Chats & flycatchers",
+              "Muscicapidae",
+              true
+            ],
+            [
+              11,
+              "Pied Flycatcher",
+              "Ficedula hypoleuca",
+              8,
+              "LC",
+              true,
+              "2026-05-20T07:45:00.000Z",
+              8,
+              "Chats & flycatchers",
+              "Muscicapidae",
+              true
+            ],
+            [
+              26,
+              "Garganey",
+              "Spatula querquedula",
+              21,
+              "LC",
+              true,
+              "2026-05-20T07:00:00.000Z",
+              21,
+              "Ducks & geese",
+              "Anatidae",
+              true
+            ],
+            [
+              27,
+              "Osprey",
+              "Pandion haliaetus",
+              19,
+              "LC",
+              true,
+              "2026-05-21T06:05:00.000Z",
+              19,
+              "Ospreys",
+              "Pandionidae",
+              true
+            ],
+            [
+              18,
+              "House Martin",
+              "Delichon urbicum",
+              1,
+              "LC",
+              true,
+              "2026-05-23T07:02:00.000Z",
+              1,
+              "Swallows & martins",
+              "Hirundinidae",
+              true
+            ],
+            [
+              33,
+              "Kittiwake",
+              "Rissa tridactyla",
+              11,
+              "VU",
+              true,
+              "2026-05-23T06:46:00.000Z",
+              11,
+              "Gulls & terns",
+              "Laridae",
+              true
+            ]
+          ],
+          "rowCount": 25,
+          "affectedRows": null,
+          "command": "SELECT",
+          "durationMs": 0,
+          "truncated": false,
+          "notices": []
+        }
+      ],
+      "source": "ui"
+    }
+  },
+  {
+    "key": "select f.name as family, count(*) as migrants, (f.name) as _perch_walk_k0 from species s join families f on f.id = s.family_id where s.migrant group by f.name limit 25; select count(*) from ( select f.name as family, count(*) as migrants from species s join families f on f.id = s.family_id where s.migrant group by f.name ) as _perch_walk_count; select *, (f.name) as _perch_walk_k0 from species s join families f on f.id = s.family_id where s.migrant order by _perch_walk_k0 limit 25",
+    "kind": "probe",
+    "scene": "walk",
+    "request": {
+      "sql": "select f.name as family, count(*) as migrants, (f.name) as _perch_walk_k0\nfrom species s\njoin families f on f.id = s.family_id\nwhere s.migrant\ngroup by f.name\nlimit 25;\nselect count(*) from (\nselect f.name as family, count(*) as migrants\nfrom species s\njoin families f on f.id = s.family_id\nwhere s.migrant\ngroup by f.name\n) as _perch_walk_count;\nselect *, (f.name) as _perch_walk_k0\nfrom species s\njoin families f on f.id = s.family_id\nwhere s.migrant\norder by _perch_walk_k0\nlimit 25",
+      "maxRows": 25,
+      "readOnly": true,
+      "record": false
+    },
+    "record": {
+      "id": "walk-5",
+      "connectionId": "23e3a6d2-40c6-473a-8790-6143a2bb9ce8",
+      "database": "perch_site_demo",
+      "sql": "select f.name as family, count(*) as migrants, (f.name) as _perch_walk_k0\nfrom species s\njoin families f on f.id = s.family_id\nwhere s.migrant\ngroup by f.name\nlimit 25;\nselect count(*) from (\nselect f.name as family, count(*) as migrants\nfrom species s\njoin families f on f.id = s.family_id\nwhere s.migrant\ngroup by f.name\n) as _perch_walk_count;\nselect *, (f.name) as _perch_walk_k0\nfrom species s\njoin families f on f.id = s.family_id\nwhere s.migrant\norder by _perch_walk_k0\nlimit 25",
+      "status": "done",
+      "startedAt": "2026-10-10T21:12:54.515Z",
+      "finishedAt": "2026-10-10T21:12:54.517Z",
+      "durationMs": 2,
+      "results": [
+        {
+          "index": 0,
+          "sql": "select f.name as family, count(*) as migrants, (f.name) as _perch_walk_k0\nfrom species s\njoin families f on f.id = s.family_id\nwhere s.migrant\ngroup by f.name\nlimit 25",
+          "columns": [
+            {
+              "name": "family",
+              "type": "text",
+              "align": "left",
+              "source": {
+                "table": "families",
+                "column": "name"
+              }
+            },
+            {
+              "name": "migrants",
+              "type": "int8",
+              "align": "right"
+            },
+            {
+              "name": "_perch_walk_k0",
+              "type": "text",
+              "align": "left",
+              "source": {
+                "table": "families",
+                "column": "name"
+              }
+            }
+          ],
+          "rows": [
+            [
+              "Chats & flycatchers",
+              "6",
+              "Chats & flycatchers"
+            ],
+            [
+              "Swifts",
+              "1",
+              "Swifts"
+            ],
+            [
+              "Auks",
+              "1",
+              "Auks"
+            ],
+            [
+              "Shrikes",
+              "1",
+              "Shrikes"
+            ],
+            [
+              "Reed warblers",
+              "2",
+              "Reed warblers"
+            ],
+            [
+              "Cuckoos",
+              "1",
+              "Cuckoos"
+            ],
+            [
+              "Orioles",
+              "1",
+              "Orioles"
+            ],
+            [
+              "Gulls & terns",
+              "5",
+              "Gulls & terns"
+            ],
+            [
+              "Leaf warblers",
+              "3",
+              "Leaf warblers"
+            ],
+            [
+              "Pigeons & doves",
+              "1",
+              "Pigeons & doves"
+            ],
+            [
+              "Swallows & martins",
+              "3",
+              "Swallows & martins"
+            ],
+            [
+              "Ospreys",
+              "1",
+              "Ospreys"
+            ],
+            [
+              "Wagtails & pipits",
+              "1",
+              "Wagtails & pipits"
+            ],
+            [
+              "Sylviid warblers",
+              "2",
+              "Sylviid warblers"
+            ],
+            [
+              "Woodpeckers",
+              "1",
+              "Woodpeckers"
+            ],
+            [
+              "Ducks & geese",
+              "1",
+              "Ducks & geese"
+            ],
+            [
+              "Falcons",
+              "1",
+              "Falcons"
+            ],
+            [
+              "Grassbirds",
+              "1",
+              "Grassbirds"
+            ]
+          ],
+          "rowCount": 18,
+          "affectedRows": null,
+          "command": "SELECT",
+          "durationMs": 0,
+          "truncated": false,
+          "notices": []
+        },
+        {
+          "index": 1,
+          "sql": "select count(*) from (\nselect f.name as family, count(*) as migrants\nfrom species s\njoin families f on f.id = s.family_id\nwhere s.migrant\ngroup by f.name\n) as _perch_walk_count",
+          "columns": [
+            {
+              "name": "count",
+              "type": "int8",
+              "align": "right"
+            }
+          ],
+          "rows": [
+            [
+              "18"
+            ]
+          ],
+          "rowCount": 1,
+          "affectedRows": null,
+          "command": "SELECT",
+          "durationMs": 0,
+          "truncated": false,
+          "notices": []
+        },
+        {
+          "index": 2,
+          "sql": "select *, (f.name) as _perch_walk_k0\nfrom species s\njoin families f on f.id = s.family_id\nwhere s.migrant\norder by _perch_walk_k0\nlimit 25",
+          "columns": [
+            {
+              "name": "id",
+              "type": "int4",
+              "align": "right",
+              "source": {
+                "table": "species",
+                "column": "id"
+              }
+            },
+            {
+              "name": "common_name",
+              "type": "text",
+              "align": "left",
+              "source": {
+                "table": "species",
+                "column": "common_name"
+              }
+            },
+            {
+              "name": "scientific_name",
+              "type": "text",
+              "align": "left",
+              "source": {
+                "table": "species",
+                "column": "scientific_name"
+              }
+            },
+            {
+              "name": "family_id",
+              "type": "int4",
+              "align": "right",
+              "source": {
+                "table": "species",
+                "column": "family_id"
+              }
+            },
+            {
+              "name": "status",
+              "type": "bpchar",
+              "align": "left",
+              "source": {
+                "table": "species",
+                "column": "status"
+              }
+            },
+            {
+              "name": "migrant",
+              "type": "bool",
+              "align": "left",
+              "source": {
+                "table": "species",
+                "column": "migrant"
+              }
+            },
+            {
+              "name": "last_seen_at",
+              "type": "timestamptz",
+              "align": "right",
+              "source": {
+                "table": "species",
+                "column": "last_seen_at"
+              }
+            },
+            {
+              "name": "id",
+              "type": "int4",
+              "align": "right",
+              "source": {
+                "table": "families",
+                "column": "id"
+              }
+            },
+            {
+              "name": "name",
+              "type": "text",
+              "align": "left",
+              "source": {
+                "table": "families",
+                "column": "name"
+              }
+            },
+            {
+              "name": "latin_name",
+              "type": "text",
+              "align": "left",
+              "source": {
+                "table": "families",
+                "column": "latin_name"
+              }
+            },
+            {
+              "name": "_perch_walk_k0",
+              "type": "text",
+              "align": "left",
+              "source": {
+                "table": "families",
+                "column": "name"
+              }
+            }
+          ],
+          "rows": [
+            [
+              34,
+              "Puffin",
+              "Fratercula arctica",
+              12,
+              "VU",
+              true,
+              "2026-05-06T16:37:00.000Z",
+              12,
+              "Auks",
+              "Alcidae",
+              "Auks"
+            ],
+            [
+              11,
+              "Pied Flycatcher",
+              "Ficedula hypoleuca",
+              8,
+              "LC",
+              true,
+              "2026-05-20T07:45:00.000Z",
+              8,
+              "Chats & flycatchers",
+              "Muscicapidae",
+              "Chats & flycatchers"
+            ],
+            [
+              13,
+              "Whinchat",
+              "Saxicola rubetra",
+              8,
+              "LC",
+              true,
+              "2026-05-31T14:05:00.000Z",
+              8,
+              "Chats & flycatchers",
+              "Muscicapidae",
+              "Chats & flycatchers"
+            ],
+            [
+              14,
+              "Wheatear",
+              "Oenanthe oenanthe",
+              8,
+              "LC",
+              true,
+              "2026-05-19T05:15:00.000Z",
+              8,
+              "Chats & flycatchers",
+              "Muscicapidae",
+              "Chats & flycatchers"
+            ],
+            [
+              9,
+              "Nightingale",
+              "Luscinia megarhynchos",
+              8,
+              "LC",
+              true,
+              "2026-05-20T07:27:00.000Z",
+              8,
+              "Chats & flycatchers",
+              "Muscicapidae",
+              "Chats & flycatchers"
+            ],
+            [
+              12,
+              "Spotted Flycatcher",
+              "Muscicapa striata",
+              8,
+              "LC",
+              true,
+              "2026-05-30T06:09:00.000Z",
+              8,
+              "Chats & flycatchers",
+              "Muscicapidae",
+              "Chats & flycatchers"
+            ],
+            [
+              10,
+              "Redstart",
+              "Phoenicurus phoenicurus",
+              8,
+              "LC",
+              true,
+              "2026-04-27T06:18:00.000Z",
+              8,
+              "Chats & flycatchers",
+              "Muscicapidae",
+              "Chats & flycatchers"
+            ],
+            [
+              21,
+              "Cuckoo",
+              "Cuculus canorus",
+              3,
+              "LC",
+              true,
+              "2026-05-30T05:45:00.000Z",
+              3,
+              "Cuckoos",
+              "Cuculidae",
+              "Cuckoos"
+            ],
+            [
+              26,
+              "Garganey",
+              "Spatula querquedula",
+              21,
+              "LC",
+              true,
+              "2026-05-20T07:00:00.000Z",
+              21,
+              "Ducks & geese",
+              "Anatidae",
+              "Ducks & geese"
+            ],
+            [
+              28,
+              "Hobby",
+              "Falco subbuteo",
+              20,
+              "LC",
+              true,
+              "2026-05-16T16:22:00.000Z",
+              20,
+              "Falcons",
+              "Falconidae",
+              "Falcons"
+            ],
+            [
+              8,
+              "Grasshopper Warbler",
+              "Locustella naevia",
+              7,
+              "LC",
+              true,
+              "2026-04-19T06:00:00.000Z",
+              7,
+              "Grassbirds",
+              "Locustellidae",
+              "Grassbirds"
+            ],
+            [
+              33,
+              "Kittiwake",
+              "Rissa tridactyla",
+              11,
+              "VU",
+              true,
+              "2026-05-23T06:46:00.000Z",
+              11,
+              "Gulls & terns",
+              "Laridae",
+              "Gulls & terns"
+            ],
+            [
+              32,
+              "Little Tern",
+              "Sternula albifrons",
+              11,
+              "LC",
+              true,
+              "2026-05-05T06:12:00.000Z",
+              11,
+              "Gulls & terns",
+              "Laridae",
+              "Gulls & terns"
+            ],
+            [
+              29,
+              "Common Tern",
+              "Sterna hirundo",
+              11,
+              "LC",
+              true,
+              "2026-05-27T07:33:00.000Z",
+              11,
+              "Gulls & terns",
+              "Laridae",
+              "Gulls & terns"
+            ],
+            [
+              30,
+              "Arctic Tern",
+              "Sterna paradisaea",
+              11,
+              "LC",
+              true,
+              "2026-05-27T07:27:00.000Z",
+              11,
+              "Gulls & terns",
+              "Laridae",
+              "Gulls & terns"
+            ],
+            [
+              31,
+              "Sandwich Tern",
+              "Thalasseus sandvicensis",
+              11,
+              "LC",
+              true,
+              "2026-05-30T05:06:00.000Z",
+              11,
+              "Gulls & terns",
+              "Laridae",
+              "Gulls & terns"
+            ],
+            [
+              1,
+              "Chiffchaff",
+              "Phylloscopus collybita",
+              4,
+              "LC",
+              true,
+              "2026-05-30T05:56:00.000Z",
+              4,
+              "Leaf warblers",
+              "Phylloscopidae",
+              "Leaf warblers"
+            ],
+            [
+              2,
+              "Willow Warbler",
+              "Phylloscopus trochilus",
+              4,
+              "LC",
+              true,
+              "2026-05-25T15:56:00.000Z",
+              4,
+              "Leaf warblers",
+              "Phylloscopidae",
+              "Leaf warblers"
+            ],
+            [
+              3,
+              "Wood Warbler",
+              "Phylloscopus sibilatrix",
+              4,
+              "LC",
+              true,
+              "2026-05-30T04:59:00.000Z",
+              4,
+              "Leaf warblers",
+              "Phylloscopidae",
+              "Leaf warblers"
+            ],
+            [
+              24,
+              "Golden Oriole",
+              "Oriolus oriolus",
+              29,
+              "LC",
+              true,
+              "2026-05-19T05:39:00.000Z",
+              29,
+              "Orioles",
+              "Oriolidae",
+              "Orioles"
+            ],
+            [
+              27,
+              "Osprey",
+              "Pandion haliaetus",
+              19,
+              "LC",
+              true,
+              "2026-05-21T06:05:00.000Z",
+              19,
+              "Ospreys",
+              "Pandionidae",
+              "Ospreys"
+            ],
+            [
+              22,
+              "Turtle Dove",
+              "Streptopelia turtur",
+              17,
+              "VU",
+              true,
+              "2026-05-17T14:40:00.000Z",
+              17,
+              "Pigeons & doves",
+              "Columbidae",
+              "Pigeons & doves"
+            ],
+            [
+              7,
+              "Reed Warbler",
+              "Acrocephalus scirpaceus",
+              6,
+              "LC",
+              true,
+              "2026-05-14T05:57:00.000Z",
+              6,
+              "Reed warblers",
+              "Acrocephalidae",
+              "Reed warblers"
+            ],
+            [
+              6,
+              "Sedge Warbler",
+              "Acrocephalus schoenobaenus",
+              6,
+              "LC",
+              true,
+              "2026-05-08T16:56:00.000Z",
+              6,
+              "Reed warblers",
+              "Acrocephalidae",
+              "Reed warblers"
+            ],
+            [
+              25,
+              "Red-backed Shrike",
+              "Lanius collurio",
+              28,
+              "LC",
+              true,
+              "2026-05-30T04:50:00.000Z",
+              28,
+              "Shrikes",
+              "Laniidae",
+              "Shrikes"
+            ]
+          ],
+          "rowCount": 25,
+          "affectedRows": null,
+          "command": "SELECT",
+          "durationMs": 0,
+          "truncated": false,
+          "notices": []
+        }
+      ],
+      "source": "ui"
+    }
+  },
+  {
+    "key": "select f.name as family, count(*) as migrants from species s join families f on f.id = s.family_id where s.migrant group by f.name having count(*) > 1 limit 25; select count(*) from ( select f.name as family, count(*) as migrants from species s join families f on f.id = s.family_id where s.migrant group by f.name having count(*) > 1 ) as _perch_walk_count; select f.name as family, count(*) as migrants, (count(*) > 1) as _perch_walk_pass from species s join families f on f.id = s.family_id where s.migrant group by f.name limit 25",
+    "kind": "probe",
+    "scene": "walk",
+    "request": {
+      "sql": "select f.name as family, count(*) as migrants\nfrom species s\njoin families f on f.id = s.family_id\nwhere s.migrant\ngroup by f.name\nhaving count(*) > 1\nlimit 25;\nselect count(*) from (\nselect f.name as family, count(*) as migrants\nfrom species s\njoin families f on f.id = s.family_id\nwhere s.migrant\ngroup by f.name\nhaving count(*) > 1\n) as _perch_walk_count;\nselect f.name as family, count(*) as migrants, (count(*) > 1) as _perch_walk_pass\nfrom species s\njoin families f on f.id = s.family_id\nwhere s.migrant\ngroup by f.name\nlimit 25",
+      "maxRows": 25,
+      "readOnly": true,
+      "record": false
+    },
+    "record": {
+      "id": "walk-6",
+      "connectionId": "23e3a6d2-40c6-473a-8790-6143a2bb9ce8",
+      "database": "perch_site_demo",
+      "sql": "select f.name as family, count(*) as migrants\nfrom species s\njoin families f on f.id = s.family_id\nwhere s.migrant\ngroup by f.name\nhaving count(*) > 1\nlimit 25;\nselect count(*) from (\nselect f.name as family, count(*) as migrants\nfrom species s\njoin families f on f.id = s.family_id\nwhere s.migrant\ngroup by f.name\nhaving count(*) > 1\n) as _perch_walk_count;\nselect f.name as family, count(*) as migrants, (count(*) > 1) as _perch_walk_pass\nfrom species s\njoin families f on f.id = s.family_id\nwhere s.migrant\ngroup by f.name\nlimit 25",
+      "status": "done",
+      "startedAt": "2026-10-10T21:12:54.526Z",
+      "finishedAt": "2026-10-10T21:12:54.528Z",
+      "durationMs": 1,
+      "results": [
+        {
+          "index": 0,
+          "sql": "select f.name as family, count(*) as migrants\nfrom species s\njoin families f on f.id = s.family_id\nwhere s.migrant\ngroup by f.name\nhaving count(*) > 1\nlimit 25",
+          "columns": [
+            {
+              "name": "family",
+              "type": "text",
+              "align": "left",
+              "source": {
+                "table": "families",
+                "column": "name"
+              }
+            },
+            {
+              "name": "migrants",
+              "type": "int8",
+              "align": "right"
+            }
+          ],
+          "rows": [
+            [
+              "Chats & flycatchers",
+              "6"
+            ],
+            [
+              "Reed warblers",
+              "2"
+            ],
+            [
+              "Gulls & terns",
+              "5"
+            ],
+            [
+              "Leaf warblers",
+              "3"
+            ],
+            [
+              "Swallows & martins",
+              "3"
+            ],
+            [
+              "Sylviid warblers",
+              "2"
+            ]
+          ],
+          "rowCount": 6,
+          "affectedRows": null,
+          "command": "SELECT",
+          "durationMs": 0,
+          "truncated": false,
+          "notices": []
+        },
+        {
+          "index": 1,
+          "sql": "select count(*) from (\nselect f.name as family, count(*) as migrants\nfrom species s\njoin families f on f.id = s.family_id\nwhere s.migrant\ngroup by f.name\nhaving count(*) > 1\n) as _perch_walk_count",
+          "columns": [
+            {
+              "name": "count",
+              "type": "int8",
+              "align": "right"
+            }
+          ],
+          "rows": [
+            [
+              "6"
+            ]
+          ],
+          "rowCount": 1,
+          "affectedRows": null,
+          "command": "SELECT",
+          "durationMs": 0,
+          "truncated": false,
+          "notices": []
+        },
+        {
+          "index": 2,
+          "sql": "select f.name as family, count(*) as migrants, (count(*) > 1) as _perch_walk_pass\nfrom species s\njoin families f on f.id = s.family_id\nwhere s.migrant\ngroup by f.name\nlimit 25",
+          "columns": [
+            {
+              "name": "family",
+              "type": "text",
+              "align": "left",
+              "source": {
+                "table": "families",
+                "column": "name"
+              }
+            },
+            {
+              "name": "migrants",
+              "type": "int8",
+              "align": "right"
+            },
+            {
+              "name": "_perch_walk_pass",
+              "type": "bool",
+              "align": "left"
+            }
+          ],
+          "rows": [
+            [
+              "Chats & flycatchers",
+              "6",
+              true
+            ],
+            [
+              "Swifts",
+              "1",
+              false
+            ],
+            [
+              "Auks",
+              "1",
+              false
+            ],
+            [
+              "Shrikes",
+              "1",
+              false
+            ],
+            [
+              "Reed warblers",
+              "2",
+              true
+            ],
+            [
+              "Cuckoos",
+              "1",
+              false
+            ],
+            [
+              "Orioles",
+              "1",
+              false
+            ],
+            [
+              "Gulls & terns",
+              "5",
+              true
+            ],
+            [
+              "Leaf warblers",
+              "3",
+              true
+            ],
+            [
+              "Pigeons & doves",
+              "1",
+              false
+            ],
+            [
+              "Swallows & martins",
+              "3",
+              true
+            ],
+            [
+              "Ospreys",
+              "1",
+              false
+            ],
+            [
+              "Wagtails & pipits",
+              "1",
+              false
+            ],
+            [
+              "Sylviid warblers",
+              "2",
+              true
+            ],
+            [
+              "Woodpeckers",
+              "1",
+              false
+            ],
+            [
+              "Ducks & geese",
+              "1",
+              false
+            ],
+            [
+              "Falcons",
+              "1",
+              false
+            ],
+            [
+              "Grassbirds",
+              "1",
+              false
+            ]
+          ],
+          "rowCount": 18,
+          "affectedRows": null,
+          "command": "SELECT",
+          "durationMs": 0,
+          "truncated": false,
+          "notices": []
+        }
+      ],
+      "source": "ui"
+    }
+  },
+  {
+    "key": "select f.name as family, count(*) as migrants from species s join families f on f.id = s.family_id where s.migrant group by f.name having count(*) > 1 limit 25",
+    "kind": "probe",
+    "scene": "walk",
+    "request": {
+      "sql": "select f.name as family, count(*) as migrants\nfrom species s\njoin families f on f.id = s.family_id\nwhere s.migrant\ngroup by f.name\nhaving count(*) > 1\nlimit 25",
+      "maxRows": 25,
+      "readOnly": true,
+      "record": false
+    },
+    "record": {
+      "id": "walk-7",
+      "connectionId": "23e3a6d2-40c6-473a-8790-6143a2bb9ce8",
+      "database": "perch_site_demo",
+      "sql": "select f.name as family, count(*) as migrants\nfrom species s\njoin families f on f.id = s.family_id\nwhere s.migrant\ngroup by f.name\nhaving count(*) > 1\nlimit 25",
+      "status": "done",
+      "startedAt": "2026-10-10T21:12:54.534Z",
+      "finishedAt": "2026-10-10T21:12:54.534Z",
+      "durationMs": 0,
+      "results": [
+        {
+          "index": 0,
+          "sql": "select f.name as family, count(*) as migrants\nfrom species s\njoin families f on f.id = s.family_id\nwhere s.migrant\ngroup by f.name\nhaving count(*) > 1\nlimit 25",
+          "columns": [
+            {
+              "name": "family",
+              "type": "text",
+              "align": "left",
+              "source": {
+                "table": "families",
+                "column": "name"
+              }
+            },
+            {
+              "name": "migrants",
+              "type": "int8",
+              "align": "right"
+            }
+          ],
+          "rows": [
+            [
+              "Chats & flycatchers",
+              "6"
+            ],
+            [
+              "Reed warblers",
+              "2"
+            ],
+            [
+              "Gulls & terns",
+              "5"
+            ],
+            [
+              "Leaf warblers",
+              "3"
+            ],
+            [
+              "Swallows & martins",
+              "3"
+            ],
+            [
+              "Sylviid warblers",
+              "2"
+            ]
+          ],
+          "rowCount": 6,
+          "affectedRows": null,
+          "command": "SELECT",
+          "durationMs": 0,
+          "truncated": false,
+          "notices": []
+        }
+      ],
+      "source": "ui"
+    }
+  },
+  {
+    "key": "select f.name as family, count(*) as migrants from species s join families f on f.id = s.family_id where s.migrant group by f.name having count(*) > 1 order by migrants desc, family limit 25",
+    "kind": "probe",
+    "scene": "walk",
+    "request": {
+      "sql": "select f.name as family, count(*) as migrants\nfrom species s\njoin families f on f.id = s.family_id\nwhere s.migrant\ngroup by f.name\nhaving count(*) > 1\norder by migrants desc, family\nlimit 25",
+      "maxRows": 25,
+      "readOnly": true,
+      "record": false
+    },
+    "record": {
+      "id": "walk-8",
+      "connectionId": "23e3a6d2-40c6-473a-8790-6143a2bb9ce8",
+      "database": "perch_site_demo",
+      "sql": "select f.name as family, count(*) as migrants\nfrom species s\njoin families f on f.id = s.family_id\nwhere s.migrant\ngroup by f.name\nhaving count(*) > 1\norder by migrants desc, family\nlimit 25",
+      "status": "done",
+      "startedAt": "2026-10-10T21:12:54.545Z",
+      "finishedAt": "2026-10-10T21:12:54.546Z",
+      "durationMs": 0,
+      "results": [
+        {
+          "index": 0,
+          "sql": "select f.name as family, count(*) as migrants\nfrom species s\njoin families f on f.id = s.family_id\nwhere s.migrant\ngroup by f.name\nhaving count(*) > 1\norder by migrants desc, family\nlimit 25",
+          "columns": [
+            {
+              "name": "family",
+              "type": "text",
+              "align": "left",
+              "source": {
+                "table": "families",
+                "column": "name"
+              }
+            },
+            {
+              "name": "migrants",
+              "type": "int8",
+              "align": "right"
+            }
+          ],
+          "rows": [
+            [
+              "Chats & flycatchers",
+              "6"
+            ],
+            [
+              "Gulls & terns",
+              "5"
+            ],
+            [
+              "Leaf warblers",
+              "3"
+            ],
+            [
+              "Swallows & martins",
+              "3"
+            ],
+            [
+              "Reed warblers",
+              "2"
+            ],
+            [
+              "Sylviid warblers",
+              "2"
+            ]
+          ],
+          "rowCount": 6,
+          "affectedRows": null,
+          "command": "SELECT",
+          "durationMs": 0,
+          "truncated": false,
+          "notices": []
+        }
+      ],
+      "source": "ui"
+    }
+  },
+  {
+    "key": "select f.name as family, count(*) as migrants from species s join families f on f.id = s.family_id where s.migrant group by f.name having count(*) > 1 order by migrants desc, family limit 4",
+    "kind": "probe",
+    "scene": "walk",
+    "request": {
+      "sql": "select f.name as family, count(*) as migrants\nfrom species s\njoin families f on f.id = s.family_id\nwhere s.migrant\ngroup by f.name\nhaving count(*) > 1\norder by migrants desc, family\nlimit 4",
+      "maxRows": 25,
+      "readOnly": true,
+      "record": false
+    },
+    "record": {
+      "id": "walk-9",
+      "connectionId": "23e3a6d2-40c6-473a-8790-6143a2bb9ce8",
+      "database": "perch_site_demo",
+      "sql": "select f.name as family, count(*) as migrants\nfrom species s\njoin families f on f.id = s.family_id\nwhere s.migrant\ngroup by f.name\nhaving count(*) > 1\norder by migrants desc, family\nlimit 4",
+      "status": "done",
+      "startedAt": "2026-10-10T21:12:54.556Z",
+      "finishedAt": "2026-10-10T21:12:54.557Z",
+      "durationMs": 0,
+      "results": [
+        {
+          "index": 0,
+          "sql": "select f.name as family, count(*) as migrants\nfrom species s\njoin families f on f.id = s.family_id\nwhere s.migrant\ngroup by f.name\nhaving count(*) > 1\norder by migrants desc, family\nlimit 4",
+          "columns": [
+            {
+              "name": "family",
+              "type": "text",
+              "align": "left",
+              "source": {
+                "table": "families",
+                "column": "name"
+              }
+            },
+            {
+              "name": "migrants",
+              "type": "int8",
+              "align": "right"
+            }
+          ],
+          "rows": [
+            [
+              "Chats & flycatchers",
+              "6"
+            ],
+            [
+              "Gulls & terns",
+              "5"
+            ],
+            [
+              "Leaf warblers",
+              "3"
+            ],
+            [
+              "Swallows & martins",
+              "3"
+            ]
+          ],
+          "rowCount": 4,
+          "affectedRows": null,
+          "command": "SELECT",
+          "durationMs": 0,
+          "truncated": false,
+          "notices": []
+        }
+      ],
+      "source": "ui"
+    }
+  }
+]

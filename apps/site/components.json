@@ -1,0 +1,23 @@
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "base-mira",
+  "rsc": false,
+  "tsx": true,
+  "tailwind": {
+    "config": "",
+    "css": "src/page/page.css",
+    "baseColor": "neutral",
+    "cssVariables": true,
+    "prefix": ""
+  },
+  "iconLibrary": "lucide",
+  "rtl": false,
+  "aliases": {
+    "components": "@perch/ui",
+    "utils": "@perch/ui",
+    "ui": "@perch/ui",
+    "lib": "@perch/ui"
+  },
+  "menuColor": "default",
+  "menuAccent": "subtle"
+}

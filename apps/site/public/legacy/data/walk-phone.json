@@ -1,0 +1,49 @@
+{
+  "query": "select f.name as family, count(*) as migrants\nfrom species s\njoin families f on f.id = s.family_id\nwhere s.migrant\ngroup by f.name\nhaving count(*) > 1\norder by migrants desc, family\nlimit 4;",
+  "width": 470,
+  "height": 1100,
+  "duration": 41.32,
+  "done": 38.22,
+  "stages": [
+    {
+      "clause": "FROM",
+      "t": 0.008,
+      "still": 1.725
+    },
+    {
+      "clause": "JOIN",
+      "t": 2.075,
+      "still": 6.992
+    },
+    {
+      "clause": "WHERE",
+      "t": 7.342,
+      "still": 15.675
+    },
+    {
+      "clause": "GROUP BY",
+      "t": 16.025,
+      "still": 22.375
+    },
+    {
+      "clause": "HAVING",
+      "t": 22.725,
+      "still": 29.475
+    },
+    {
+      "clause": "SELECT",
+      "t": 29.825,
+      "still": 32.925
+    },
+    {
+      "clause": "ORDER BY",
+      "t": 33.275,
+      "still": 36.542
+    },
+    {
+      "clause": "LIMIT",
+      "t": 36.892,
+      "still": 40.275
+    }
+  ]
+}

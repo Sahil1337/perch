@@ -1,0 +1,26 @@
+/* The one-screen stage (layout/stage.tsx): from lg a section's text and its window share one view
+   under the nav, which Tailwind can only say with arbitrary values. */
+
+/* One view under the nav (lg:h-16). */
+@utility stage-row {
+  min-height: calc(100svh - --spacing(16));
+}
+
+/* A window as wide as its column allows, and no wider than its whole height fits the same view: the
+   nav and the row's padding (lg:py-8) come off the view's height, and the window's own height-to-width
+   ratio, measured once it lays out (`--stage-ratio`), turns what is left into a width. Past 1100px a
+   bigger window reads no better and only crowds the text. */
+@utility stage-window {
+  width: min(100%, calc((100svh - --spacing(32)) / var(--stage-ratio, 0.625)), --spacing(275));
+}
+
+/* The window's column runs past the page's 1200px measure to the view's own gutter (lg:px-8) on its
+   side, so the app inside is drawn large enough to read on a wide screen; the text column stays on
+   the measure, in line with the nav and every other section. Nothing past the measure, nothing bled. */
+@utility stage-bleed-end {
+  margin-inline-end: min(0px, calc((--spacing(316) - 100vw) / 2));
+}
+
+@utility stage-bleed-start {
+  margin-inline-start: min(0px, calc((--spacing(316) - 100vw) / 2));
+}

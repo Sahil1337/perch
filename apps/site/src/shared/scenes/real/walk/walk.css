@@ -1,0 +1,15 @@
+/* The clause rail scrolls sideways on a narrow screen, by touch or trackpad; a scrollbar under
+   the chips would only cover the underline. */
+[data-walk-rail] {
+  scrollbar-width: none;
+}
+[data-walk-rail]::-webkit-scrollbar {
+  display: none;
+}
+
+/* Nothing inside the walk is a scroll target: a wheel or a swipe over the window moves the page, as
+   it would over a picture. The boxes are still scrollable from script, so the walk keeps its own
+   place in them. `!important` beats the inline overflow the scroll area's viewport sets on itself. */
+[data-walk-pinned] [data-walk-scroller] {
+  overflow: hidden !important;
+}

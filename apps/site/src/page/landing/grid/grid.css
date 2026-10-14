@@ -1,0 +1,9 @@
+/* The grid bird's inks: what Tailwind cannot say, read by the canvas. Every colour comes from the app's
+   own ink. page.css imports this into the page's one Tailwind build. */
+
+:root {
+  /* Glyphs and hairlines are drawn in this ink and dimmed per cell by the canvas. */
+  --grid-ink: oklch(from var(--bui-ink) l c h);
+  /* The faint fill under lit cells: the same ink, a touch warmer, like porcelain. */
+  --grid-lit: oklch(from var(--bui-ink) 94% calc(c + 0.012) 75);
+}

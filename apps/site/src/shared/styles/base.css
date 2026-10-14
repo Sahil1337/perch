@@ -1,0 +1,43 @@
+/* Sources are listed rather than detected, so the captured markup under public/legacy (thousands of
+   app classes the legacy scenes style themselves, inside their shadow roots) stays out of the page
+   CSS. */
+@import "tailwindcss" source(none);
+@import "shadcn/tailwind.css";
+
+/* Self-hosted, bundled Geist: no third-party font request in the way of first paint. */
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+
+/* The app's design system — tokens, the .dark palette, variants and keyframes — so the site and
+   the product it shows are drawn from one set of values. */
+@import "@perch/ui/styles.css";
+
+/* @perch/ui is a workspace symlink: without it here every class used only inside a packages/ui
+   component is dropped. */
+@source "../../../../../packages/ui/src";
+@source "../..";
+@source "../../../{index.html,lab}";
+
+/* The two names packages/ui/src/styles.css maps `font-sans` and `font-mono` onto. */
+:root {
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-geist-mono: "Geist Mono Variable", ui-monospace, monospace;
+}
+
+@layer base {
+  /* The scheme follows the .dark class, never prefers-color-scheme: a page opts into dark by
+     putting the class on <html>, and the canvas behind an overscroll matches it. */
+  html {
+    @apply bg-background text-foreground antialiased;
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+  body {
+    @apply min-h-dvh bg-background text-foreground font-sans;
+  }
+  ::selection {
+    background-color: color-mix(in oklab, var(--color-info) 30%, transparent);
+  }
+}

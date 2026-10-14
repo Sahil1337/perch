@@ -1,0 +1,34 @@
+/* <perch-walk> and <perch-terminal> read the static site's page variables from their host, each with
+   a fallback. @perch/ui spends two of those names on something else — --accent is its hover grey,
+   --ease-out Tailwind's own curve — so the elements get back the values they were drawn with. */
+perch-walk,
+perch-terminal {
+  --accent: var(--bui-accent);
+  --accent-ink: var(--bui-accent-ink);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* <perch-terminal>'s stage height, held before its module runs: terminal.js's formula, term for term.
+   The rows kept in sight above the browser, then the browser at its width over the recording's
+   800:500 view; 11.4 rows and 82% of the width narrower than 640px, 3.5 rows and 56% from 640px.
+   Needs an @container ancestor, as the element's own box is one. */
+[data-perch-terminal-reserve] {
+  --bar: clamp(28px, 3cqw, 38px);
+  --font: clamp(10px, 2.85cqw, 13px);
+  --rows: 11.4;
+  --browser: 82cqw;
+  height: calc(2.42 * var(--bar) + var(--rows) * 1.6 * var(--font) + 0.625 * var(--browser));
+}
+@container (min-width: 640px) {
+  [data-perch-terminal-reserve] {
+    --font: clamp(11px, 1.2cqw, 15px);
+    --rows: 3.5;
+    --browser: 56cqw;
+  }
+}
+
+/* <perch-walk variant="phone"> below md, framed by walk-phone.ts: the 40px titlebar and 650px of the
+   470px-wide recording, as fractions of its width, then the rail. */
+[data-perch-walk-reserve] {
+  height: calc(100cqw * 690 / 470 + 55px);
+}

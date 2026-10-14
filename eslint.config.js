@@ -58,6 +58,17 @@ const designSystem = [
     rules: shadcnRules,
   },
   {
+    files: ["apps/site/src/**/*.{ts,tsx}"],
+    plugins: { shadcn },
+    settings: {
+      shadcn: {
+        ui: "@perch/ui",
+        componentImports: ["^@perch/ui(/|$)"],
+      },
+    },
+    rules: shadcnRules,
+  },
+  {
     files: ["packages/ui/src/**/*.{ts,tsx}"],
     ignores: ["packages/ui/src/ui/**"],
     plugins: { shadcn },
@@ -89,6 +100,8 @@ export default [
       "apps/server/webui/static/**",
       // Written by the TanStack Start plugin on every dev start and build, and gitignored.
       "apps/web/src/routeTree.gen.ts",
+      // The landing page's 3D bird: a vanilla browser module kept as written, typed by bird.d.ts.
+      "apps/site/src/shared/bird/*.js",
     ],
   },
   ...base,

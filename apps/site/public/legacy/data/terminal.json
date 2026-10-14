@@ -1,0 +1,42 @@
+{
+  "about": "Recorded 2026-10-11 on macOS (darwin-arm64) from the published v0.2.0 release: the installer piped to sh with its install directory already on PATH, then the installed binary started with a fresh PERCH_HOME. Only paths and the port are rewritten, so it reads as a normal install: the install directory as ~/.local/bin and the server's port as the default 4600. 'at' is when the line was printed, in seconds after the command started. 'wait' is how long the scene waits before printing it: the recorded download took 79 s on a throttled network, which the scene plays in 2.3 s, and the first launch of a freshly installed binary took 4.7 s here (macOS checks a new executable once) against 0.009 s for every launch after it.",
+  "title": "~ — zsh",
+  "prompt": "~ %",
+  "host": "127.0.0.1:4600",
+  "session": [
+    {
+      "command": "curl -fsSL https://raw.githubusercontent.com/Sahil1337/perch/main/install.sh | sh",
+      "output": [
+        { "text": "perch v0.2.0 (darwin-arm64)", "at": 0.62, "wait": 720 },
+        { "text": "  downloading perch-0.2.0-darwin-arm64.tar.gz", "at": 0.625, "wait": 60 },
+        { "text": "  checksum ok", "at": 79.589, "wait": 2300 },
+        { "text": "  installed ~/.local/bin/perch", "at": 79.645, "wait": 56 },
+        { "text": "", "at": 79.645, "wait": 0 },
+        { "text": "Run: perch", "at": 79.645, "wait": 0 }
+      ],
+      "returns": true
+    },
+    {
+      "command": "perch",
+      "title": "~ — perch",
+      "output": [{ "text": "perch v0.2.0 → http://127.0.0.1:4600", "at": 4.698, "wait": 900 }],
+      "returns": false
+    }
+  ],
+  "alsoRecorded": [
+    { "command": "perch --version", "output": ["0.2.0"] },
+    {
+      "command": "perch status",
+      "output": ["running · pid 48618 · http://127.0.0.1:4600 · started 2026-10-10T20:06:15.738Z"]
+    },
+    { "command": "perch stop", "output": ["stopped (pid 46626)"] }
+  ],
+  "browser": {
+    "about": "perch opens the browser on its URL. A fresh PERCH_HOME starts on the first-run screen, which scans this machine for a database: two skeleton rows for the 1.2 s the scan took, then the Postgres server it found. Captured at an 800×500 viewport, 2x, with the OS login removed from the found row.",
+    "opensAfter": 800,
+    "viewport": [800, 500],
+    "frames": { "scan": "img/terminal-app-scan.webp", "found": "img/terminal-app.webp" },
+    "scanMs": 1206,
+    "wire": { "x": 357.7, "w": 80, "h": 1, "y": { "scan": 118.25, "found": 137.25 }, "travelMs": 2200 }
+  }
+}
