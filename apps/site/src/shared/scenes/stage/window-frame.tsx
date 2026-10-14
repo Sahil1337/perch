@@ -4,12 +4,7 @@ import "./window-frame.css";
 
 export const TITLEBAR_HEIGHT = 40;
 
-/**
- * Under lg the window is a close-up: a crop of the app at this scale or more, which keeps its 13px
- * text at 10px on a phone. The whole app at a phone's width is a third of that and unreadable.
- */
-export const CLOSE_UP_SCALE = 0.78;
-/** The close-up's box, reserved from the first paint: taller than the app, so a phone's column holds more of it. */
+/** Under lg the window is a close-up (see `Camera`). Its box, reserved from the first paint: taller than the app, so a phone's column holds more of it. */
 export const CLOSE_UP_ASPECT = "aspect-4/5 md:aspect-3/2";
 
 /** The app's native size inside the frame, chrome excluded: the scene is laid out at exactly this. */
@@ -49,7 +44,7 @@ export function WindowFrame({
    * nothing, a press does nothing.
    */
   live?: boolean;
-  /** The phone's close-up: the chrome at the page's size over a crop of the app, which a camera pans. */
+  /** The phone's close-up: the chrome at the page's size over the app, which a camera zooms and pans. */
   closeUp?: boolean;
   onParts?: (parts: FrameParts) => void;
   children?: React.ReactNode;
@@ -60,15 +55,15 @@ export function WindowFrame({
   const app = React.useRef<HTMLDivElement>(null);
   const lens = React.useRef<HTMLDivElement>(null);
 
-  // Before paint, so the first frame is already at the container's width. A close-up never draws
-  // the app narrower than its crop, so a tablet's wider column shows all of it across.
+  // Before paint, so the first frame is already at the container's width. A close-up's app is drawn
+  // across its crop, which is the frame less its chrome; its camera zooms in from there.
   React.useLayoutEffect(() => {
     const element = outer.current;
     if (!element) return;
     const fit = (): void => {
       const width = element.getBoundingClientRect().width;
       if (width <= 0) return;
-      const scale = closeUp ? Math.max(CLOSE_UP_SCALE, (lens.current?.clientWidth ?? width) / size.width) : width / size.width;
+      const scale = (closeUp ? (lens.current?.clientWidth ?? width) : width) / size.width;
       element.style.setProperty("--frame-scale", String(scale));
     };
     fit();
@@ -128,9 +123,10 @@ export function WindowFrame({
               127.0.0.1:4600
             </div>
           </div>
-          <div className="relative min-h-0 flex-1 overflow-hidden bg-background" ref={lens}>
+          <div className="relative min-h-0 flex-1 overflow-hidden bg-background" data-perch-frame-lens="" ref={lens}>
+            {/* Unclipped: a wide shot centres the app in the taller crop, which clips instead. */}
             <div
-              className="absolute top-0 left-0 h-(--frame-app-h) w-(--frame-w) origin-top-left scale-(--frame-scale) overflow-hidden bg-background font-sans text-foreground antialiased"
+              className="absolute top-0 left-0 h-(--frame-app-h) w-(--frame-w) origin-top-left scale-(--frame-scale) bg-background font-sans text-foreground antialiased"
               data-perch-frame-app=""
               inert={!live}
               ref={app}

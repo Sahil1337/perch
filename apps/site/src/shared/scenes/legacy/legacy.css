@@ -27,8 +27,23 @@ perch-terminal {
   }
 }
 
-/* <perch-walk>'s close-up below lg (walk-close-up.ts): the titlebar and WALK_CLOSE_UP_ROWS of the
-   recording at max(WALK_CLOSE_UP_SCALE, width / 1280), so (40 + 600) * 0.66 = 422.4px, then the rail. */
+/* <perch-walk>'s close-up below lg (walk-close-up.ts): the titlebar at 0.66, then a view 95% of the
+   width tall, up to 420px, then the rail. */
 [data-perch-walk-reserve] {
-  height: calc(max(422.4px, 50cqw) + 55px);
+  height: calc(40px * 0.66 + min(95cqw, 420px) + 55px);
+}
+
+/* walk.js picks its 2x clip only for an element over 1440 device pixels wide, and the close-up zooms
+   in far enough to need it. The element is widened past that, invisibly: the host clips it, and the
+   window and rail are held to the host's width. Not under 360px at 2x, where the wider element
+   would fall below the 40% in view walk.js plays at. */
+@media (width < 64rem) and (width >= 22.5rem) and (resolution >= 2dppx) {
+  [data-close-up] > perch-walk {
+    width: max(100%, 721px);
+  }
+}
+@media (width < 64rem) and (resolution >= 3dppx) {
+  [data-close-up] > perch-walk {
+    width: max(100%, 481px);
+  }
 }

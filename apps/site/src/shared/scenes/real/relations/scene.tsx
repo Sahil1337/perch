@@ -10,7 +10,7 @@ import * as React from "react";
 // barrel resolves to, so it shares the barrel's WorkspaceProvider context.
 import { SchemaDiagram } from "../../../../../../../packages/ui/src/workspace/schema-diagram/schema-diagram";
 import { EASE_IN_OUT_CSS, EASE_OUT_CSS } from "../../../motion/easing";
-import { Camera } from "../../stage/camera";
+import { Camera, DETAIL } from "../../stage/camera";
 import { birdwatch, useReplayWorkspace } from "../../../replay";
 import type { SceneAnchors } from "../../types";
 import type { SceneWindowParts } from "../kit/scene-window";
@@ -32,7 +32,9 @@ const TOUR_HOLD = 3200;
 /** How long the view's own focus takes to settle before a close-up reframes on it. */
 const REFRAME_AFTER = 650;
 /** A card's text in the close-up, as a share of its size in the app. */
-const READING_SCALE = 0.78;
+const READING_SCALE = 0.85;
+/** The close-up's wide shot between tours, shorter than the page's: the schema at a third reads as shapes. */
+const CLOSE_UP_GAP = 6000;
 
 /** SchemaDiagram's viewport: the pane under its toolbar. */
 const viewportIn = (app: HTMLElement): HTMLElement | null => app.querySelector<HTMLElement>("header + div");
@@ -135,29 +137,35 @@ function hoverCard(card: HTMLElement, on: boolean, viewport: HTMLElement): void 
 
 type Phase = "idle" | "entrance" | "done";
 
+type Shot = "wide" | "links" | "card";
+
 /**
- * A phone's close-up holds the toured table with room for the keys around it. The diagram is the
- * app's whole surface, so the camera moves the app area itself.
+ * A phone's close-up of the diagram, moved by the tour: wide on the whole schema, in on the toured
+ * table and the tables its keys reach as they light, closer on the table itself while it is
+ * focused, and back out. The diagram is the app's whole surface, so the camera moves the app area.
  */
-function closeUpOn(parts: SceneWindowParts): ((duration: number) => void) | null {
+function closeUpOn(parts: SceneWindowParts): ((shot: Shot, duration: number) => void) | null {
   if (!parts.lens) return null;
   const app = parts.app;
   const camera = new Camera(app, { width: app.offsetWidth, height: app.offsetHeight }, () => parts.root.clientWidth, parts.lens);
-  return (duration) => {
+  return (shot, duration) => {
     const viewport = viewportIn(app);
     const card = viewport ? cardsIn(viewport).get(TOUR_TABLE) : undefined;
-    if (!card) return;
+    if (shot === "wide" || !card) return camera.to(null, duration);
     // The view fits every table into the window, which draws a card's text far under reading size
-    // in a phone's crop: the camera makes up the difference.
+    // in a phone's crop: the reading asked of the camera makes up the difference.
     const drawn = card.getBoundingClientRect().width / (card.offsetWidth || 1) / camera.scale;
+    const reading = drawn > 0 ? (READING_SCALE * camera.base) / drawn : DETAIL;
     const box = camera.box(card);
+    const around = shot === "links" ? { x: 1.5, y: 0.8 } : { x: 0.15, y: 0.15 };
     camera.to(
       {
-        x0: box.x - box.w * 0.15,
-        y0: box.y - box.h * 0.15,
-        x1: box.x + box.w * 1.15,
-        y1: box.y + box.h * 1.15,
-        scale: drawn > 0 ? READING_SCALE / drawn : 1,
+        x0: box.x - box.w * around.x,
+        y0: box.y - box.h * around.y,
+        x1: box.x + box.w * (1 + around.x),
+        y1: box.y + box.h * (1 + around.y),
+        fitWidth: true,
+        reading,
       },
       duration,
     );
@@ -212,7 +220,7 @@ export default function RelationsSceneInner({
     clock: new Clock(),
     token: 0,
     tourHover: null as HTMLElement | null,
-    reframe: null as ((duration: number) => void) | null,
+    reframe: null as ((shot: Shot, duration: number) => void) | null,
   });
   React.useLayoutEffect(() => {
     live.current.visible = visible;
@@ -226,10 +234,14 @@ export default function RelationsSceneInner({
       let gap = TOUR_FIRST;
       while (going()) {
         if (!(await state.clock.wait(gap)) || !going()) return;
-        gap = TOUR_GAP;
+        gap = state.reframe ? CLOSE_UP_GAP : TOUR_GAP;
         const viewport = viewportIn(parts.app);
         const card = viewport ? cardsIn(viewport).get(TOUR_TABLE) : undefined;
         if (!viewport || !card || viewport.querySelector("[data-selected]")) continue;
+        if (state.reframe) {
+          state.reframe("links", 1000);
+          if (!(await state.clock.wait(1300)) || !going()) return;
+        }
         state.tourHover = card;
         hoverCard(card, true, viewport);
         if (!(await state.clock.wait(TOUR_LIT)) || !going()) return;
@@ -237,11 +249,11 @@ export default function RelationsSceneInner({
         state.tourHover = null;
         await pressCard(card);
         if (!(await state.clock.wait(REFRAME_AFTER)) || !going()) return;
-        state.reframe?.(900);
+        state.reframe?.("card", 900);
         if (!(await state.clock.wait(TOUR_HOLD - REFRAME_AFTER)) || !going()) return;
         if (card.hasAttribute("data-selected")) await pressCard(card);
         if (!(await state.clock.wait(REFRAME_AFTER)) || !going()) return;
-        state.reframe?.(900);
+        state.reframe?.("wide", 1000);
       }
     },
     [parts.app],
@@ -362,11 +374,13 @@ export default function RelationsSceneInner({
       callbacks.current.onReady?.({ window: parts.window, titlebar: parts.titlebar, cards });
     }
     // Placed before the entrance plays, so the cards arrive into the crop that holds them.
+    // Wide for the entrance; a still frame holds the table itself. Placed again once the view has
+    // fitted itself to its tables, a frame or two after they arrive.
     state.reframe = closeUpOn(parts);
-    state.reframe?.(0);
-    // Again once the view has fitted itself to its tables, a frame or two after they arrive.
+    const first: Shot = motion ? "wide" : "card";
+    state.reframe?.(first, 0);
     let settle = requestAnimationFrame(() => {
-      settle = requestAnimationFrame(() => state.reframe?.(0));
+      settle = requestAnimationFrame(() => state.reframe?.(first, 0));
     });
     return () => {
       cancelAnimationFrame(settle);

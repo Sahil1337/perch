@@ -31,7 +31,7 @@ export const BOX_ITEMS: readonly BoxItem[] = [
     key: "errors",
     title: "Errors where they happen",
     text: "A failed statement is underlined where the database says it broke, with the message and hint on hover.",
-    focus: { x: 0.42, y: 0.2, zoom: 1.4 },
+    focus: { x: 0.575, y: 0.25, zoom: 1.22 },
   },
   {
     key: "format",

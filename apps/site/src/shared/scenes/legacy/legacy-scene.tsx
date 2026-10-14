@@ -125,7 +125,11 @@ export function LegacyScene({ def, className, autoplay = true, paused = false, o
       <div aria-hidden className="pointer-events-none invisible col-start-1 row-start-1">
         {def.reserve}
       </div>
-      <div ref={host} className={cn("col-start-1 row-start-1 min-w-0", closeUp && !anchors && "max-lg:invisible")} />
+      <div
+        ref={host}
+        data-close-up={closeUp ? "" : undefined}
+        className={cn("col-start-1 row-start-1 min-w-0", closeUp && "max-lg:overflow-x-clip", closeUp && !anchors && "max-lg:invisible")}
+      />
     </div>
   );
 }

@@ -14,10 +14,13 @@ import { activateScene, deactivateScene } from "./active-scene";
 import { usePrefersReducedMotion } from "../../viewport/media";
 import { useVisible } from "../../viewport/visibility";
 import { Clock, Stopped } from "./autoplay";
-import { CAMERA_MS, Camera, type Focus } from "./camera";
-import { houseTooltips, scriptEditor } from "./editor-driver";
+import { CAMERA_MS, Camera, type Focus, HOLD_MS, ROWS } from "./camera";
+import { houseTooltips, pressKey, scriptEditor } from "./editor-driver";
 import type { RealSceneProps } from "./lazy-scene";
 import { WorkspaceShell } from "./workspace-shell";
+
+/** How long a close-up's loop holds its wide last frame before it starts over. */
+const CLOSE_UP_HOLD = 2000;
 
 /** Below this frame width a "narrow" camera turns on: the whole window is too small to read. */
 export const NARROW_WIDTH = 700;
@@ -50,8 +53,8 @@ export type SceneScript = {
   /** The loop's last frame, reached at once: reduced motion, or autoplay off. */
   final(context: SceneContext): Promise<void>;
   /**
-   * In a phone's close-up, what the crop rests on where the desktop camera pulls back to the whole
-   * window, and on the last frame: the beat's outcome, its results say. The editor's top otherwise.
+   * In a phone's close-up, the detail a still last frame holds (reduced motion, or autoplay off):
+   * the demo's outcome, its results say. The whole window otherwise.
    */
   rest?(camera: Camera, stage: HTMLElement): Focus | null;
   /** Extra anchors for the bird, looked up under the stage once the app is up. */
@@ -180,7 +183,8 @@ export function RealScene({
     const lens = parts.lens ?? null;
     camera.current = lens || (cameraOn && !final) ? new Camera(stage, size, width, lens) : null;
     const closeUp = camera.current?.closeUp ? camera.current : null;
-    if (closeUp) closeUp.rest = script.rest ? () => script.rest?.(closeUp, stage) ?? null : null;
+    // A close-up opens wide on the whole window, from the first frame the app paints.
+    closeUp?.to(null, 0);
     let alive = true;
     const done = (): void => {
       if (alive) callbacks.current.onDone?.();
@@ -235,17 +239,12 @@ export function RealScene({
     }
     void (async () => {
       try {
-        if (closeUp) {
-          // The crop opens on the editor, before the app has painted anything to move.
-          while (alive && !stage.querySelector("main")) await new Promise((r) => setTimeout(r, 30));
-          closeUp.to(closeUp.editorTop(), 0);
-        }
         if (final) {
           await script.final(context);
           // The last frame's crop, once its results have rendered.
           if (closeUp) {
             await own.sleep(120);
-            closeUp.to(null, 0);
+            closeUp.to(script.rest?.(closeUp, stage) ?? null, 0);
           }
         }
         else if (usable) await script.play(context);
@@ -253,7 +252,9 @@ export function RealScene({
           for (;;) {
             await script.play(context);
             done();
-            await own.sleep(script.hold);
+            // A close-up has already shown the outcome up close and ends wide, which is no
+            // picture to hold for long.
+            await own.sleep(closeUp ? CLOSE_UP_HOLD : script.hold);
             await settle(stage, own, store);
           }
         }
@@ -363,10 +364,36 @@ export function splitLayout(editor: number): EditorLayout {
   };
 }
 
-/** A close-up's rest on the results pane, from its left edge, with the last lines of the query above it. */
+/** The results pane's rows, from its left edge, with the last lines of the query above them. */
 export function restOnResults(camera: Camera, stage: HTMLElement): Focus | null {
   const results = stage.querySelector("section[aria-label='Query results']");
   if (!results) return null;
   const box = camera.box(results);
-  return { x0: box.x, y0: box.y - 96, x1: box.x + box.w, y1: box.y + box.h };
+  return { x0: box.x, y0: box.y - 96, x1: box.x + box.w, y1: box.y + box.h, reading: ROWS };
+}
+
+/**
+ * ⌘↵ and the run, the way each camera shows it. The desktop's pulls back to the whole window. A
+ * close-up pulls back to both panes, so the run is seen to cross from the query to its results,
+ * pushes in on the rows, and ends the loop wide.
+ */
+export async function showRun(context: SceneContext, view: EditorView): Promise<void> {
+  const { camera, clock, stage } = context;
+  const closeUp = camera?.closeUp ? camera : null;
+  if (closeUp) {
+    closeUp.to(closeUp.panes(), 900);
+    await clock.sleep(1100);
+  } else camera?.to(null, 1100);
+  const before = context.api().activeRun?.id;
+  pressKey(view, "Mod-Enter");
+  await waitForRun(context, before);
+  if (!closeUp) {
+    await clock.sleep(1200);
+    return;
+  }
+  await clock.sleep(700);
+  closeUp.to(restOnResults(closeUp, stage), 900);
+  await clock.sleep(900 + HOLD_MS * 2);
+  closeUp.to(null, 1000);
+  await clock.sleep(1000);
 }

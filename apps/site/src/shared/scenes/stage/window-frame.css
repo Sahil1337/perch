@@ -15,6 +15,15 @@
   content-visibility: auto;
 }
 
+/* A close-up's camera moves its app outside the app's own box, so the skipping (and the clip that
+   comes with it) is the crop's instead. */
+[data-perch-frame-lens] {
+  content-visibility: auto;
+}
+[data-perch-frame-lens] > [data-perch-frame-app] {
+  content-visibility: visible;
+}
+
 /* Scrollbars are the visitor's operating system, not the product; the legacy scenes hid them too. */
 [data-perch-frame-app] * {
   scrollbar-width: none;

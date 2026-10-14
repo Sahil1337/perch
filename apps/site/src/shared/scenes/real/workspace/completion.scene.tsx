@@ -19,6 +19,7 @@ import type { RealSceneProps } from "../../stage/lazy-scene";
 import {
   RealScene,
   restOnResults,
+  showRun,
   type SceneContext,
   type SceneScript,
   splitLayout,
@@ -31,8 +32,12 @@ const BLANK = FULL.replace("t.name, sum", "sum")
   .replace("join checklists c on g.checklist_id = c.id", "")
   .replace("join sites t on c.site_id = t.id", "");
 
-function follow(context: SceneContext, view: EditorView): void {
-  context.camera?.follow(context.camera.caretFocus(view));
+/** Keeps the line in frame; a close-up's move finishes before the popup is read. */
+async function follow(context: SceneContext, view: EditorView): Promise<void> {
+  // The popup's box is drawn a frame or two after it opens, and a close-up frames all of it.
+  if (context.camera?.closeUp) await context.clock.sleep(100);
+  const moved = context.camera?.follow(context.camera.caretFocus(view));
+  if (moved && context.camera?.closeUp) await context.clock.sleep(900);
 }
 
 /** ⌃Space, a long look at what the app ranked first, then the option the scene wants. */
@@ -43,7 +48,7 @@ async function ask(
   read: number,
 ): Promise<void> {
   pressKey(view, "Ctrl-Space");
-  if (await waitForCompletion(view, context.clock)) follow(context, view);
+  if (await waitForCompletion(view, context.clock)) await follow(context, view);
   await pickCompletion(view, context.clock, (option) => want(option.label, option.detail), {
     read,
     step: 420,
@@ -72,6 +77,7 @@ const script: SceneScript = {
     }
 
     await typeText(view, "jo", clock);
+    if (camera?.closeUp && (await waitForCompletion(view, clock))) await follow(context, view);
     await pickCompletion(view, clock, (option) => option.label === "join", { read: 420, step: 260 });
     await typeText(view, " ", clock);
     // The tables, the ones a foreign key reaches from `sightings` first.
@@ -83,7 +89,7 @@ const script: SceneScript = {
 
     pressKey(view, "ArrowDown");
     await clock.sleep(300);
-    follow(context, view);
+    await follow(context, view);
     await typeText(view, "join ", clock);
     await ask(context, view, (label) => label === "sites", 1000);
     await typeText(view, " t on ", clock);
@@ -92,10 +98,10 @@ const script: SceneScript = {
 
     // Back to the select list: only the joined tables' columns are offered.
     placeCaret(view, 2, "select ".length);
-    follow(context, view);
+    await follow(context, view);
     await clock.sleep(500);
     await typeText(view, "na", clock);
-    if (await waitForCompletion(view, clock)) follow(context, view);
+    if (await waitForCompletion(view, clock)) await follow(context, view);
     await pickCompletion(view, clock, (option) => (option.displayLabel ?? option.label) === "t.name", {
       read: 1000,
       step: 300,
@@ -103,11 +109,7 @@ const script: SceneScript = {
     await typeText(view, ", ", clock);
 
     await clock.sleep(1500);
-    camera?.to(null, 1100);
-    const before = context.api().activeRun?.id;
-    pressKey(view, "Mod-Enter");
-    await waitForRun(context, before);
-    await clock.sleep(1200);
+    await showRun(context, view);
   },
 
   async final(context) {

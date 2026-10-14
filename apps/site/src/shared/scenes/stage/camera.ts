@@ -3,9 +3,10 @@
 // camera so the two cut the same way: frames open on the editor's left edge or below the topbar,
 // never through the sidebar, and the far edge gives way before the start of a line does.
 //
-// In a phone's close-up the frame is a crop already drawn at reading size, so the camera never
-// zooms: it only pans the crop to the beat's focus, and where the desktop camera would pull back
-// to the whole window it rests on what the scene names instead (its results, say).
+// In a phone's close-up the whole app is drawn to the frame's width, far too small to read, and the
+// scene directs the camera through it like a film: wide on the whole window to say where we are,
+// in to reading size for the detail that matters, back out to both panes when the action crosses
+// from one to the other. A focus there names the size to read it at (`reading`, on the page).
 
 import type { EditorView } from "@codemirror/view";
 import { EASE_IN_OUT_CSS } from "../../motion/easing";
@@ -25,11 +26,20 @@ export type Focus = {
   /** Zoom no further than the focus's width (and height, unless `cropBottom`) allows. */
   fitWidth?: boolean;
   cropBottom?: boolean;
-  /** Close-up only: magnify the crop this much, for a surface the app itself draws small. */
-  scale?: number;
+  /** Close-up only: how large the app's pixels are drawn, in page pixels each (default `DETAIL`). */
+  reading?: number;
 };
 
 export const CAMERA_MS = 1000;
+
+/** A close-up's reading sizes: a detail (a line, a cell), result rows, and two panes at once. */
+export const DETAIL = 0.9;
+export const ROWS = 0.8;
+export const PANES = 0.5;
+/** The furthest a close-up eases out to fit a detail before it crops instead: still readable. */
+const FIT_FLOOR = 0.64;
+/** How long a close-up holds a framing so it can be read, in ms. */
+export const HOLD_MS = 1300;
 
 export class Camera {
   readonly #stage: HTMLElement;
@@ -38,8 +48,6 @@ export class Camera {
   readonly #lens: HTMLElement | null;
   #current = { s: 1, cx: 0, cy: 0 };
   #animation: Animation | null = null;
-  /** The close-up's resting focus, in place of the whole window. */
-  rest: (() => Focus | null) | null = null;
 
   /**
    * `stage` is the element moved: positioned, at the app's native size, inside the frame's app
@@ -63,6 +71,12 @@ export class Camera {
     return this.#current.s;
   }
 
+  /** A close-up's scale at rest: the whole app across the frame, in page pixels per app pixel. */
+  get base(): number {
+    const lens = this.#lens;
+    return lens ? Number.parseFloat(getComputedStyle(lens).getPropertyValue("--frame-scale")) || 1 : 1;
+  }
+
   get closeUp(): boolean {
     return this.#lens !== null;
   }
@@ -71,7 +85,7 @@ export class Camera {
   #view(): { width: number; height: number } {
     const lens = this.#lens;
     if (!lens) return this.#size;
-    const k = Number.parseFloat(getComputedStyle(lens).getPropertyValue("--frame-scale")) || 1;
+    const k = this.base;
     return { width: lens.clientWidth / k, height: lens.clientHeight / k };
   }
 
@@ -108,7 +122,8 @@ export class Camera {
     const caret = this.point(head.left, (head.top + head.bottom) / 2);
     let x1 = caret.x + 260;
     let y1 = caret.y + 110;
-    const popup = view.dom.querySelector(".cm-tooltip-autocomplete");
+    // Housed tooltips live in the stage rather than the editor; a close-up looks for them there.
+    const popup = (this.closeUp ? this.#stage : view.dom).querySelector(".cm-tooltip-autocomplete");
     if (popup) {
       const box = this.box(popup);
       x1 = Math.max(x1, box.x + box.w + 24);
@@ -116,12 +131,19 @@ export class Camera {
     }
     // Lines read from their start: open on the editor's left edge whenever the caret still fits.
     const main = this.#stage.querySelector("main");
+    const left = main ? this.box(main).x : undefined;
+    if (this.closeUp) {
+      // A close-up frames the whole line and the whole popup, easing out as far as that takes.
+      const x0 = left ?? caret.x - 120;
+      // Too wide to read whole, it keeps the popup and the caret beside it over the line's start.
+      return { x0, y0: caret.y - 80, x1, y1, fitWidth: true, ...(popup ? { anchor: "right" as const } : {}) };
+    }
     return {
       x0: caret.x - 120,
       y0: caret.y - 80,
       x1,
       y1,
-      ...(main ? { left: this.box(main).x, keep: caret.x + 60 } : {}),
+      ...(left !== undefined ? { left, keep: caret.x + 60 } : {}),
     };
   }
 
@@ -153,23 +175,22 @@ export class Camera {
     };
   }
 
-  /** The top of the editor, from its left edge: where a close-up opens. */
-  editorTop(): Focus {
+  /** Both panes of the editor, the query over its results: a close-up's view of a run crossing them. */
+  panes(): Focus | null {
     const main = this.#stage.querySelector("main");
-    const x = main ? this.box(main).x : 0;
-    return { x0: x, y0: 0, x1: x + 1, y1: 1, left: x };
+    if (!main) return null;
+    const box = this.box(main);
+    return { x0: box.x, y0: box.y, x1: box.x + box.w, y1: box.y + box.h, fitWidth: true, reading: PANES };
   }
 
-  /** Where a close-up rests: the scene's choice, else the top of the editor. */
-  #home(): Focus {
-    return this.rest?.() ?? this.editorTop();
-  }
-
-  /** Pans only when the focus has left the comfortable middle of the view. */
-  follow(focus: Focus | null, duration = 900): void {
-    if (!focus) return;
+  /** Pans only when the focus has left the comfortable middle of the view; true when it moves. */
+  follow(focus: Focus | null, duration = 900): boolean {
+    if (!focus) return false;
     const { s, cx, cy } = this.#current;
-    if (s === 1 && !this.closeUp) return this.to(focus, duration);
+    if (s === 1 && !this.closeUp) {
+      this.to(focus, duration);
+      return true;
+    }
     const { width: w, height: h } = this.#view();
     const margin = 24;
     const view = { x0: cx - w / (2 * s), y0: cy - h / (2 * s), x1: cx + w / (2 * s), y1: cy + h / (2 * s) };
@@ -178,22 +199,34 @@ export class Camera {
       focus.x1 <= view.x1 - margin &&
       focus.y0 >= view.y0 + margin &&
       focus.y1 <= view.y1 - margin;
-    if (!inside) this.to(focus, duration);
+    if (inside) return false;
+    // Following never pushes a close-up further in, only pans it or eases it out to fit: the scene
+    // sets how close it holds, and a follow that zoomed with every popup would pump in and out.
+    const held = this.closeUp ? { ...focus, reading: Math.min(focus.reading ?? DETAIL, this.base * s) } : focus;
+    this.to(held, duration);
+    return true;
   }
 
   /** Moves to hold `focus`, or back to the whole window for null. 0 ms jumps. */
   to(target: Focus | null, duration = CAMERA_MS): void {
     const { width: w, height: h } = this.#view();
     const { width: appW, height: appH } = this.#size;
-    const focus = target ?? (this.closeUp ? this.#home() : null);
+    const focus = target;
     let s = 1;
-    let cx = w / 2;
-    let cy = h / 2;
+    // The whole app, centred: a close-up's frame is taller than the app drawn across it.
+    let cx = appW / 2;
+    let cy = appH / 2;
     if (focus) {
       const fw = focus.x1 - focus.x0;
       const fh = focus.y1 - focus.y0;
-      if (this.closeUp) s = Math.max(1, focus.scale ?? 1);
-      else {
+      if (this.closeUp) {
+        s = (focus.reading ?? DETAIL) / this.base;
+        if (focus.fitWidth) {
+          const floor = Math.min(s, FIT_FLOOR / this.base);
+          s = Math.max(floor, Math.min(s, w / fw, focus.cropBottom ? Infinity : h / fh));
+        }
+        s = Math.max(1, s);
+      } else {
         s = this.zoom();
         if (focus.fitWidth) s = Math.min(s, w / fw, focus.cropBottom ? Infinity : h / fh);
         if (focus.cropBottom) s = Math.min(2.8, w / fw);
@@ -232,11 +265,11 @@ export class Camera {
           }
         }
       }
-      // A crop taller or wider than the app keeps the app's top or left edge.
+      // A crop taller or wider than the app centres it.
       const hw = w / (2 * s);
       const hh = h / (2 * s);
-      cx = 2 * hw >= appW ? hw : Math.min(appW - hw, Math.max(hw, cx));
-      cy = 2 * hh >= appH ? hh : Math.min(appH - hh, Math.max(hh, cy));
+      cx = 2 * hw >= appW ? appW / 2 : Math.min(appW - hw, Math.max(hw, cx));
+      cy = 2 * hh >= appH ? appH / 2 : Math.min(appH - hh, Math.max(hh, cy));
     }
     this.#current = { s, cx, cy };
     const tx = w / 2 - cx * s;
