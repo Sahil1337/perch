@@ -26,18 +26,18 @@ export function DownloadSection({ perchRef, onCopy }: DownloadProps) {
       </SectionHeading>
       {/* Under sm the lede can run to the key's end of the line, so the row drops a little further to
           leave the bird room to stand on the key. */}
-      <SectionScene wide className="max-sm:mt-12">
+      <SectionScene wide className="max-sm:mt-12 lg:mt-8">
         <InstallCommand
           onCopy={onCopy}
           action={({ copied, copy }) => <ReturnKey perchRef={perchRef} copied={copied} onPress={copy} />}
-          className="h-14 py-0 pr-1.5 pl-4 sm:pl-5 sm:text-base lg:h-18 lg:pr-2 lg:pl-6"
+          className="h-14 py-0 pr-1.5 pl-4 sm:pl-5 sm:text-base lg:h-16 lg:pr-2 lg:pl-6"
         />
         {/* Under sm the line keeps clear of the lane the key's Copied slip comes out into. */}
         <p className={cn(small, "mt-3 max-sm:pr-20")}>
           Already installed? Run <code className={code}>perch update</code>.
         </p>
       </SectionScene>
-      <Reveal delay={0.12} className="mt-12 max-w-xl lg:mt-10">
+      <Reveal delay={0.12} className="mt-12 max-w-xl lg:mt-8">
         <div className="flex items-baseline justify-between gap-4">
           <h3 className={subheading}>Or download a build</h3>
           <a href={releasesUrl} className={cn(small, "underline-offset-4 hover:text-foreground hover:underline")}>

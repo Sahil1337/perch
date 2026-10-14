@@ -26,7 +26,7 @@ const WINDOW_TRAVEL = 64;
 
 const LG = "(min-width: 64rem)";
 
-function useWide(): boolean {
+export function useWide(): boolean {
   return useSyncExternalStore(
     (onChange) => {
       const query = matchMedia(LG);

@@ -4,6 +4,7 @@ import { Perch } from "../layout/perch";
 import { Container } from "../layout/container";
 import { small } from "../layout/type";
 import { Brand } from "../chrome/mark";
+import { useWide } from "../layout/stage";
 
 const REPO = "https://github.com/Sahil1337/perch";
 
@@ -17,13 +18,17 @@ const LINKS = [
 const link =
   "rounded-sm transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none";
 
-/** `perchRef`: the bird's last resort, on the brand, for a phone scrolled past the return key. */
+/**
+ * `perchRef`: the bird's last resort, on the brand, for a phone scrolled past the return key. From lg
+ * the download section and the footer share one view, so the return key keeps it.
+ */
 export function Footer({ perchRef }: { perchRef?: Ref<HTMLDivElement> }) {
+  const wide = useWide();
   return (
-    <footer className="relative mt-20 lg:mt-32">
-      <Container className={cn(small, "flex flex-wrap items-center gap-x-8 gap-y-4 pt-10 pb-12")}>
+    <footer className="relative mt-20 lg:mt-12">
+      <Container className={cn(small, "flex flex-wrap items-center gap-x-8 gap-y-4 pt-10 pb-12 lg:pt-6 lg:pb-8")}>
         <div className="relative">
-          <Perch ref={perchRef} />
+          <Perch ref={wide ? undefined : perchRef} />
           <Brand />
         </div>
         {/* Under sm the project links take a line of their own and the licence sits beside the

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import type { Bird } from "../../../../shared/bird";
+import { type Bird, isHeld } from "../../../../shared/bird";
 import { keyFromEvent, neighbours } from "../keymap";
 import type { Rig } from "../rig";
 import { ignoreCancelled, Run } from "./run";
@@ -63,7 +63,7 @@ export function useIdle(rig: Rig, { enabled, bird, play }: IdleOptions) {
     };
     const tick = () => {
       const scene = play();
-      if (scene && !rig.handedOver.current && performance.now() - lastVisitor.current > QUIET_MS) {
+      if (scene && !rig.handedOver.current && !isHeld(bird) && performance.now() - lastVisitor.current > QUIET_MS) {
         const options = neighbours(rig.home.current);
         const id = options[Math.floor(Math.random() * options.length)];
         if (id) {

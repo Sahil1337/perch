@@ -1,4 +1,5 @@
 import type { Bird, BirdFacing, ViaPoint } from "./bird";
+import { isHeld, onRelease } from "./hold";
 
 /** A stretch of an element's top edge the bird may stand anywhere along. */
 export type RoamEdge = {
@@ -363,7 +364,8 @@ export function roam(bird: Bird, { zones, ceiling = null, seed }: RoamOptions): 
 
   function wander() {
     timer = 0;
-    if (!live) return;
+    // held still: the release picks the wandering up again
+    if (!live || isHeld(bird)) return;
     if (document.hidden || still() || bird.flying || !bird.position) return schedule(2);
     const here = bird.position;
     const avoid = avoidNow();
@@ -533,6 +535,9 @@ export function roam(bird: Bird, { zones, ceiling = null, seed }: RoamOptions): 
     if (!live || bird.flying) return;
     schedule(hops > 0 ? 0.2 + rand() * 0.4 : rest());
   });
+  const offRelease = onRelease(bird, () => {
+    if (live && !bird.flying) schedule(0.6 + rand() * 0.6);
+  });
   addEventListener("scroll", onScroll, { passive: true });
   addEventListener("resize", onScroll);
   // Start from wherever the bird already stands, if that is one of the zones' homes.
@@ -546,6 +551,7 @@ export function roam(bird: Bird, { zones, ceiling = null, seed }: RoamOptions): 
   return () => {
     live = false;
     offLand();
+    offRelease();
     removeEventListener("scroll", onScroll);
     removeEventListener("resize", onScroll);
     cancelAnimationFrame(frame);
