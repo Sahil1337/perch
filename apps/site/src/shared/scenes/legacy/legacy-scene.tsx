@@ -10,9 +10,8 @@ type LegacyElement = HTMLElement & {
 
 export type LegacySceneDef = {
   /** The module under public/legacy/js/ that defines the element. */
-  module: "workspace" | "relations" | "walk" | "terminal";
-  tag: "perch-workspace" | "perch-relations" | "perch-walk" | "perch-terminal";
-  attributes?: Record<string, string>;
+  module: "walk" | "terminal";
+  tag: "perch-walk" | "perch-terminal";
   /** Holds the element's final height from first paint, so nothing moves when it mounts. */
   reserve: ReactNode;
 };
@@ -64,19 +63,14 @@ export function LegacyScene({ def, className, autoplay = true, paused = false, o
   useLayoutEffect(() => {
     callbacks.current = { onReady, onDone, autoplay };
   });
-  const { module, tag, attributes } = def;
-  const attributeKey = JSON.stringify(attributes ?? {});
+  const { module, tag } = def;
 
   useEffect(() => {
     const parent = host.current;
     if (!parent) return;
     let live = true;
-    // Made here rather than rendered: the workspace reads its scene once, on first connection, so
-    // every attribute has to be in place before the element is attached.
+    // Made here rather than rendered, so its attributes are in place before the element is attached.
     const el = document.createElement(tag) as LegacyElement;
-    for (const [name, value] of Object.entries(JSON.parse(attributeKey) as Record<string, string>)) {
-      el.setAttribute(name, value);
-    }
     if (!callbacks.current.autoplay) el.setAttribute("autoplay", "false");
     el.classList.add("block", "w-full");
     element.current = el;
@@ -98,18 +92,18 @@ export function LegacyScene({ def, className, autoplay = true, paused = false, o
       el.remove();
       element.current = null;
     };
-  }, [module, tag, attributeKey]);
+  }, [module, tag]);
 
   useEffect(() => {
     const el = element.current;
     if (!el) return;
     if (autoplay) el.removeAttribute("autoplay");
     else el.setAttribute("autoplay", "false");
-  }, [autoplay, module, tag, attributeKey]);
+  }, [autoplay, module, tag]);
 
   useEffect(() => {
     element.current?.toggleAttribute("paused", paused);
-  }, [paused, module, tag, attributeKey]);
+  }, [paused, module, tag]);
 
   // Animation only: the pointer passes through to the page, as it does over the real scenes.
   return (

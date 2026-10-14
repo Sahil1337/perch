@@ -1,9 +1,9 @@
 # Capture
 
-How the product window on the site is made. `<perch-workspace>`
-(`apps/site/public/legacy/js/workspace.js`) does not draw an imitation of Perch: it replays markup, styles
-and query results recorded from the real app, running against a real Postgres. This folder is the
-recording rig. None of it is deployed.
+The recording rig for the site's captured assets, made from the real app running against a real
+Postgres. None of it is deployed. `capture.ts` was written for `<perch-workspace>`, which the real
+`@perch/ui` scenes have replaced: of what it writes, only `fonts/` is still loaded (by the walk and
+terminal scenes), so a re-run brings back `css/`, `markup/` and `data/*.json` files nothing reads.
 
 | File            | What it is                                                                       |
 | --------------- | -------------------------------------------------------------------------------- |
@@ -47,9 +47,6 @@ Into `apps/site/public/legacy/`:
   expanded, for the sidebar).
 - `data/*.json` — each query's columns, rows, row count and timings from the run the UI showed, and
   `schema.json`, the tree the sidebar draws.
-
-The element names those states and the hero line (line 6, typed via `gro`↵ then `s.`↵), so a change
-to the keystrokes in `capture.ts` needs the same change to `HERO_KEYS` in `workspace.js`.
 
 ## Privacy
 
