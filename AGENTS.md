@@ -24,17 +24,19 @@ Run everything from the repo root. There is one `bun.lock` and one `node_modules
 - Target one workspace with `--filter`: `bun run --filter perch typecheck`,
   `bun run --filter @perch/web build`, `bun run --filter @perch/protocol check`.
   `bun run perch -- <args>` drives the CLI (the workspace bin, so it needs a `build` first).
-- **Turborepo owns `dev` and `start`, nothing else.** `dev` starts `vite dev` (:5173, pinned with
-  `strictPort` because apps/server's dev script allow-lists that exact origin) and `perch serve`
-  (a free port, picked by `scripts/dev.mjs` and passed to both through `PERCH_DEV_PORT` /
-  `VITE_PERCH_URL`); `dev:server` and `dev:ui` are the halves, both on :4600. `dev:site` runs
-  the landing page alone on :5180; `build:site` then `start:site` serve its built page on the same
-  port, which is the one to put behind ngrok. `start` runs the
-  built app, which is one process: there is no production UI server, because `apps/web` builds
-  into `apps/server/ui/` and `perch serve` mounts it at `/`.
-  **Turbo 2 filters the environment** — a new variable either half needs must be added to
-  `passThroughEnv` in `turbo.json` or it silently will not arrive. Don't move another task into
-  turbo without a reason to want its cache.
+- **`dev` is `scripts/dev.mjs`, and turbo owns only `dev:server`, `dev:ui` and `start`.** `dev`
+  runs both halves itself, with one prefixed log stream and a ready line once both answer: `vite
+  dev` (:5173, pinned with `strictPort` because apps/server's dev script allow-lists that exact
+  origin) and `perch serve` (a free port, passed to both through `PERCH_DEV_PORT` /
+  `VITE_PERCH_URL`). It never starts the landing page. `dev:server` and `dev:ui` are the halves,
+  both on :4600. `start` runs the built app, which is one process: there is no production UI
+  server, because `apps/web` builds into `apps/server/ui/` and `perch serve` mounts it at `/`.
+  **Turbo 2 filters the environment**: a variable the turbo tasks need must be in `passThroughEnv`
+  in `turbo.json` or it silently will not arrive. Don't move another task into turbo without a
+  reason to want its cache.
+- **The landing page has its own commands.** `dev:site` runs it alone on :5180; `start:site` builds
+  it and serves the built page on the same port, which is the one to put behind ngrok;
+  `build:site` only builds.
 - **The server is Go**; everything else is TypeScript on Bun. It needs Go 1.25+ and no Node at
   all. `apps/server/package.json` exists only so turbo and `--filter perch` keep working: every
   script in it shells out to `scripts/*.sh`, and the module has no npm dependencies.
