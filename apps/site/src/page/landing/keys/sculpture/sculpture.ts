@@ -1,5 +1,5 @@
 import { type Mesh, NoToneMapping, PerspectiveCamera, type Scene, SRGBColorSpace, Vector3, VSMShadowMap, WebGLRenderer } from "three";
-import { clamp, type Point } from "../../math";
+import { clamp, type Point } from "../../../../shared/math";
 import type { KeyId } from "../keymap";
 import { buildSculpture, type SculptureParts } from "./build-sculpture";
 import type { SculptureColors } from "./colors";

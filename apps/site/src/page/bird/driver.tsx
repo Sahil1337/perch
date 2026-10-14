@@ -1,6 +1,7 @@
 import { createContext, type ReactNode, type RefObject, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { type Bird, useBird } from "../../shared/bird";
-import { useTryWindow } from "../sections/try/window";
+import { onScrollFrame } from "../../shared/viewport/on-scroll-frame";
+import { useTryWindow } from "../hand-over/try-window";
 
 /** Who flies the page's one bird: the landing, through its intro and idle, or the page's roaming route. */
 export type BirdDriver = "landing" | "route";
@@ -30,23 +31,10 @@ export function BirdDriverProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const edge = perch.current;
     if (!edge) return;
-    let frame = 0;
-    const decide = () => {
-      frame = 0;
+    return onScrollFrame(() => {
       now.current = edge.getBoundingClientRect().top <= innerHeight * READING_LINE ? "route" : "landing";
       setDriver(now.current);
-    };
-    const onScroll = () => {
-      frame ||= requestAnimationFrame(decide);
-    };
-    decide();
-    addEventListener("scroll", onScroll, { passive: true });
-    addEventListener("resize", onScroll);
-    return () => {
-      cancelAnimationFrame(frame);
-      removeEventListener("scroll", onScroll);
-      removeEventListener("resize", onScroll);
-    };
+    }).stop;
   }, [perch]);
   return (
     <DriverNowContext value={now}>

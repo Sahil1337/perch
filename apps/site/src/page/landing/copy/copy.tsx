@@ -1,7 +1,7 @@
 import { Fragment } from "react";
-import { cn } from "../../shared/cn";
-import { DownloadButton, InstallCommand } from "../../shared/release";
-import { body, display } from "../layout/type";
+import { cn } from "../../../shared/cn";
+import { DownloadButton, InstallCommand } from "../../../shared/release";
+import { body, display } from "../../layout/type";
 import type { CopyParts, CopyPlacement } from "./types";
 
 const TITLE = ["A", "quiet", "place", "to", "write", "SQL."];

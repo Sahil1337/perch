@@ -1,4 +1,4 @@
-import { clamp, type Point } from "../../math";
+import { clamp, type Point } from "../../../../shared/math";
 
 const frame = (x: number, y: number, r: number, opacity: number): Keyframe => ({
   transform: `translate(${x}px, ${y}px) rotate(${r}deg)`,

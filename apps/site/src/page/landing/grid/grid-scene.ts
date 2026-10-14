@@ -2,8 +2,8 @@
 // hands over a canvas and a few callbacks. Every frame is drawn from typed arrays and a glyph atlas,
 // so a frame allocates nothing and the cost stays with the cells that actually change.
 
-import { clamp, type Point, seededRandom } from "../math";
-import type { CopyParts } from "../types";
+import { clamp, type Point, seededRandom } from "../../../shared/math";
+import type { CopyParts } from "../copy/types";
 import { castBird } from "./bird/cell-bird";
 import { flightRoom } from "./bird/flight-room";
 import { bakeFrames, extentOf, type Frames } from "./bird/frames";

@@ -1,18 +1,11 @@
 import { cn } from "../../../shared/cn";
-import { type Arch, type OS, useRelease } from "../../../shared/release";
+import { BUILDS, useRelease } from "../../../shared/release";
 
-// Every build the release workflow ships, in release.ts's order. The rows are drawn from this
-// rather than from the API, so the list is the same five rows before, during and without it; the
-// release only fills in each row's link and size.
-const BUILDS: { os: Exclude<OS, "unknown">; arch: Arch; label: string }[] = [
-  { os: "darwin", arch: "arm64", label: "macOS · Apple silicon" },
-  { os: "darwin", arch: "amd64", label: "macOS · Intel" },
-  { os: "linux", arch: "amd64", label: "Linux · x86-64" },
-  { os: "linux", arch: "arm64", label: "Linux · ARM64" },
-  { os: "windows", arch: "amd64", label: "Windows · x64" },
-];
-
-/** Every build as a list of links, platform and size, with this machine's marked. */
+/**
+ * Every build as a list of links, platform and size, with this machine's marked. The rows are drawn
+ * from release.ts's BUILDS rather than from the API, so the list is the same five rows before,
+ * during and without it; the release only fills in each row's link and size.
+ */
 export function BuildList({ className }: { className?: string }) {
   const { assets, primary, releasesUrl } = useRelease();
 

@@ -10,7 +10,7 @@ import { Stage } from "../layout/stage";
 import { type LockPillHandle, LockPill } from "./try/lock-pill";
 import { TryRail, YOUR_STEP } from "./try/rail";
 import { useMountWindow } from "./try/use-mount-window";
-import { useTryWindow } from "./try/window";
+import { useTryWindow } from "../hand-over/try-window";
 
 export type TrySectionProps = {
   /** The landing's intro is over, skipped or scrolled past. */

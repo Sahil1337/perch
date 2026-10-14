@@ -3,16 +3,15 @@ import { cn } from "../../shared/cn";
 import { Perch } from "../layout/perch";
 import { Container } from "../layout/container";
 import { small } from "../layout/type";
-import { Brand } from "../chrome/mark";
-import { useWide } from "../layout/stage";
-
-const REPO = "https://github.com/Sahil1337/perch";
+import { Brand } from "./brand";
+import { REPO_URL } from "../../shared/release";
+import { LG, useMediaQuery } from "../../shared/viewport/media";
 
 const LINKS = [
-  { href: REPO, label: "GitHub" },
-  { href: `${REPO}/blob/main/CHANGELOG.md`, label: "Changelog" },
-  { href: `${REPO}/releases`, label: "Releases" },
-  { href: `${REPO}/issues`, label: "Issues" },
+  { href: REPO_URL, label: "GitHub" },
+  { href: `${REPO_URL}/blob/main/CHANGELOG.md`, label: "Changelog" },
+  { href: `${REPO_URL}/releases`, label: "Releases" },
+  { href: `${REPO_URL}/issues`, label: "Issues" },
 ];
 
 const link =
@@ -23,7 +22,7 @@ const link =
  * the download section and the footer share one view, so the return key keeps it.
  */
 export function Footer({ perchRef }: { perchRef?: Ref<HTMLDivElement> }) {
-  const wide = useWide();
+  const wide = useMediaQuery(LG);
   return (
     <footer className="relative mt-20 lg:mt-12">
       <Container className={cn(small, "flex flex-wrap items-center gap-x-8 gap-y-4 pt-10 pb-12 lg:pt-6 lg:pb-8")}>
@@ -44,7 +43,7 @@ export function Footer({ perchRef }: { perchRef?: Ref<HTMLDivElement> }) {
             ))}
           </ul>
         </nav>
-        <a href={`${REPO}/blob/main/LICENSE`} className={cn(link, "ml-auto sm:ml-0")}>
+        <a href={`${REPO_URL}/blob/main/LICENSE`} className={cn(link, "ml-auto sm:ml-0")}>
           MIT License
         </a>
       </Container>

@@ -6,13 +6,14 @@ import { WorkspaceProvider, type WorkspaceApi } from "@perch/ui";
 import * as React from "react";
 // @perch/ui exports only the modal dialog around the walk, which would lock the page's scroll. This
 // is the file its barrel resolves to, so the two share one copy of every React context.
-import { QueryWalk } from "../../../../../../packages/ui/src/workspace/query-walk/query-walk";
-import { birdwatch, normaliseSql, type Recording, useReplayWorkspace } from "../../replay";
-import walkJson from "../../replay/fixtures/walk.json";
-import type { SceneAnchors, SceneProps } from "../types";
-import { DialogFrame, DialogHost } from "./relations-walk-host";
-import type { SceneWindowParts } from "./relations-walk-kit";
-import { stationButtons } from "./walk-rail";
+import { QueryWalk } from "../../../../../../../packages/ui/src/workspace/query-walk/query-walk";
+import { birdwatch, normaliseSql, type Recording, useReplayWorkspace } from "../../../replay";
+import walkJson from "../../../replay/fixtures/walk.json";
+import type { SceneAnchors, SceneProps } from "../../types";
+import { usePrefersReducedMotion } from "../../../viewport/media";
+import { DialogFrame, DialogHost } from "../kit/dialog-host";
+import type { SceneWindowParts } from "../kit/scene-window";
+import { stationButtons } from "./rail";
 
 /** The statement recorded by scripts/record-walk.ts; its probes are in fixtures/walk.json. */
 const WALK_SQL = `select f.name as family, count(*) as migrants
@@ -205,18 +206,6 @@ class Pilot {
   }
 }
 
-function useReducedMotion(): boolean {
-  return React.useSyncExternalStore(
-    (onChange) => {
-      const query = matchMedia("(prefers-reduced-motion: reduce)");
-      query.addEventListener("change", onChange);
-      return () => query.removeEventListener("change", onChange);
-    },
-    () => matchMedia("(prefers-reduced-motion: reduce)").matches,
-    () => false,
-  );
-}
-
 declare global {
   interface Window {
     /** Dev only: every probe the walk sent, and the ones no recording answers. */
@@ -323,7 +312,7 @@ export default function WalkStage({
   const { api: replayed } = useReplayWorkspace(REPLAY);
   const probe = useCountedProbe(replayed.probe);
   const api = React.useMemo<WorkspaceApi>(() => ({ ...replayed, probe }), [replayed, probe]);
-  const reduced = useReducedMotion();
+  const reduced = usePrefersReducedMotion();
   const mode: Mode = autoplay && !reduced ? "loop" : "final";
 
   const [round, setRound] = React.useState(0);

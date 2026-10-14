@@ -1,4 +1,4 @@
-import type { CopyPlacement } from "../types";
+import type { CopyPlacement } from "../copy/types";
 
 /** Hunt & peck's copy: top left, above the sculpture, wide enough for the whole install command. */
 export const placement: CopyPlacement = {

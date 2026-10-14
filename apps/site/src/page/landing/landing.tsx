@@ -1,16 +1,19 @@
 import { type ComponentType, lazy, Suspense, useRef } from "react";
 import { cn } from "../../shared/cn";
+import { SceneBoundary } from "../../shared/scenes/scene-boundary";
+import { LG, useMediaQuery } from "../../shared/viewport/media";
 import { useBirdFor } from "../bird/driver";
 import { useFlutter } from "../bird/use-flutter";
 import { Container } from "../layout/container";
-import { useTryWindow } from "../sections/try/window";
-import { LandingCopy } from "./copy";
+import { useTryWindow } from "../hand-over/try-window";
+import { LandingCopy } from "./copy/copy";
 import { placement as gridPlacement } from "./grid/placement";
 import { placement as keysPlacement } from "./keys/placement";
-import type { CopyPlacement, LandingSceneProps } from "./types";
-import { SceneBoundary } from "./scene-boundary";
-import { useCopyParts } from "./use-copy-parts";
-import { type SceneKind, useSceneKind } from "./use-scene-kind";
+import type { LandingSceneProps } from "./types";
+import type { CopyPlacement } from "./copy/types";
+import { useCopyParts } from "./copy/use-copy-parts";
+
+type SceneKind = "keys" | "grid";
 
 // Each scene is its own chunk, so a phone never fetches the keycap sculpture and a desktop never
 // fetches the grid. Only the placements, a few class names each, are in the page's bundle.
@@ -30,7 +33,9 @@ export type LandingProps = {
  * disposes of everything it started, and mounts the other.
  */
 export function Landing({ onSettled }: LandingProps) {
-  const kind = useSceneKind();
+  // The keys need a desktop's width beside the copy; under lg the grid bird takes the view. Read
+  // synchronously on the first render, so the wrong scene never flashes.
+  const kind: SceneKind = useMediaQuery(LG) ? "keys" : "grid";
   const { Scene, placement } = SCENES[kind];
   const stage = useRef<HTMLElement>(null);
   const copy = useCopyParts();
@@ -43,7 +48,8 @@ export function Landing({ onSettled }: LandingProps) {
       aria-labelledby="landing-title"
       className={cn("relative -mt-14 min-h-svh lg:-mt-16", placement.section)}
     >
-      <SceneBoundary key={kind}>
+      {/* A scene that fails to load or throws leaves the copy standing on the page's sky. */}
+      <SceneBoundary key={kind} warn="The landing scene could not start; the page goes on without it.">
         <Suspense fallback={null}>
           <Scene stage={stage} copy={copy} bird={bird} target={target} onSettled={onSettled} />
         </Suspense>

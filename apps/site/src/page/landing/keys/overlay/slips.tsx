@@ -1,6 +1,6 @@
 import { type Ref, useCallback, useImperativeHandle, useLayoutEffect, useRef } from "react";
 import { Slip } from "../../../materials";
-import { type Point, seededRandom } from "../../math";
+import { type Point, seededRandom } from "../../../../shared/math";
 import { ARRIVALS, TOTAL_BIRDS, type Arrival } from "../data";
 import { arc, flutter } from "./slip-flights";
 

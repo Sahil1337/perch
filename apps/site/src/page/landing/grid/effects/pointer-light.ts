@@ -1,4 +1,4 @@
-import { clamp, type Point } from "../../math";
+import { clamp, type Point } from "../../../../shared/math";
 import { columnCentre, type GridLayout, rowTop } from "../table/grid-layout";
 import type { CellLight } from "./cell-light";
 

@@ -1,4 +1,4 @@
-import { OS_NAMES, type Release } from "../../../shared/release";
+import { ARCH_NAMES, OS_NAMES, type Release } from "../../../shared/release";
 
 /** One line printed on the tag. Its text is undefined until the release says, and prints as a blank. */
 export type TagRow = {
@@ -15,8 +15,7 @@ export function tagRows({ version, os, mobile, primary }: Release): TagRow[] {
   if (mobile || os === "unknown") {
     return [head, ...Object.values(OS_NAMES).map((text): TagRow => ({ text, tone: "ink" }))];
   }
-  // An asset's label is "macOS · Apple silicon": the system, then the chip.
-  const chip = primary?.label.split(" · ")[1];
+  const chip = primary && ARCH_NAMES[primary.os][primary.arch];
   return [
     head,
     { text: OS_NAMES[os], tone: "ink" },

@@ -1,4 +1,4 @@
-import { type Point, smoothstep } from "../../math";
+import { type Point, smoothstep } from "../../../../shared/math";
 import { type BirdPose, birdPose } from "./cell-bird";
 import { band, fitBand, type FlightRoom } from "./flight-room";
 import { type Extent, FLAP_FRAMES, type Frames } from "./frames";

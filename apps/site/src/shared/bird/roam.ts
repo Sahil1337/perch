@@ -1,3 +1,4 @@
+import { clamp, type Point, seededRandom } from "../math";
 import type { Bird, BirdFacing, ViaPoint } from "./bird";
 import { isHeld, onRelease } from "./hold";
 
@@ -36,7 +37,6 @@ export type RoamOptions = {
 };
 
 type Rect = { left: number; top: number; right: number; bottom: number };
-type Point = { x: number; y: number };
 type Spot = Point & { zone: number; edge: RoamEdge; at: number };
 type Kind = "shuffle" | "arc" | "loop" | "glide" | "lap";
 type Flight = { via?: ViaPoint[]; pace?: number; facing?: BirdFacing };
@@ -58,18 +58,6 @@ const CHECK_MS = 120;
 const LOOKAHEAD_S = 0.45;
 const LAP_EVERY_MS = 14000;
 
-const clamp = (v: number, a: number, b: number) => (v < a ? a : v > b ? b : v);
-
-function seeded(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
 /**
  * Keeps the bird busy around the part of the page being read. It follows the reader at once as they
  * scroll, and between scrolls never sits more than a few seconds: it shuffles along its branch, or
@@ -82,7 +70,7 @@ export function roam(bird: Bird, { zones, ceiling = null, seed }: RoamOptions): 
   const first = zones[0];
   if (!first) return () => {};
   const zoneAt = (i: number): RoamZone => zones[i] ?? first;
-  const rand = seeded(seed ?? Math.floor(Math.random() * 2 ** 32));
+  const rand = seededRandom(seed ?? Math.floor(Math.random() * 2 ** 32));
   const recent: Kind[] = [];
   let target: Spot | null = null;
   let homeZone = -1;

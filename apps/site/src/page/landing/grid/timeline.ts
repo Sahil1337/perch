@@ -1,4 +1,4 @@
-import type { Point } from "../math";
+import type { Point } from "../../../shared/math";
 import { type BirdPose, birdPose } from "./bird/cell-bird";
 import type { FlightRoom } from "./bird/flight-room";
 import { type Extent, type Frames, PERCHED_FEET } from "./bird/frames";

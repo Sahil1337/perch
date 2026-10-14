@@ -13,16 +13,17 @@ replay/
   use-replay.ts         useReplayWorkspace — the store as a React hook
   export-csv.ts         exportUrl: a data: URL of the recorded rows
   fixtures/
+    index.ts            birdwatch typed, fixtureText, recordedResult — light, for the page's bundle
     birdwatch.json      written by apps/site/scripts/record.ts — do not edit by hand
     walk*.json          R2's walk recordings (merged through `extraRecordings`)
-  stage/                the scene kit shared by every real scene (R1 and R2)
+scenes/stage/           the scene kit shared by every real scene (R1 and R2)
     window-frame.tsx    window chrome, native-size render, scale-to-width, aspect reserved (light)
     window-frame.css    traffic-light colours, the nested-.dark --color-* aliases, hidden scrollbars
     lazy-scene.tsx      lazyScene(load, size): the light export; frame now, heavy module near view
     real-scene.tsx      RealScene + SceneScript: workspace + replay + script loop, or one play + hand-over
     workspace-shell.tsx the workspace layout apps/web renders (global listeners only when active)
     active-scene.ts     the usable scene once it is the visitor's; keeps shortcuts/dialogs/popups to it
-    autoplay.ts         Clock (pausable scene time), ≥40% visibility, reduced motion
+    autoplay.ts         Clock (pausable scene time)
     editor-driver.ts    drives the real CodeMirror view: type, keys via its keymap, completion
     camera.ts           the calm zoom/pan of the inner app
 ```
@@ -68,13 +69,13 @@ fixtureText("~/birdwatch/spring-migration.sql"); // a recorded file's content
 Input fields beyond the spec's `{ fixtures, extraRecordings }` are optional: `open`, `active`,
 `notebook` (paths opened in notebook view), `files`, `panels`, `latency`.
 
-## Writing a real scene (the kit in `stage/`)
+## Writing a real scene (the kit in `scenes/stage/`)
 
 ```tsx
-// scenes/real/x.tsx — light; this is what scenes/index.ts exports
-export const RealXScene = lazyScene(() => import("./x.scene"), { width: 1280, height: 760 });
+// scenes/real/workspace.ts — light; this is what scenes/index.ts exports
+export const RealXScene = lazyScene(() => import("./workspace/x.scene"), { width: 1280, height: 760 });
 
-// scenes/real/x.scene.tsx — heavy (CodeMirror, @perch/ui); default export
+// scenes/real/workspace/x.scene.tsx — heavy (CodeMirror, @perch/ui); default export
 const script: SceneScript = {
   camera: "always" | "narrow",          // narrow: only below 700px frame width
   input: { fixtures: birdwatch, open: [...], panels: { layout: splitLayout(42) } },

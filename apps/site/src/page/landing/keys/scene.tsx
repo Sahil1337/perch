@@ -1,5 +1,5 @@
-import { useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useState } from "react";
+import { usePrefersReducedMotion } from "../../../shared/viewport/media";
 import { Container } from "../../layout/container";
 import type { LandingSceneProps } from "../types";
 import { SUMMARY } from "./data";
@@ -19,7 +19,7 @@ import { useStory } from "./story/use-story";
  */
 export default function KeysScene({ stage, copy, bird, target, onSettled }: LandingSceneProps) {
   const rig = useRig();
-  const reduced = useReducedMotion() ?? false;
+  const reduced = usePrefersReducedMotion();
   const layout = useSculpture(rig, stage, copy);
   const [beat, setBeat] = useState<Beat>(START);
   const set = useCallback((next: Partial<Beat>) => setBeat((now) => ({ ...now, ...next })), []);

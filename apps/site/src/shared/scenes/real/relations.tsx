@@ -3,11 +3,12 @@
 // comes within a screen of the viewport.
 
 import * as React from "react";
-import { usePrefersReducedMotion } from "../../motion/use-in-view";
+import { usePrefersReducedMotion } from "../../viewport/media";
+import { useNear, useVisible } from "../../viewport/visibility";
 import type { SceneProps } from "../types";
-import { SceneWindow, useNear, useVisible } from "./relations-walk-kit";
+import { SceneWindow } from "./kit/scene-window";
 
-const RelationsSceneInner = React.lazy(() => import("./relations-scene"));
+const RelationsSceneInner = React.lazy(() => import("./relations/scene"));
 
 /**
  * The app's viewport for this scene. A small laptop's window rather than a desktop's, like every

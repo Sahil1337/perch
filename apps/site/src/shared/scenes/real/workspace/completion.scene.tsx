@@ -4,8 +4,8 @@
 // joined table back in the select list, and a run.
 
 import type { EditorView } from "@codemirror/view";
-import { birdwatch, fixtureText } from "../../replay";
-import { CAMERA_MS } from "../../replay/stage/camera";
+import { birdwatch, fixtureText } from "../../../replay";
+import { CAMERA_MS } from "../../stage/camera";
 import {
   pickCompletion,
   placeCaret,
@@ -14,15 +14,15 @@ import {
   typeText,
   waitForCompletion,
   waitForEditor,
-} from "../../replay/stage/editor-driver";
-import type { RealSceneProps } from "../../replay/stage/lazy-scene";
+} from "../../stage/editor-driver";
+import type { RealSceneProps } from "../../stage/lazy-scene";
 import {
   RealScene,
   type SceneContext,
   type SceneScript,
   splitLayout,
   waitForRun,
-} from "../../replay/stage/real-scene";
+} from "../../stage/real-scene";
 
 const FILE = "~/birdwatch/sightings-by-site.sql";
 const FULL = fixtureText(FILE);

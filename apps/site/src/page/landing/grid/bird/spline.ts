@@ -1,4 +1,4 @@
-import { clamp, type Point } from "../../math";
+import { clamp, type Point } from "../../../../shared/math";
 
 /** A point the flight passes through at time t. */
 export type Waypoint = { t: number; x: number; y: number };

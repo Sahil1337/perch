@@ -1,4 +1,5 @@
-import { motion, useReducedMotion } from "motion/react";
+import { motion } from "motion/react";
+import { usePrefersReducedMotion } from "../viewport/media";
 import type { ReactNode } from "react";
 import { EASE_OUT } from "./easing";
 
@@ -30,7 +31,7 @@ export function Reveal({
   as = "div",
   ...data
 }: RevealProps) {
-  const reduced = useReducedMotion();
+  const reduced = usePrefersReducedMotion();
   const Tag = motion[as];
   if (reduced) {
     return (

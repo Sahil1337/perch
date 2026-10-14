@@ -1,12 +1,9 @@
-import fixture from "../../../shared/replay/fixtures/birdwatch.json";
-
-type Table = { name: string; foreignKeys: { refTable: string }[] };
-type Database = { schemas: { tables: Table[] }[] };
+import { birdwatch } from "../../../shared/replay/fixtures";
 
 /** A foreign key: `from` holds the column, `to` is the table it references. */
 export type ForeignKey = { from: string; to: string };
 
-const databases: Database[] = Object.values(fixture.schemas);
+const databases = Object.values(birdwatch.schemas);
 
 /**
  * The foreign keys between `tables`, as a real Perch read them off the birdwatch database: the

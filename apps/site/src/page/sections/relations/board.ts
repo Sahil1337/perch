@@ -1,3 +1,4 @@
+import type { Point } from "../../../shared/math";
 import { foreignKeysAmong } from "./schema";
 
 /**
@@ -6,8 +7,6 @@ import { foreignKeysAmong } from "./schema";
  * one set of numbers serves both and a thread keeps its angle.
  */
 export const BOARD = { width: 288, height: 176 } as const;
-
-export type Point = { x: number; y: number };
 
 export type Tile = { table: string; place: string; at: Point };
 

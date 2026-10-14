@@ -8,10 +8,8 @@
 // Everything a test script needs is on window.__real.
 import { StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { RealCompletionScene } from "../src/shared/scenes/real/completion";
-import { RealHeroScene } from "../src/shared/scenes/real/hero";
 import { RelationsScene, TerminalScene, WalkScene } from "../src/shared/scenes";
-import { RealNotebookScene } from "../src/shared/scenes/real/notebook";
+import { RealCompletionScene, RealHeroScene, RealNotebookScene } from "../src/shared/scenes/real/workspace";
 import type { SceneAnchors, SceneProps } from "../src/shared/scenes/types";
 import "../src/shared/styles/base.css";
 

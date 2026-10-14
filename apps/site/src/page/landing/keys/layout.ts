@@ -1,4 +1,4 @@
-import { clamp } from "../math";
+import { clamp } from "../../../shared/math";
 import type { Stack } from "./overlay/slips";
 import type { Box } from "./sculpture/view";
 

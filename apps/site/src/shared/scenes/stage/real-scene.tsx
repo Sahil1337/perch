@@ -6,12 +6,14 @@ import { closeCompletion } from "@codemirror/autocomplete";
 import { EditorView } from "@codemirror/view";
 import { RESULTS_PANE, WorkspaceProvider, type EditorLayout, type WorkspaceApi } from "@perch/ui";
 import * as React from "react";
-import type { SceneAnchors } from "../../scenes/types";
-import type { ReplayInput, ReplayWorkspace } from "../types";
-import { REPLAY_NOTICE } from "../store";
-import { useReplayWorkspace } from "../use-replay";
+import type { SceneAnchors } from "../types";
+import type { ReplayInput, ReplayWorkspace } from "../../replay/types";
+import { REPLAY_NOTICE } from "../../replay/store";
+import { useReplayWorkspace } from "../../replay/use-replay";
 import { activateScene, deactivateScene } from "./active-scene";
-import { Clock, Stopped, useMostlyVisible, useReducedMotion } from "./autoplay";
+import { usePrefersReducedMotion } from "../../viewport/media";
+import { useVisible } from "../../viewport/visibility";
+import { Clock, Stopped } from "./autoplay";
 import { CAMERA_MS, Camera } from "./camera";
 import { houseTooltips, scriptEditor } from "./editor-driver";
 import type { RealSceneProps } from "./lazy-scene";
@@ -74,8 +76,8 @@ export function RealScene({
   });
 
   const stageRef = React.useRef<HTMLDivElement>(null);
-  const reduced = useReducedMotion();
-  const visible = useMostlyVisible(parts.outer);
+  const reduced = usePrefersReducedMotion();
+  const visible = useVisible(parts.outer);
   /** The running script's clock. Made per run of the effect, so a remount starts a fresh one. */
   const clock = React.useRef<Clock | null>(null);
   const camera = React.useRef<Camera | null>(null);

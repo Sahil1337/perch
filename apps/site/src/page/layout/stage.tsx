@@ -1,7 +1,8 @@
 import { motion } from "motion/react";
-import { type ReactNode, type RefObject, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { type ReactNode, type RefObject, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { cn } from "../../shared/cn";
-import { EASE_IN_OUT, EASE_OUT, useInView, usePrefersReducedMotion } from "../../shared/motion";
+import { EASE_IN_OUT, EASE_OUT, useInView } from "../../shared/motion";
+import { LG, useMediaQuery, usePrefersReducedMotion } from "../../shared/viewport/media";
 
 // The stage: from lg a section is one view tall under the nav, its text in a narrow column on the
 // page's measure and its window in the wide one, which bleeds out to the view's gutter. The window
@@ -23,19 +24,6 @@ const INTRO_HOLD_MS = 300;
 const INTRO_SCALE = 1.1;
 // How far the window travels in from its side, in px.
 const WINDOW_TRAVEL = 64;
-
-const LG = "(min-width: 64rem)";
-
-export function useWide(): boolean {
-  return useSyncExternalStore(
-    (onChange) => {
-      const query = matchMedia(LG);
-      query.addEventListener("change", onChange);
-      return () => query.removeEventListener("change", onChange);
-    },
-    () => matchMedia(LG).matches,
-  );
-}
 
 /** Where the text column's centre is from the row's, so the intro can hold the heading centred. */
 function useCentring(
@@ -96,7 +84,7 @@ export type StageProps = {
 };
 
 export function Stage({ side = "start", text, below, scene, still, className }: StageProps) {
-  const wide = useWide();
+  const wide = useMediaQuery(LG);
   const reduced = usePrefersReducedMotion();
   const row = useRef<HTMLDivElement>(null);
   const column = useRef<HTMLDivElement>(null);

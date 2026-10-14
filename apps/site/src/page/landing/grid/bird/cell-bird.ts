@@ -1,4 +1,4 @@
-import { clamp, type Point } from "../../math";
+import { clamp, type Point } from "../../../../shared/math";
 import type { CellLight } from "../effects/cell-light";
 import { WAKE_COVERAGE, type Wake } from "../effects/wake";
 import { columnCentre, type GridLayout, rowTop, slotOf } from "../table/grid-layout";

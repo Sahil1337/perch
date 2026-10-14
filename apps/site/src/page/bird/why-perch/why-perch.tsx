@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { type RefObject, useLayoutEffect } from "react";
-import { EASE_OUT, usePrefersReducedMotion } from "../../../shared/motion";
+import { EASE_OUT } from "../../../shared/motion";
+import { usePrefersReducedMotion } from "../../../shared/viewport/media";
 import { Slip } from "../../materials";
 import { WHY_PERCH } from "./copy";
 import { type Anchor, placeSlip } from "./place";

@@ -1,5 +1,5 @@
 import type { CanvasTexture, Group, MeshBasicMaterial } from "three";
-import { smoothstep } from "../../math";
+import { smoothstep } from "../../../../shared/math";
 import type { KeySpec } from "../keymap";
 
 /** One key of the sculpture and how it moves. */

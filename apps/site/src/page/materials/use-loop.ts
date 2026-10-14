@@ -1,5 +1,5 @@
 import { type RefObject, useEffect } from "react";
-import { usePrefersReducedMotion } from "../../shared/motion";
+import { usePrefersReducedMotion } from "../../shared/viewport/media";
 
 /** The share of a piece that must be in view before its loop starts. */
 const START = 0.25;

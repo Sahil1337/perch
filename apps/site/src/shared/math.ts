@@ -2,8 +2,11 @@ export type Point = { x: number; y: number };
 
 export const clamp = (v: number, lo: number, hi: number): number => (v < lo ? lo : v > hi ? hi : v);
 
+/** Where `v` sits between `a` and `b`, as 0 to 1. */
+export const linearstep = (a: number, b: number, v: number): number => clamp((v - a) / (b - a), 0, 1);
+
 export function smoothstep(a: number, b: number, v: number): number {
-  const t = clamp((v - a) / (b - a), 0, 1);
+  const t = linearstep(a, b, v);
   return t * t * (3 - 2 * t);
 }
 

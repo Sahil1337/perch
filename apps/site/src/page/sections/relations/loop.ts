@@ -1,5 +1,6 @@
+import type { Point } from "../../../shared/math";
 import { type Beat, IN_OUT, track } from "../../materials";
-import { BOARD, DRAG_FROM, DRAGGED, isLit, type Point, THREADS, type Thread, TILES, type Tile } from "./board";
+import { BOARD, DRAG_FROM, DRAGGED, isLit, THREADS, type Thread, TILES, type Tile } from "./board";
 
 const PERIOD = 8400;
 

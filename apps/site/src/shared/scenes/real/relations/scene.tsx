@@ -8,12 +8,13 @@ import { asyncLoading, type WorkspaceApi, WorkspaceProvider } from "@perch/ui";
 import * as React from "react";
 // Not exported by @perch/ui, which ships it only inside its modal dialog. The same file the package
 // barrel resolves to, so it shares the barrel's WorkspaceProvider context.
-import { SchemaDiagram } from "../../../../../../packages/ui/src/workspace/schema-diagram/schema-diagram";
-import { EASE_IN_OUT, EASE_OUT } from "../../motion/easing";
-import { birdwatch, useReplayWorkspace } from "../../replay";
-import type { SceneAnchors } from "../types";
-import type { SceneWindowParts } from "./relations-walk-kit";
-import { DialogFrame, DialogHost, nativeCoordinates } from "./relations-walk-host";
+import { SchemaDiagram } from "../../../../../../../packages/ui/src/workspace/schema-diagram/schema-diagram";
+import { EASE_IN_OUT_CSS, EASE_OUT_CSS } from "../../../motion/easing";
+import { birdwatch, useReplayWorkspace } from "../../../replay";
+import type { SceneAnchors } from "../../types";
+import type { SceneWindowParts } from "../kit/scene-window";
+import { DialogFrame, DialogHost } from "../kit/dialog-host";
+import { nativeCoordinates } from "./native-coordinates";
 import "./relations.css";
 
 const CARD_IN = 620;
@@ -27,8 +28,6 @@ const TOUR_FIRST = 2600;
 const TOUR_GAP = 9000;
 const TOUR_LIT = 900;
 const TOUR_HOLD = 3200;
-
-const curve = (points: readonly number[]): string => `cubic-bezier(${points.join(", ")})`;
 
 /** SchemaDiagram's viewport: the pane under its toolbar. */
 const viewportIn = (app: HTMLElement): HTMLElement | null => app.querySelector<HTMLElement>("header + div");
@@ -251,7 +250,7 @@ export default function RelationsSceneInner({
               { opacity: 0, transform: "translateY(10px) scale(0.985)" },
               { opacity: 1, transform: "none" },
             ],
-            { duration: CARD_IN, delay: index * CARD_STAGGER, easing: curve(EASE_OUT), fill: "backwards" },
+            { duration: CARD_IN, delay: index * CARD_STAGGER, easing: EASE_OUT_CSS, fill: "backwards" },
           ),
         ),
       );
@@ -281,7 +280,7 @@ export default function RelationsSceneInner({
                 { strokeDasharray: "1 2", strokeDashoffset: -1 },
                 { strokeDasharray: "1 2", strokeDashoffset: 0 },
               ],
-              { duration: WIRE_DRAW, delay: at, easing: curve(EASE_IN_OUT), fill: "backwards" },
+              { duration: WIRE_DRAW, delay: at, easing: EASE_IN_OUT_CSS, fill: "backwards" },
             ),
           ),
           track(wire.bar.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, delay: at, fill: "backwards" })),
@@ -299,7 +298,7 @@ export default function RelationsSceneInner({
               wire.pulse.animate([{ opacity: 0 }, { opacity: 1 }], {
                 duration: PULSE_IN,
                 delay: at + WIRE_DRAW,
-                easing: curve(EASE_OUT),
+                easing: EASE_OUT_CSS,
                 fill: "backwards",
               }),
             ),

@@ -1,29 +1,18 @@
-import { type RefObject, useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { useInView, usePrefersReducedMotion } from "../../../shared/motion";
+import { type RefObject, useCallback, useEffect, useRef, useState } from "react";
+import { clamp } from "../../../shared/math";
+import { useInView } from "../../../shared/motion";
+import { LG, useMediaQuery, usePrefersReducedMotion } from "../../../shared/viewport/media";
+import { onScrollFrame } from "../../../shared/viewport/on-scroll-frame";
 import { BOX_ITEMS } from "./items";
 import type { CropState } from "./pane";
 
 const CYCLE_MS = 3500;
-// Tailwind's lg: from here the pane sits beside the list.
-const BESIDE = "(min-width: 64rem)";
 // How far past a step's edge, in steps, the scroll has to go before the next item takes over, so a
 // page resting on a boundary never flickers between two.
 const HYSTERESIS = 0.12;
 
-function useMatches(query: string): boolean {
-  return useSyncExternalStore(
-    (onChange) => {
-      const list = matchMedia(query);
-      list.addEventListener("change", onChange);
-      return () => list.removeEventListener("change", onChange);
-    },
-    () => matchMedia(query).matches,
-    () => false,
-  );
-}
-
 const count = BOX_ITEMS.length;
-const clamp = (index: number) => Math.min(count - 1, Math.max(0, index));
+const clampIndex = (index: number) => clamp(index, 0, count - 1);
 
 /** The track's scroll, in steps: 0 as the stage sticks, `count` as it lets go. */
 function stepsAt(track: HTMLElement, stage: HTMLElement): number {
@@ -57,7 +46,8 @@ export type ShowcaseRefs = {
  * cycles.
  */
 export function useShowcase({ pane, list, track, stage }: ShowcaseRefs) {
-  const beside = useMatches(BESIDE);
+  // From lg the pane sits beside the list.
+  const beside = useMediaQuery(LG);
   const reduced = usePrefersReducedMotion();
   const pinned = beside && !reduced;
   const [active, setActive] = useState(0);
@@ -71,12 +61,10 @@ export function useShowcase({ pane, list, track, stage }: ShowcaseRefs) {
 
   useEffect(() => {
     if (!pinned) return;
-    let frame = 0;
     const update = () => {
-      frame = 0;
       if (!track.current || !stage.current) return;
       const steps = stepsAt(track.current, stage.current);
-      const here = clamp(Math.floor(steps));
+      const here = clampIndex(Math.floor(steps));
       if (aim.current !== null) {
         if (here !== aim.current) return;
         aim.current = null;
@@ -85,45 +73,36 @@ export function useShowcase({ pane, list, track, stage }: ShowcaseRefs) {
         steps < current - HYSTERESIS || steps > current + 1 + HYSTERESIS ? here : current,
       );
     };
-    const schedule = () => {
-      frame ||= requestAnimationFrame(update);
-    };
     // A wheel or a key during a click's scroll takes over from it, so stop waiting for its item.
     const settle = () => {
       if (aim.current === null) return;
       aim.current = null;
-      schedule();
+      scroll.schedule();
     };
-    update();
-    addEventListener("scroll", schedule, { passive: true });
-    addEventListener("resize", schedule);
+    const scroll = onScrollFrame(update);
     addEventListener("scrollend", settle);
     addEventListener("wheel", settle, { passive: true });
     addEventListener("touchstart", settle, { passive: true });
     addEventListener("keydown", settle);
     return () => {
-      removeEventListener("scroll", schedule);
-      removeEventListener("resize", schedule);
+      scroll.stop();
       removeEventListener("scrollend", settle);
       removeEventListener("wheel", settle);
       removeEventListener("touchstart", settle);
       removeEventListener("keydown", settle);
-      cancelAnimationFrame(frame);
     };
   }, [pinned, track, stage]);
 
   useEffect(() => {
     if (!beside || pinned || hovering || !listInView) return;
-    let frame = 0;
-    const update = () => {
-      frame = 0;
+    return onScrollFrame(() => {
       const box = pane.current?.getBoundingClientRect();
       // The pane's parent is the grid column it sticks inside.
       const column = pane.current?.parentElement?.getBoundingClientRect();
       const items = list.current?.children;
       if (!box || !column || !items?.length) return;
       const travel = column.height - box.height;
-      const progress = travel > 0 ? Math.min(1, Math.max(0, (box.top - column.top) / travel)) : 0;
+      const progress = travel > 0 ? clamp((box.top - column.top) / travel, 0, 1) : 0;
       const line = box.top + box.height * progress;
       let nearest = 0;
       let distance = Infinity;
@@ -133,18 +112,7 @@ export function useShowcase({ pane, list, track, stage }: ShowcaseRefs) {
         if (d < distance) [nearest, distance] = [index, d];
       }
       setActive(nearest);
-    };
-    const schedule = () => {
-      frame ||= requestAnimationFrame(update);
-    };
-    update();
-    addEventListener("scroll", schedule, { passive: true });
-    addEventListener("resize", schedule);
-    return () => {
-      removeEventListener("scroll", schedule);
-      removeEventListener("resize", schedule);
-      cancelAnimationFrame(frame);
-    };
+    }).stop;
   }, [beside, pinned, hovering, listInView, pane, list]);
 
   useEffect(() => {

@@ -14,11 +14,11 @@ import { BinarySection } from "./sections/binary";
 import { BoxSection } from "./sections/box";
 import { DownloadSection } from "./sections/download";
 import { CompletionSection } from "./sections/completion";
-import { Footer } from "./sections/footer";
+import { Footer } from "./chrome/footer";
 import { NotebookSection } from "./sections/notebooks";
 import { RelationsSection } from "./sections/relations";
 import { TrySection } from "./sections/try";
-import { TryWindowProvider, useTryWindow } from "./sections/try/window";
+import { TryWindowProvider, useTryWindow } from "./hand-over/try-window";
 import { WalkSection } from "./sections/walk";
 import { Sky } from "./chrome/sky";
 

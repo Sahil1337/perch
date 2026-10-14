@@ -1,4 +1,4 @@
-import type { CopyParts } from "../../types";
+import type { CopyParts } from "../../copy/types";
 import { firstRow, type GridLayout, rowTop } from "../table/grid-layout";
 import type { Headline } from "./headline";
 

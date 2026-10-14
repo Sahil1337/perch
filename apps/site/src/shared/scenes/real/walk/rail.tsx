@@ -4,7 +4,8 @@
 // the window above it, it takes no pointer or key. Light: nothing here imports @perch/ui.
 
 import * as React from "react";
-import { cn } from "../../cn";
+import { cn } from "../../../cn";
+import { REDUCED_MOTION } from "../../../viewport/media";
 
 export const CLAUSES = [
   "FROM",
@@ -88,8 +89,7 @@ function useWalkReading(app: HTMLElement | null): Reading | null {
   return React.useMemo(() => (snapshot ? (JSON.parse(snapshot) as Reading) : null), [snapshot]);
 }
 
-const prefersReducedMotion = (): boolean =>
-  typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+const prefersReducedMotion = (): boolean => typeof matchMedia === "function" && matchMedia(REDUCED_MOTION).matches;
 
 /**
  * The rail. Before the walk has loaded every chip is neutral and nothing is lit; the chips take

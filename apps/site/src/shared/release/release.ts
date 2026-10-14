@@ -4,7 +4,8 @@
 
 const REPO = "Sahil1337/perch";
 const API = `https://api.github.com/repos/${REPO}/releases/latest`;
-export const RELEASES_URL = `https://github.com/${REPO}/releases/latest`;
+export const REPO_URL = `https://github.com/${REPO}`;
+export const RELEASES_URL = `${REPO_URL}/releases/latest`;
 export const INSTALL_COMMAND = `curl -fsSL https://raw.githubusercontent.com/${REPO}/main/install.sh | sh`;
 const CACHE_KEY = "perch:release";
 const TIMEOUT_MS = 6000;
@@ -32,10 +33,6 @@ export type Release = {
   version?: string;
   /** The build for this machine, when one was found. */
   primary?: Asset;
-  /** The same OS's other architecture (macOS and Linux), phrased by `alternateLabel`. */
-  alternate?: Asset;
-  /** "Intel Mac?", "On ARM?" */
-  alternateLabel?: string;
   /** Every build in the release, in a fixed platform order. */
   assets: Asset[];
   releasesUrl: string;
@@ -46,22 +43,22 @@ export type Release = {
 };
 
 export const OS_NAMES: Record<Exclude<OS, "unknown">, string> = { darwin: "macOS", linux: "Linux", windows: "Windows" };
-const ARCH_NAMES = {
+export const ARCH_NAMES = {
   darwin: { arm64: "Apple silicon", amd64: "Intel" },
   linux: { amd64: "x86-64", arm64: "ARM64" },
   windows: { amd64: "x64", arm64: "ARM64" },
 } as const;
-const ALT_LABELS: Partial<Record<OS, Record<Arch, string>>> = {
-  darwin: { arm64: "Apple silicon?", amd64: "Intel Mac?" },
-  linux: { arm64: "On ARM?", amd64: "On x86-64?" },
-};
-const BUILDS: { os: Exclude<OS, "unknown">; arch: Arch }[] = [
-  { os: "darwin", arch: "arm64" },
-  { os: "darwin", arch: "amd64" },
-  { os: "linux", arch: "amd64" },
-  { os: "linux", arch: "arm64" },
-  { os: "windows", arch: "amd64" },
-];
+const buildLabel = (os: Exclude<OS, "unknown">, arch: Arch): string => `${OS_NAMES[os]} · ${ARCH_NAMES[os][arch]}`;
+/** Every build the release workflow ships, in a fixed platform order. */
+export const BUILDS: { os: Exclude<OS, "unknown">; arch: Arch; label: string }[] = (
+  [
+    { os: "darwin", arch: "arm64" },
+    { os: "darwin", arch: "amd64" },
+    { os: "linux", arch: "amd64" },
+    { os: "linux", arch: "arm64" },
+    { os: "windows", arch: "amd64" },
+  ] as const
+).map((b) => ({ ...b, label: buildLabel(b.os, b.arch) }));
 
 type RawRelease = { tag: string; url: string; assets: { name: string; size: number; url: string }[] };
 
@@ -156,7 +153,7 @@ function assetFor(release: RawRelease, os: Exclude<OS, "unknown">, arch: Arch): 
     ...found,
     os,
     arch,
-    label: `${OS_NAMES[os]} · ${ARCH_NAMES[os][arch]}`,
+    label: buildLabel(os, arch),
     kind: os === "windows" ? ".exe" : ".tar.gz",
     sizeLabel: megabytes(found.size),
   };
@@ -174,14 +171,10 @@ function build(os: OS, mobile: boolean, arch: Arch | undefined, release: RawRele
   if (!release) return base;
   const assets = BUILDS.map((b) => assetFor(release, b.os, b.arch)).filter((a): a is Asset => !!a);
   const primary = os !== "unknown" && arch ? assetFor(release, os, arch) : undefined;
-  const otherArch: Arch = arch === "arm64" ? "amd64" : "arm64";
-  const alternate = os !== "unknown" && ALT_LABELS[os] ? assetFor(release, os, otherArch) : undefined;
   return {
     ...base,
     version: release.tag,
     primary,
-    alternate,
-    alternateLabel: alternate ? ALT_LABELS[os]?.[otherArch] : undefined,
     assets,
     checksumsUrl: release.assets.find((a) => a.name === "checksums.txt")?.url,
   };

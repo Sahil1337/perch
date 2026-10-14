@@ -1,4 +1,4 @@
-import { useInView as useMotionInView, useReducedMotion } from "motion/react";
+import { useInView as useMotionInView } from "motion/react";
 import type { RefObject } from "react";
 
 export type InViewOptions = {
@@ -15,5 +15,3 @@ export function useInView(ref: RefObject<Element | null>, { amount = "some", onc
   return useMotionInView(ref, { amount, once, margin });
 }
 
-/** prefers-reduced-motion, live. */
-export const usePrefersReducedMotion = (): boolean => useReducedMotion() ?? false;

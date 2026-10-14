@@ -1,5 +1,6 @@
 import { type RefObject, useEffect, useState } from "react";
-import { useInView, usePrefersReducedMotion } from "../../../shared/motion";
+import { useInView } from "../../../shared/motion";
+import { usePrefersReducedMotion } from "../../../shared/viewport/media";
 
 // However the landing goes, the window is not held back for longer than this.
 const LOAD_ANYWAY_MS = 9000;

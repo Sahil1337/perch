@@ -1,9 +1,9 @@
 // A notebook: field-notes.sql, one plain .sql file whose `-- %%` lines make three cells. The scene
 // runs them in order with each cell's own Run button, and every result lands under its cell.
 
-import { birdwatch } from "../../replay";
-import { CAMERA_MS } from "../../replay/stage/camera";
-import type { RealSceneProps } from "../../replay/stage/lazy-scene";
+import { birdwatch } from "../../../replay";
+import { CAMERA_MS } from "../../stage/camera";
+import type { RealSceneProps } from "../../stage/lazy-scene";
 import {
   NARROW_WIDTH,
   RealScene,
@@ -11,7 +11,7 @@ import {
   type SceneScript,
   splitLayout,
   waitForRun,
-} from "../../replay/stage/real-scene";
+} from "../../stage/real-scene";
 
 const FILE = "~/birdwatch/field-notes.sql";
 

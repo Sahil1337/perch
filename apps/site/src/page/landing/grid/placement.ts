@@ -1,4 +1,4 @@
-import type { CopyPlacement } from "../types";
+import type { CopyPlacement } from "../copy/types";
 
 /**
  * The grid bird's copy: centred over the grid, in the height left under the nav. The bird never

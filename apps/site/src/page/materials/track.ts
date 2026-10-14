@@ -1,12 +1,11 @@
-import { EASE_IN_OUT, EASE_OUT } from "../../shared/motion";
+import { clamp } from "../../shared/math";
+import { EASE_IN_OUT_CSS, EASE_OUT_CSS } from "../../shared/motion";
 
 /** A moment in a loop: `at` ms in, the element looks like `frame`, then eases towards the next. */
 export type Beat = [at: number, frame: Keyframe];
 
-const EASE = `cubic-bezier(${EASE_OUT.join(", ")})`;
-
 /** A beat's easing for a part that travels from one place to another: a drag, a tuck. */
-export const IN_OUT = `cubic-bezier(${EASE_IN_OUT.join(", ")})`;
+export const IN_OUT = EASE_IN_OUT_CSS;
 
 /**
  * One element's part in a loop `period` ms long, repeating for as long as it runs. It holds its first
@@ -14,8 +13,8 @@ export const IN_OUT = `cubic-bezier(${EASE_IN_OUT.join(", ")})`;
  * once in a while needs only the beats around that move. Each beat eases out into the next unless it
  * names its own easing.
  */
-export function track(el: Element, period: number, beats: Beat[], easing = EASE): Animation {
-  const frames = beats.map(([at, frame]) => ({ easing, ...frame, offset: Math.min(Math.max(at / period, 0), 1) }));
+export function track(el: Element, period: number, beats: Beat[], easing = EASE_OUT_CSS): Animation {
+  const frames = beats.map(([at, frame]) => ({ easing, ...frame, offset: clamp(at / period, 0, 1) }));
   const first = frames[0];
   const last = frames[frames.length - 1];
   if (first && first.offset > 0) frames.unshift({ ...first, offset: 0 });

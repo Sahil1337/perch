@@ -1,6 +1,6 @@
 import { type RefObject, useLayoutEffect, useState } from "react";
 import { birdLength } from "../../../bird/size";
-import type { CopyParts } from "../../types";
+import type { CopyParts } from "../../copy/types";
 import { KEYS } from "../keymap";
 import { arrange, type SceneLayout } from "../layout";
 import type { Rig } from "../rig";

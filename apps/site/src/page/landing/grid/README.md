@@ -98,5 +98,5 @@ grid/
   copy/                headline (its lines, ink and perch), copy-zone (the masks and the veil)
 ```
 
-Subfolders never import the files at the top; the top composes them. Shared maths is the landing's
-(`../math.ts`). A frame allocates nothing: every per-cell buffer is a typed array sized on resize.
+Subfolders never import the files at the top; the top composes them. Shared maths is the page's
+(`src/shared/math.ts`). A frame allocates nothing: every per-cell buffer is a typed array sized on resize.

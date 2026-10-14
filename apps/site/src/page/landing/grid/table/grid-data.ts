@@ -1,15 +1,11 @@
-import birdwatch from "../../../../shared/replay/fixtures/birdwatch.json";
+import type { Row } from "@perch/protocol";
+import { recordedResult } from "../../../../shared/replay/fixtures";
 
-type Cell = string | number | boolean | null;
-type Result = { columns: { name: string }[]; rows: Cell[][] };
-type Recording = { key: string; record: { results?: Result[] } };
-
-function table(name: string): Cell[][] {
-  const recording = (birdwatch.recordings as unknown as Recording[]).find((r) => r.key === `select * from ${name}`);
-  return recording?.record.results?.[0]?.rows ?? [];
+function table(name: string): Row[] {
+  return recordedResult((r) => r.key === `select * from ${name}`)?.rows ?? [];
 }
 
-function byId(rows: Cell[][]): Map<number, Cell[]> {
+function byId(rows: Row[]): Map<number, Row> {
   return new Map(rows.map((row) => [Number(row[0]), row]));
 }
 

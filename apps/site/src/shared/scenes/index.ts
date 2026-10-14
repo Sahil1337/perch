@@ -8,9 +8,7 @@
 // notebook) can be usable; the others ignore the prop.
 import type { FC } from "react";
 import { LegacyTerminalScene, LegacyWalkScene } from "./legacy/scenes";
-import { RealCompletionScene } from "./real/completion";
-import { RealHeroScene } from "./real/hero";
-import { RealNotebookScene } from "./real/notebook";
+import { RealCompletionScene, RealHeroScene, RealNotebookScene } from "./real/workspace";
 import { RelationsScene as RealRelationsScene } from "./real/relations";
 import type { SceneProps } from "./types";
 

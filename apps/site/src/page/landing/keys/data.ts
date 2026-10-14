@@ -1,8 +1,6 @@
-import fixture from "../../../shared/replay/fixtures/birdwatch.json";
+import { asText, recordedResult } from "../../../shared/replay/fixtures";
 
 export type Arrival = { name: string; seen: string; birds: number };
-
-type Recording = { scene?: string; key: string; record?: { results?: { rows: string[][] }[] } };
 
 // "First arrivals of spring", spring-migration.sql: the rows the hero window's own run returns.
 const SPRING = "select s.common_name, to_char(min(g.seen_at)";
@@ -14,8 +12,7 @@ function day(iso: string): string {
   return `${Number(date)} ${MONTHS[Number(month) - 1] ?? ""}`;
 }
 
-const rows =
-  (fixture.recordings as Recording[]).find((r) => r.key.startsWith(SPRING))?.record?.results?.[0]?.rows ?? [];
+const rows = asText(recordedResult((r) => r.key.startsWith(SPRING))?.rows ?? []);
 
 export const ARRIVALS: Arrival[] = rows.map(([name = "", seen = "", birds = "0"]) => ({
   name,

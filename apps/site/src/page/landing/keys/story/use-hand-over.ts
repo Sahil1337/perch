@@ -1,7 +1,8 @@
 import { type RefObject, useEffect } from "react";
 import type { Bird } from "../../../../shared/bird";
-import type { TryWindow } from "../../../sections/try/window";
-import { clamp, smoothstep } from "../../math";
+import type { TryWindow } from "../../../hand-over/try-window";
+import { clamp, smoothstep } from "../../../../shared/math";
+import { onScrollFrame } from "../../../../shared/viewport/on-scroll-frame";
 import type { Rig } from "../rig";
 import { ignoreCancelled, Run } from "./run";
 import { hop, type Stage } from "./script";
@@ -46,10 +47,8 @@ export function useHandOver(rig: Rig, { stage, target, bird, settled, cut, play 
     const run = new Run();
     // what this effect has moved the query by, so its own place can be read back
     const shift = { x: 0, y: 0 };
-    let frame = 0;
 
     const update = () => {
-      frame = 0;
       const rect = section.getBoundingClientRect();
       const scrolled = Math.max(0, -rect.top);
       const p = clamp(scrolled / (rect.height * SPAN), 0, 1);
@@ -116,16 +115,9 @@ export function useHandOver(rig: Rig, { stage, target, bird, settled, cut, play 
         if (scene) hop(scene, rig.home.current, { run, pace: 1.1 }).catch(ignoreCancelled);
       }
     };
-    const onScroll = () => {
-      frame ||= requestAnimationFrame(update);
-    };
-    update();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
+    const scroll = onScrollFrame(update);
     return () => {
-      cancelAnimationFrame(frame);
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
+      scroll.stop();
       run.cancel();
     };
   }, [rig, stage, target, bird, settled, cut, play]);

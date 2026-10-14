@@ -1,5 +1,5 @@
 import type { Bird } from "../../../../shared/bird";
-import type { Point } from "../../math";
+import type { Point } from "../../../../shared/math";
 import { QUERY } from "../data";
 import type { KeyId } from "../keymap";
 import type { Beat } from "../overlay/query";

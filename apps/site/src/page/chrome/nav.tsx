@@ -1,7 +1,7 @@
 import { cn } from "../../shared/cn";
-import { useRelease } from "../../shared/release";
+import { REPO_URL, useRelease } from "../../shared/release";
 import { container } from "../layout/container";
-import { Brand, GitHubIcon } from "./mark";
+import { Brand, GitHubIcon } from "./brand";
 import { useScrolled } from "./use-scrolled";
 
 const link =
@@ -26,7 +26,7 @@ export function Nav() {
             Download
           </a>
           {/* On a phone the mark alone, so the row fits a 320px screen with the version in it. */}
-          <a href="https://github.com/Sahil1337/perch" className={link}>
+          <a href={REPO_URL} className={link}>
             <GitHubIcon />
             <span className="max-sm:sr-only">GitHub</span>
           </a>

@@ -4,6 +4,7 @@
 // never through the sidebar, and the far edge gives way before the start of a line does.
 
 import type { EditorView } from "@codemirror/view";
+import { EASE_IN_OUT_CSS } from "../../motion/easing";
 import type { FrameSize } from "./window-frame";
 
 /** A region of the app, in its native coordinates, that the camera should hold. */
@@ -22,7 +23,6 @@ export type Focus = {
   cropBottom?: boolean;
 };
 
-const EASE = "cubic-bezier(0.65, 0, 0.35, 1)";
 export const CAMERA_MS = 1000;
 
 export class Camera {
@@ -203,7 +203,7 @@ export class Camera {
     if (!duration || from === getComputedStyle(stage).transform) return;
     this.#animation = stage.animate(
       [{ transform: from }, { transform: target === "none" ? "matrix(1, 0, 0, 1, 0, 0)" : target }],
-      { duration, easing: EASE },
+      { duration, easing: EASE_IN_OUT_CSS },
     );
   }
 }

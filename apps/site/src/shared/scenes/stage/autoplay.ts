@@ -1,5 +1,3 @@
-import * as React from "react";
-
 /** Thrown out of every pending `sleep` when the clock stops; a script ends by not catching it. */
 export class Stopped extends Error {
   override readonly name = "Stopped";
@@ -71,31 +69,4 @@ export class Clock {
       sleeper.resolve();
     }, sleeper.remaining);
   }
-}
-
-export function useReducedMotion(): boolean {
-  return React.useSyncExternalStore(
-    (onChange) => {
-      const query = matchMedia("(prefers-reduced-motion: reduce)");
-      query.addEventListener("change", onChange);
-      return () => query.removeEventListener("change", onChange);
-    },
-    () => matchMedia("(prefers-reduced-motion: reduce)").matches,
-    () => false,
-  );
-}
-
-/** Whether at least 40% of `element` is on screen: the threshold a scene plays at. */
-export function useMostlyVisible(element: HTMLElement | null): boolean {
-  const [visible, setVisible] = React.useState(false);
-  React.useEffect(() => {
-    if (!element) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => setVisible((entry?.intersectionRatio ?? 0) >= 0.4),
-      { threshold: [0, 0.4, 0.6, 1] },
-    );
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [element]);
-  return visible;
 }

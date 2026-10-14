@@ -1,5 +1,5 @@
-import type { TryWindow } from "../../sections/try/window";
-import { clamp, easeInOutQuad, easeStep, smoothstep } from "../math";
+import type { TryWindow } from "../../hand-over/try-window";
+import { clamp, easeInOutQuad, easeStep, smoothstep } from "../../../shared/math";
 import type { GridScene } from "./grid-scene";
 import { NAV_HEIGHT } from "./table/grid-layout";
 

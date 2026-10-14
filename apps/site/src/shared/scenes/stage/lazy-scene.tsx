@@ -1,5 +1,7 @@
 import * as React from "react";
-import type { SceneProps } from "../../scenes/types";
+import { SceneBoundary } from "../scene-boundary";
+import { useNear } from "../../viewport/visibility";
+import type { SceneProps } from "../types";
 import { type FrameParts, type FrameSize, WindowFrame } from "./window-frame";
 
 /**
@@ -13,7 +15,9 @@ export type RealSceneProps = SceneProps & {
   handOver: () => void;
 };
 
-// How far ahead of the view, in view heights, a scene's app mounts.
+// How far ahead of the view, in view heights, a scene's app mounts: far enough that the first
+// feature's window, below its section's piece, mounts with the page on a phone rather than in the
+// same first scroll as the try window's app.
 const MOUNT_AHEAD = 1.5;
 
 type Loader = () => Promise<{ default: React.ComponentType<RealSceneProps> }>;
@@ -29,49 +33,24 @@ export function lazyScene(load: Loader, size: FrameSize): React.FC<SceneProps> {
 
   function Scene(props: SceneProps): React.ReactElement {
     const [parts, setParts] = React.useState<FrameParts | null>(null);
-    const [near, setNear] = React.useState(false);
     const [handed, setHanded] = React.useState(false);
     const handOver = React.useCallback(() => setHanded(true), []);
     const live = props.usable === true && handed;
 
-    React.useEffect(() => {
-      if (!parts || near) return;
-      const observer = new IntersectionObserver(
-        ([entry]) => {
-          if (entry?.isIntersecting) setNear(true);
-        },
-        // Far enough ahead that the first feature's window, below its section's piece, mounts with
-        // the page on a phone rather than in the same first scroll as the try window's app.
-        { rootMargin: `${MOUNT_AHEAD * 100}% 0px` },
-      );
-      observer.observe(parts.outer);
-      return () => observer.disconnect();
-    }, [parts, near]);
+    const near = useNear(parts?.outer ?? null, MOUNT_AHEAD);
 
     return (
       <WindowFrame className={props.className} live={live} onParts={setParts} size={size}>
         {parts && near ? (
-          <Quiet>
+          // A scene that fails to load leaves its empty window rather than taking the page down with it.
+          <SceneBoundary>
             <React.Suspense fallback={null}>
               <Real {...props} handOver={handOver} live={live} parts={parts} size={size} />
             </React.Suspense>
-          </Quiet>
+          </SceneBoundary>
         ) : null}
       </WindowFrame>
     );
   }
   return Scene;
-}
-
-/** A scene that fails to load leaves its empty window rather than taking the page down with it. */
-class Quiet extends React.Component<{ children: React.ReactNode }, { failed: boolean }> {
-  override state = { failed: false };
-
-  static getDerivedStateFromError(): { failed: boolean } {
-    return { failed: true };
-  }
-
-  override render(): React.ReactNode {
-    return this.state.failed ? null : this.props.children;
-  }
 }

@@ -1,5 +1,6 @@
 import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
 import type { Bird, BirdLook, BirdPalette } from "./bird";
+import { LG, MD } from "../viewport/media";
 import { resolvePalette } from "./colors";
 
 export type BirdSize = number | { base: number; md?: number; lg?: number };
@@ -20,10 +21,9 @@ export type BirdProviderProps = {
 const BirdContext = createContext<Bird | null>(null);
 
 const DEFAULT_SIZE = { base: 40, md: 48, lg: 56 };
-const MD = "(min-width: 48rem)";
-const LG = "(min-width: 64rem)";
 
-function sizeFor(size: BirdSize): number {
+/** The length BirdProvider gives the bird at this width. */
+export function sizeFor(size: BirdSize): number {
   if (typeof size === "number") return size;
   if (size.lg !== undefined && matchMedia(LG).matches) return size.lg;
   if (size.md !== undefined && matchMedia(MD).matches) return size.md;

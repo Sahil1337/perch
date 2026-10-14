@@ -1,7 +1,8 @@
 import { type RefObject, useEffect } from "react";
-import type { TryWindow } from "../../sections/try/window";
-import type { Point } from "../math";
-import type { CopyParts } from "../types";
+import type { TryWindow } from "../../hand-over/try-window";
+import type { Point } from "../../../shared/math";
+import { REDUCED_MOTION } from "../../../shared/viewport/media";
+import type { CopyParts } from "../copy/types";
 import type { PorcelainBird } from "./bird/porcelain-bird";
 import { measureHeadline } from "./copy/headline";
 import { GridScene, type SceneHooks } from "./grid-scene";
@@ -45,7 +46,7 @@ export function useGridScene(parts: GridSceneParts) {
     const el = canvas.current;
     const section = stage.current;
     if (!host || !el || !section) return;
-    const reducedQuery = matchMedia("(prefers-reduced-motion: reduce)");
+    const reducedQuery = matchMedia(REDUCED_MOTION);
     let scene: GridScene | null = null;
     let live = true;
     let settled = false;
