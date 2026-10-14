@@ -13,12 +13,15 @@ export type RealSceneProps = SceneProps & {
   handOver: () => void;
 };
 
+// How far ahead of the view, in view heights, a scene's app mounts.
+const MOUNT_AHEAD = 1.5;
+
 type Loader = () => Promise<{ default: React.ComponentType<RealSceneProps> }>;
 
 /**
  * A real scene as the light export prototypes import. The frame — chrome, aspect ratio, scale — is
  * here and paints at once; CodeMirror and the workspace are in `load`'s module, fetched only once
- * the frame comes within a viewport's height of being seen, and rendered into the frame's app area.
+ * the frame comes within a viewport and a half of being seen, and rendered into the frame's app area.
  * The frame's elements never change, so an anchor taken from them stays good.
  */
 export function lazyScene(load: Loader, size: FrameSize): React.FC<SceneProps> {
@@ -37,7 +40,9 @@ export function lazyScene(load: Loader, size: FrameSize): React.FC<SceneProps> {
         ([entry]) => {
           if (entry?.isIntersecting) setNear(true);
         },
-        { rootMargin: "100% 0px" },
+        // Far enough ahead that the first feature's window, below its section's piece, mounts with
+        // the page on a phone rather than in the same first scroll as the try window's app.
+        { rootMargin: `${MOUNT_AHEAD * 100}% 0px` },
       );
       observer.observe(parts.outer);
       return () => observer.disconnect();

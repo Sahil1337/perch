@@ -1,20 +1,19 @@
 import type { RefObject } from "react";
-import type { BirdFacing, RoamEdge, RoamZone } from "../../shared/bird";
+import type { RoamEdge, RoamZone } from "../../shared/bird";
 
 export type RouteStep = {
   ref: RefObject<HTMLElement | null>;
   /** 0..1 along the perch's width. */
   at: number;
-  facing?: BirdFacing;
-  offsetY?: number;
   /** The share of the bird's moves in this zone that end back on this perch. */
   homing?: number;
 };
 
-// Text the bird must never stand in front of. Text inside a marked product window is the product's,
-// and the bird may fly across it.
-const TEXT = "h1, h2, h3, p, li, dt, dd, figcaption";
+// Text the bird must never stand in front of: the page's own, and the print on a piece's slips.
+// Text inside a marked product window is the product's, and the bird may fly across it.
+const TEXT = "h1, h2, h3, p, li, dt, dd, figcaption, [data-slip]";
 const WINDOW = "[data-perch-frame]";
+const PIECE = "[data-section-piece]";
 
 /** The section a perch belongs to: its heading, its product window, the text to keep off. */
 export function sectionOf(perch: HTMLElement): HTMLElement {
@@ -22,23 +21,27 @@ export function sectionOf(perch: HTMLElement): HTMLElement {
 }
 
 /**
- * The section's product window: a marked frame, or else the scene's own slot, the block after the
- * heading under the perch, for a scene drawn without the shared frame.
+ * The section's product window: a marked frame, or else the scene's slot, for a scene drawn without
+ * the shared frame.
  */
-function windowIn(section: HTMLElement, perch: HTMLElement): HTMLElement | null {
+function windowIn(section: HTMLElement): HTMLElement | null {
   const marked = section.querySelector<HTMLElement>(WINDOW);
   if (marked) return marked;
-  const slot = perch.parentElement?.lastElementChild;
-  if (!(slot instanceof HTMLElement) || slot === perch || slot.querySelector("h1, h2")) return null;
+  const slot = section.querySelector<HTMLElement>("[data-section-scene]");
+  if (!slot) return null;
   const r = slot.getBoundingClientRect();
   return r.width >= 240 && r.height >= 140 ? slot : null;
 }
 
+function lineRects(el: Element): DOMRect[] {
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  return [...range.getClientRects()].filter((r) => r.width > 1 && r.height > 1);
+}
+
 /** The first line of a heading, as an edge the bird can stand on, its feet on the cap line. */
 function headingEdge(heading: HTMLElement): RoamEdge | null {
-  const range = document.createRange();
-  range.selectNodeContents(heading);
-  const lines = [...range.getClientRects()].filter((r) => r.width > 4);
+  const lines = lineRects(heading).filter((r) => r.width > 4);
   const box = heading.getBoundingClientRect();
   if (!lines.length || !box.width) return null;
   const first = lines.reduce((a, b) => (b.top < a.top - 2 ? b : a));
@@ -56,46 +59,46 @@ function headingEdge(heading: HTMLElement): RoamEdge | null {
   };
 }
 
-/** The section's top hairline, held to the content's width, for a section with no perch of its own. */
-function branchEdge(section: HTMLElement): RoamEdge | null {
-  const branch = section.querySelector<HTMLElement>(":scope > [aria-hidden]");
-  const content = section.querySelector<HTMLElement>(":scope > :not([aria-hidden])");
-  if (!branch || !content) return null;
-  const r = branch.getBoundingClientRect();
-  const c = content.getBoundingClientRect();
-  if (r.height > 4 || !r.width) return null;
-  const pad = parseFloat(getComputedStyle(content).paddingLeft) || 0;
-  return { el: branch, from: (c.left + pad - r.left) / r.width, to: (c.right - pad - r.left) / r.width };
+/**
+ * Where a step's bird lives: on the step's element, or, for a section's own line (a section with no
+ * piece), on its heading's cap line, `at` measured along the heading's first line.
+ */
+function homeOf(el: HTMLElement, section: HTMLElement, at: number): RoamEdge & { at: number } {
+  const heading = el.hasAttribute("data-section-perch") ? section.querySelector<HTMLElement>("h1, h2") : null;
+  const edge = heading && headingEdge(heading);
+  if (!edge) return { el, at, from: 0.03, to: 0.97 };
+  const { from = 0, to = 1 } = edge;
+  return { ...edge, at: from + (to - from) * at };
 }
 
-function lineRects(el: Element): DOMRect[] {
-  const range = document.createRange();
-  range.selectNodeContents(el);
-  return [...range.getClientRects()].filter((r) => r.width > 1 && r.height > 1);
-}
-
-export function zoneFor({ el, at, facing, offsetY, homing }: Omit<RouteStep, "ref"> & { el: HTMLElement }): RoamZone {
+export function zoneFor({ el, at, homing }: Omit<RouteStep, "ref"> & { el: HTMLElement }): RoamZone {
   const section = sectionOf(el);
-  const win = () => windowIn(section, el);
+  const home = homeOf(el, section, at);
+  const win = () => windowIn(section);
   return {
-    home: { el, at, facing, offsetY, from: 0.03, to: 0.97 },
+    home,
     homing,
     edges() {
       const out: RoamEdge[] = [];
       const heading = section.querySelector<HTMLElement>("h1, h2");
       const head = heading && headingEdge(heading);
-      if (head) out.push(head);
+      if (head && head.el !== home.el) out.push(head);
       const frame = win();
       if (frame) out.push({ el: frame, offsetY: 1 });
-      // a perch that is not the section's own branch line (the install command) leaves the branch free
-      const branch = el.matches("[aria-hidden]") ? null : branchEdge(section);
-      if (branch) out.push(branch);
       return out;
     },
     *avoid() {
       const frame = section.querySelector(WINDOW);
       for (const text of section.querySelectorAll(TEXT)) {
         if (!frame?.contains(text)) yield* lineRects(text);
+      }
+      // A piece's print comes and goes as it loops, and a slip may unfold under a bird that landed
+      // beside it, so below the perch's top edge the whole piece is kept clear, not just what shows
+      // now. Above that edge is the headroom the bird stands in on its piece.
+      const piece = el.closest(PIECE);
+      if (piece) {
+        const box = piece.getBoundingClientRect();
+        yield { left: box.left, right: box.right, top: el.getBoundingClientRect().top, bottom: box.bottom };
       }
     },
     around: win,

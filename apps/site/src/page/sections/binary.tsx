@@ -1,15 +1,14 @@
-import type { Ref } from "react";
 import { TerminalScene } from "../../shared/scenes";
-import { Section, SectionHeading, SectionScene } from "../layout/section";
+import { type FeatureSectionProps, Section, SectionHeading, SectionScene } from "../layout/section";
 import { code } from "../layout/type";
+import { BinaryPiece } from "./binary/piece";
 
-export type BinaryProps = { perchRef: Ref<HTMLDivElement>; onSceneDone: () => void };
-
-export function BinarySection({ perchRef, onSceneDone }: BinaryProps) {
+export function BinarySection({ perchRef, onSceneDone }: FeatureSectionProps) {
   return (
-    <Section id="one-binary" labelledBy="binary-title" perchRef={perchRef}>
+    <Section id="one-binary" labelledBy="binary-title">
       <SectionHeading
         id="binary-title"
+        piece={<BinaryPiece perchRef={perchRef} />}
         title={
           <>
             <span className="block">One binary.</span> <span className="block">Nothing else to install.</span>

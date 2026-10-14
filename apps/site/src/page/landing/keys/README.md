@@ -61,7 +61,9 @@ As the landing scrolls away the keys tip and sink into their shadows, row by row
 query and the rows hold still on screen, then glide down into the real window under "Your turn.":
 the query onto the editor's own second line, shrinking to its size, the rows toward the results
 pane, fading before they would leave the view. The bird leaves the keys for the window's top edge,
-and the page's roaming route takes it from there. Scrolling back to the top brings it home.
+and the page's roaming route takes it from there. Scrolling back to the top brings it home. A jump
+past the landing (an anchor under reduced motion, a reload part-way down) cuts the intro where it
+is: the slips settle on the stack, and the route takes the bird to the section in view.
 
 ### Reduced motion
 The settled frame: the whole query, the stack and the caption, the bird on return. No flight, no
@@ -80,7 +82,7 @@ keys/
   rig.ts             the refs the hooks share, and the stage the script plays on
   keymap.ts          the nine keys, their legends, the visitor's keys
   data.ts            the recorded rows and the query's text
-  keys.css           tokens and keyframes, imported by page.css
+  keys.css           the scene light and keyframes, imported by page.css
   sculpture/         the three.js sculpture
     use-sculpture.ts   lays the scene out and draws the sculpture, on mount and resize
     sculpture.ts       renderer, camera and draw loop; press, ripple, perch, fold
@@ -89,7 +91,7 @@ keys/
     view.ts            the fixed view and the camera fit; the sculpture's aspect
     keycap.ts          the faceted keycap geometry
     textures.ts        legends and the soft contact shadow
-    colors.ts          the --keys-* tokens, resolved for three.js
+    colors.ts          the materials and the scene light, resolved for three.js
   story/             what plays, and when
     script.ts          the intro and the hop
     run.ts             a cancellable run of the script
@@ -99,6 +101,6 @@ keys/
     use-hand-over.ts   the scroll hand-over to the try window
   overlay/           the DOM layers over and under the canvas
     query.tsx          the query and its completion menu
-    slips.tsx          the rows as paper slips
+    slips.tsx          the rows, on the page's paper slips (materials/slip.tsx)
     slip-flights.ts    their burst: the kept rows' arcs, the thrown rows' flutter
 ```

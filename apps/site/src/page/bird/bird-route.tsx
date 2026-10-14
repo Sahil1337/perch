@@ -7,8 +7,9 @@ import { type RouteStep, zoneFor } from "./route";
  * The bird's route down the page, from the try window to the footer: while the route drives, the
  * bird roams the section being read, one zone per step, and follows the reader as they scroll. The
  * landing brings it on stage and hands it over; a reload part-way down starts it where the reader is.
+ * A component of its own rendering nothing, so the bird changing hands redraws only this.
  */
-export function useBirdRoute(steps: RouteStep[]): void {
+export function BirdRoute({ steps }: { steps: RouteStep[] }) {
   const bird = useBirdFor("route");
   useEffect(() => {
     if (!bird) return;
@@ -16,4 +17,5 @@ export function useBirdRoute(steps: RouteStep[]): void {
     return roam(bird, { zones, ceiling: document.querySelector("[data-site-nav]") });
     // The steps are refs and constants: the route is set up each time it takes the bird.
   }, [bird]);
+  return null;
 }

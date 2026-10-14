@@ -10,15 +10,15 @@ export type SculptureColors = {
   shadow: string;
 };
 
-/** The `--keys-*` tokens from keys.css, resolved where `host` sits. */
+/** The page's materials and the scene's own light (keys.css), resolved where `host` sits. */
 export function readSculptureColors(host: Element): SculptureColors {
-  const read = (name: string) => toRgb(`var(--keys-${name})`, host);
+  const read = (token: string) => toRgb(`var(--${token})`, host);
   return {
     porcelain: read("porcelain"),
     glaze: read("glaze"),
-    light: read("light"),
-    sky: read("sky"),
-    ground: read("ground"),
-    shadow: read("shadow"),
+    light: read("porcelain-light"),
+    sky: read("keys-sky"),
+    ground: read("keys-ground"),
+    shadow: read("keys-shadow"),
   };
 }

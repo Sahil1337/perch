@@ -41,7 +41,7 @@ export type BoxPaneProps = {
 };
 
 /**
- * A small window on the app showing the crop for the item in hand. Decorative: the list beside it
+ * A window on the app showing the crop for the item in hand. Decorative: the list beside it
  * says everything in words. The window's box is held from the first paint (the titlebar's viewBox,
  * the crops' 4:3), so nothing moves when the images arrive.
  */

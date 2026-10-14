@@ -1,42 +1,28 @@
 import { Check, Copy } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useRef } from "react";
 import { cn } from "../cn";
 import { INSTALL_COMMAND } from "./release";
+import { useCopyInstallCommand } from "./use-copy-install-command";
 
-const COPIED_MS = 1600;
-
-async function copyText(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    return false;
-  }
-}
+/** A row's own copy control: `copy` copies the command (or selects it if the clipboard says no). */
+export type InstallCommandAction = (state: { copied: boolean; copy: () => void }) => ReactNode;
 
 export type InstallCommandProps = {
   className?: string;
   /** After a successful copy: a moment for the bird to flutter. */
   onCopy?: () => void;
+  /** Drawn at the end of the row in place of the Copy button. */
+  action?: InstallCommandAction;
 };
 
 /** The exact `curl … | sh` line, scrollable on a narrow screen, with a Copy → Copied button. */
-export function InstallCommand({ className, onCopy }: InstallCommandProps) {
-  const [copied, setCopied] = useState(false);
+export function InstallCommand({ className, onCopy, action }: InstallCommandProps) {
+  const { copied, copy } = useCopyInstallCommand(onCopy);
   const code = useRef<HTMLElement>(null);
-  const timer = useRef<number>(0);
-  useEffect(() => () => clearTimeout(timer.current), []);
 
-  const copy = async () => {
-    if (!(await copyText(INSTALL_COMMAND))) {
-      // the clipboard said no: select the whole command so a keyboard copy still gets all of it
-      if (code.current) getSelection()?.selectAllChildren(code.current);
-      return;
-    }
-    setCopied(true);
-    clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => setCopied(false), COPIED_MS);
-    onCopy?.();
+  const copyOrSelect = async () => {
+    // the clipboard said no: select the whole command so a keyboard copy still gets all of it
+    if (!(await copy()) && code.current) getSelection()?.selectAllChildren(code.current);
   };
 
   return (
@@ -57,15 +43,19 @@ export function InstallCommand({ className, onCopy }: InstallCommandProps) {
         </span>
         <code ref={code}>{INSTALL_COMMAND}</code>
       </div>
-      <button
-        type="button"
-        onClick={copy}
-        aria-label={copied ? "Install command copied" : "Copy install command"}
-        className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 font-sans text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-      >
-        {copied ? <Check aria-hidden className="size-3.5" /> : <Copy aria-hidden className="size-3.5" />}
-        <span>{copied ? "Copied" : "Copy"}</span>
-      </button>
+      {action ? (
+        action({ copied, copy: () => void copyOrSelect() })
+      ) : (
+        <button
+          type="button"
+          onClick={copyOrSelect}
+          aria-label={copied ? "Install command copied" : "Copy install command"}
+          className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 font-sans text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        >
+          {copied ? <Check aria-hidden className="size-3.5" /> : <Copy aria-hidden className="size-3.5" />}
+          <span>{copied ? "Copied" : "Copy"}</span>
+        </button>
+      )}
       <span role="status" className="sr-only">
         {copied ? "Install command copied" : ""}
       </span>

@@ -1,7 +1,7 @@
 import { cn } from "../../shared/cn";
 import { HeroScene } from "../../shared/scenes";
 import { useHop } from "../bird/use-hop";
-import { Branch, Perch } from "../layout/branch";
+import { Perch } from "../layout/perch";
 import { Container } from "../layout/container";
 import { body, heading } from "../layout/type";
 import { useMountWindow } from "./try/use-mount-window";
@@ -28,7 +28,6 @@ export function TrySection({ settled }: TrySectionProps) {
           <p className={cn(body, "mt-4 lg:mt-6")}>It’s the real editor, on a sample database.</p>
         </div>
         <div ref={target.frame} className="relative mt-8 lg:mt-12">
-          <Branch />
           <Perch ref={target.perch} />
           {mounted ? (
             <HeroScene

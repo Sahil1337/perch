@@ -6,7 +6,7 @@ export type TryWindow = {
   frame: RefObject<HTMLDivElement | null>;
   /** The app's results pane, once the app has mounted. */
   results: RefObject<HTMLElement | null>;
-  /** The branch along the window's top edge: the bird's perch once the landing lets it go. */
+  /** A line along the window's top edge: the bird's perch once the landing lets it go. */
   perch: RefObject<HTMLDivElement | null>;
   /** The demo has run its query, so the results pane shows rows. */
   ran: boolean;

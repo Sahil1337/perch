@@ -27,7 +27,9 @@ Run everything from the repo root. There is one `bun.lock` and one `node_modules
 - **Turborepo owns `dev` and `start`, nothing else.** `dev` starts `vite dev` (:5173, pinned with
   `strictPort` because apps/server's dev script allow-lists that exact origin) and `perch serve`
   (a free port, picked by `scripts/dev.mjs` and passed to both through `PERCH_DEV_PORT` /
-  `VITE_PERCH_URL`); `dev:server` and `dev:ui` are the halves, both on :4600. `start` runs the
+  `VITE_PERCH_URL`); `dev:server` and `dev:ui` are the halves, both on :4600. `dev:site` runs
+  the landing page alone on :5180; `build:site` then `start:site` serve its built page on the same
+  port, which is the one to put behind ngrok. `start` runs the
   built app, which is one process: there is no production UI server, because `apps/web` builds
   into `apps/server/ui/` and `perch serve` mounts it at `/`.
   **Turbo 2 filters the environment** — a new variable either half needs must be added to

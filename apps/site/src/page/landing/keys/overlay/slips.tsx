@@ -1,4 +1,5 @@
 import { type Ref, useCallback, useImperativeHandle, useLayoutEffect, useRef } from "react";
+import { Slip } from "../../../materials";
 import { type Point, seededRandom } from "../../math";
 import { ARRIVALS, TOTAL_BIRDS, type Arrival } from "../data";
 import { arc, flutter } from "./slip-flights";
@@ -35,16 +36,13 @@ function showCaption(el: HTMLElement | null, stack: Stack, animate: boolean) {
   el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: animate ? 600 : 0, delay: animate ? 700 : 0, fill: "both" });
 }
 
-function Slip({ row, slipRef }: { row: Arrival; slipRef: (el: HTMLDivElement | null) => void }) {
+function RowSlip({ row, slipRef }: { row: Arrival; slipRef: (el: HTMLDivElement | null) => void }) {
   return (
-    <div
-      ref={slipRef}
-      className="absolute top-0 left-0 flex w-60 items-baseline gap-3 rounded-xs border-b border-keys-paper-edge bg-keys-paper px-2.5 py-1 font-mono text-xs/5 text-keys-paper-ink opacity-0 shadow-md shadow-background/70"
-    >
+    <Slip ref={slipRef} className="absolute top-0 left-0 flex w-60 items-baseline gap-3 px-2.5 py-1 text-xs/5 opacity-0">
       <span className="truncate">{row.name}</span>
-      <span className="ml-auto text-keys-paper-muted">{row.seen}</span>
+      <span className="ml-auto text-paper-muted">{row.seen}</span>
       <span className="w-8 text-right tabular-nums">{row.birds}</span>
-    </div>
+    </Slip>
   );
 }
 
@@ -99,7 +97,9 @@ export function Slips({ ref, stack }: { ref: Ref<SlipsHandle>; stack: Stack }) {
           el.animate(frames, { duration: seconds * 1000, delay: n * 18, easing: "linear", fill: "both" });
         });
         showCaption(caption.current, stack, true);
-        return Promise.all(runs).then(() => undefined);
+        // An intro cut short mid-burst settles the slips, and cancelling their flights rejects these
+        // with an AbortError; the burst has ended either way, so that is not an error.
+        return Promise.allSettled(runs).then(() => undefined);
       },
       settle() {
         rest(stack);
@@ -116,7 +116,7 @@ export function Slips({ ref, stack }: { ref: Ref<SlipsHandle>; stack: Stack }) {
   );
 
   const slip = (row: Arrival, i: number) => (
-    <Slip
+    <RowSlip
       key={row.name}
       row={row}
       slipRef={(el) => {

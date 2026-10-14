@@ -3,9 +3,10 @@
    which tracks the same sky so it never reads as a band. Every colour is derived from the app's
    own palette. */
 
-/* The page's one Tailwind build: the shared base, then the two landing scenes' tokens, so their
-   utilities are generated with everything else. */
+/* The page's one Tailwind build: the shared base, the materials, then the two landing scenes' tokens,
+   so their utilities are generated with everything else. */
 @import "../shared/styles/base.css";
+@import "./materials/materials.css";
 @import "./landing/keys/keys.css";
 @import "./landing/grid/grid.css";
 

@@ -14,21 +14,34 @@ export type RevealProps = {
   /** Plays every time it enters view rather than once. Default false. */
   repeat?: boolean;
   as?: "div" | "section" | "li" | "p" | "span" | "header" | "footer" | "article";
-};
-
+} & { [data: `data-${string}`]: string | undefined };
 
 /**
  * Fades and rises into place the first time it scrolls into view: calm, ease-out, no overshoot.
  * Under prefers-reduced-motion it is simply there.
  */
-export function Reveal({ children, className, delay = 0, distance = 12, amount = 0.2, repeat = false, as = "div" }: RevealProps) {
+export function Reveal({
+  children,
+  className,
+  delay = 0,
+  distance = 12,
+  amount = 0.2,
+  repeat = false,
+  as = "div",
+  ...data
+}: RevealProps) {
   const reduced = useReducedMotion();
   const Tag = motion[as];
   if (reduced) {
-    return <Tag className={className}>{children}</Tag>;
+    return (
+      <Tag className={className} {...data}>
+        {children}
+      </Tag>
+    );
   }
   return (
     <Tag
+      {...data}
       className={className}
       initial={{ opacity: 0, y: distance }}
       whileInView={{ opacity: 1, y: 0 }}
