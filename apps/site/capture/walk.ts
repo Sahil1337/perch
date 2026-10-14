@@ -8,7 +8,9 @@
 // Writes assets/clips/walk.{mp4,webm,webp}, walk-small.mp4 (phones and 1x screens) and
 // assets/data/walk.json. Prerequisites as in README.md, plus ffmpeg with libx264 and libsvtav1.
 // Environment, all optional: WALK_PORT, WALK_CDP_PORT, WALK_CRF_H264, WALK_CRF_AV1, and WALK_WORK
-// to keep the captured frames and the lossless master in that directory.
+// to keep the captured frames and the lossless master in that directory. WALK_WIDTH, WALK_HEIGHT,
+// WALK_SQL (a query file) and WALK_NAME (the files' base name) record another cut, such as the
+// phones' (README.md).
 
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir, userInfo } from "node:os";
@@ -27,9 +29,10 @@ const PG = {
   database: process.env.CAPTURE_DB ?? "perch_site_demo",
 };
 
-// The same app size <perch-workspace> replays, so the two windows share one scale on the page.
-const WIDTH = 1280;
-const HEIGHT = 760;
+// By default the same app size <perch-workspace> replays, so the two windows share one scale on the page.
+const WIDTH = Number(process.env.WALK_WIDTH ?? 1280);
+const HEIGHT = Number(process.env.WALK_HEIGHT ?? 760);
+const NAME = process.env.WALK_NAME ?? "walk";
 const DPR = 2;
 const FPS = 60;
 // How long the clip rests on the answer, then how long it takes to dissolve back into frame one.
@@ -38,7 +41,7 @@ const FADE_S = 0.7;
 // The FROM card lands this long before the clip starts, so frame one is settled rather than empty.
 const LEAD_S = 0.8;
 
-const SQL = readFileSync(join(import.meta.dir, "walk.sql"), "utf8").trim();
+const SQL = readFileSync(resolve(import.meta.dir, process.env.WALK_SQL ?? "walk.sql"), "utf8").trim();
 const RAIL = "FROM JOIN WHERE GROUP_BY HAVING WINDOW SELECT DISTINCT ORDER_BY LIMIT".split(" ").map((c) => c.replace("_", " "));
 
 // WALK_WORK keeps the frames for inspection; otherwise everything lives in a temp dir that goes.
@@ -246,7 +249,7 @@ try {
     canvas.getContext('2d').drawImage(img, 0, 0);
     return canvas.toDataURL('image/webp', 0.9).split(',')[1];
   })()`);
-  writeFileSync(join(clips, "walk.webp"), Buffer.from(webp, "base64"));
+  writeFileSync(join(clips, `${NAME}.webp`), Buffer.from(webp, "base64"));
   page.close();
 
   const data = {
@@ -257,7 +260,7 @@ try {
     done: sec(done.at),
     stages,
   };
-  writeFileSync(join(ASSETS, "data/walk.json"), `${JSON.stringify(data, null, 2)}\n`);
+  writeFileSync(join(ASSETS, `data/${NAME}.json`), `${JSON.stringify(data, null, 2)}\n`);
 
   const filter =
     `[0:v]fps=${FPS},trim=duration=${main + FADE_S},setpts=PTS-STARTPTS,format=rgb24[a];` +
@@ -280,12 +283,13 @@ try {
     ffmpeg(["-i", master, ...extra, "-c:v", "libx264", "-preset", "veryslow", "-tune", "animation", "-crf", crf.h264,
       "-refs", "6", "-level", "5.1", ...keys, "-profile:v", "high", "-pix_fmt", "yuv420p", ...tags,
       "-movflags", "+faststart", "-an", join(clips, out)]);
-  h264("walk.mp4", []);
-  // Phones and 1x screens draw the window under ~1440 device pixels; they get the clip at 1x.
-  h264("walk-small.mp4", ["-vf", `scale=${WIDTH}:${HEIGHT}:flags=lanczos`]);
+  h264(`${NAME}.mp4`, []);
+  // Phones and 1x screens draw the window under ~1440 device pixels; they get the clip at 1x. A
+  // recording narrower than that is already their size.
+  if (WIDTH * DPR > 1440) h264(`${NAME}-small.mp4`, ["-vf", `scale=${WIDTH}:${HEIGHT}:flags=lanczos`]);
   // AV1 with screen-content tools holds the same text in about three quarters of the H.264's bytes.
   ffmpeg(["-i", master, "-c:v", "libsvtav1", "-preset", "4", "-crf", crf.av1, ...keys,
-    "-svtav1-params", "scm=1:tune=0", "-pix_fmt", "yuv420p", ...tags, "-an", join(clips, "walk.webm")]);
+    "-svtav1-params", "scm=1:tune=0", "-pix_fmt", "yuv420p", ...tags, "-an", join(clips, `${NAME}.webm`)]);
   const fps = clip.length / main;
   console.log(`${clip.length} frames over ${main.toFixed(1)}s (${fps.toFixed(1)} fps captured), lag ${lag.toFixed(0)}ms`);
   console.log(JSON.stringify(data.stages));

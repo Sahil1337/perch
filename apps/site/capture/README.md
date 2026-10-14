@@ -48,6 +48,30 @@ Into `apps/site/public/legacy/`:
 - `data/*.json` — each query's columns, rows, row count and timings from the run the UI showed, and
   `schema.json`, the tree the sidebar draws.
 
+## Query Walk
+
+`walk.ts` records the walk `<perch-walk>` plays, from the same binary and database: it opens the
+walk on `walk.sql` and screencasts it at device scale 2. It writes `clips/walk.{mp4,webm,webp}`,
+`clips/walk-small.mp4` and `data/walk.json` (the clause times the rail follows).
+
+```sh
+bun apps/site/capture/walk.ts
+```
+
+Phones get their own cut. At 470px the app stacks the walk, stepper and table over the step's
+explanation and the query, so on a phone the explanation reads at about 0.76 rather than 0.28. Same
+query: its output is already two columns, and until SELECT the walk shows the source tables whole
+whatever is selected.
+
+```sh
+WALK_WIDTH=470 WALK_HEIGHT=1100 WALK_NAME=walk-phone bun apps/site/capture/walk.ts
+```
+
+That writes `clips/walk-phone.{mp4,webm,webp}` and `data/walk-phone.json`, and no small cut: at 940
+pixels wide the 2x clip is already a phone's size. `<perch-walk variant="phone">` plays it. 1100 is
+the shortest height at which nothing in the stacked walk scrolls. `WALK_SQL` takes another query
+file, and `WALK_PORT` and `WALK_CDP_PORT` move the two ports.
+
 ## Privacy
 
 Snapshots are scrubbed as they are taken: the throwaway workspace reads `~/birdwatch`, perch's home

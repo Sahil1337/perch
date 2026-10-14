@@ -212,7 +212,8 @@ export class Camera {
     const { width: w, height: h } = this.#view();
     const { width: appW, height: appH } = this.#size;
     const focus = target;
-    let s = 1;
+    // A close-up's app taller than its crop is drawn whole for the wide shot, smaller than across.
+    let s = this.closeUp ? Math.min(1, h / appH) : 1;
     // The whole app, centred: a close-up's frame is taller than the app drawn across it.
     let cx = appW / 2;
     let cy = appH / 2;

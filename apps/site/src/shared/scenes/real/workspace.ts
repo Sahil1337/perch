@@ -11,4 +11,10 @@ export const RealHeroScene = lazyScene(() => import("./workspace/hero.scene"), L
 export const RealCompletionScene = lazyScene(() => import("./workspace/completion.scene"), LAPTOP);
 
 /** A .sql notebook of three `-- %%` cells, run in order. */
-export const RealNotebookScene = lazyScene(() => import("./workspace/notebook.scene"), { ...LAPTOP, height: 760 });
+// On a phone the app is laid out a phone's width wide, so a cell, its SQL written across short lines,
+// its run button and its result all fit the frame at a readable size.
+export const RealNotebookScene = lazyScene(
+  () => import("./workspace/notebook.scene"),
+  { ...LAPTOP, height: 760 },
+  { width: 440, height: 1320 },
+);

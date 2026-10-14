@@ -43,6 +43,8 @@ export type SceneContext = {
 export type SceneScript = {
   readonly camera: "always" | "narrow";
   readonly input: ReplayInput;
+  /** The input in a phone's close-up, when the scene starts from a different state there. */
+  readonly closeUpInput?: ReplayInput;
   /**
    * The demo, from the store's initial state to its main beat, which is its last frame. Awaits only
    * `clock.sleep`, so it pauses.
@@ -75,7 +77,8 @@ export function RealScene({
   onDone,
   onBeat,
 }: RealSceneProps & { script: SceneScript }): React.ReactElement {
-  const { api, store } = useReplayWorkspace(script.input);
+  // The frame is remounted when it changes mode, so the choice holds for this scene's life.
+  const { api, store } = useReplayWorkspace(parts.lens && script.closeUpInput ? script.closeUpInput : script.input);
   const latest = React.useRef(api);
   latest.current = api;
   const callbacks = React.useRef({ onReady, onDone, onBeat, handOver });

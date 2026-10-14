@@ -2,7 +2,7 @@
 // runs them in order with each cell's own Run button, and every result lands under its cell.
 
 import { birdwatch } from "../../../replay";
-import { CAMERA_MS, type Camera, DETAIL, type Focus, HOLD_MS, PANES, ROWS } from "../../stage/camera";
+import { CAMERA_MS, type Camera, DETAIL, type Focus, HOLD_MS } from "../../stage/camera";
 import type { RealSceneProps } from "../../stage/lazy-scene";
 import {
   NARROW_WIDTH,
@@ -33,48 +33,60 @@ async function runCell(context: SceneContext, index: number): Promise<void> {
   await waitForRun(context, before);
 }
 
-/** A cell's SQL, read from the editor's left edge. */
-function sqlFocus(camera: Camera, card: HTMLElement): Focus {
-  const box = camera.box(card);
-  const editor = card.querySelector(".cm-editor");
-  const bottom = editor ? camera.box(editor).y + camera.box(editor).h : box.y + box.h;
-  return { x0: box.x - 16, y0: box.y - 16, x1: box.x + 420, y1: bottom + 16, reading: DETAIL };
-}
+/**
+ * The same three queries written across short lines, for the phone's narrow notebook: whitespace is
+ * all that differs, so each still runs as the recorded query does (`normaliseSql`).
+ */
+const PHONE_TEXT = `select count(*) as checklists,
+       count(distinct observer_id)
+         as observers
+from checklists;
+-- %%
+select o.name,
+       count(*) as checklists
+from checklists c
+join observers o
+  on o.id = c.observer_id
+group by o.name
+order by checklists desc
+limit 3;
+-- %%
+select extract(hour from seen_at)
+         as hour,
+       count(*) as sightings
+from sightings
+group by hour
+order by sightings desc
+limit 3;
+`;
 
-/** What a cell returned, under its SQL. */
-function resultFocus(camera: Camera, card: HTMLElement): Focus {
+/** A whole cell: its label, its SQL, its run button and whatever it has returned so far. */
+function wholeCell(camera: Camera, card: HTMLElement): Focus {
   const box = camera.box(card);
-  const editor = card.querySelector(".cm-editor");
-  const top = editor ? camera.box(editor).y + camera.box(editor).h : box.y;
-  return { x0: box.x - 16, y0: top - 40, x1: box.x + 420, y1: box.y + card.scrollHeight + 16, reading: ROWS };
+  return { x0: box.x - 12, y0: box.y - 12, x1: box.x + box.w + 12, y1: box.y + box.h + 12, fitWidth: true, reading: DETAIL };
 }
 
 /**
- * A phone's close-up of the notebook, from the wide shot of all three cells: in on a cell's SQL, its
- * run, down to what it returned, back out over that cell and the next, and in again. Wide at the end.
+ * A phone's close-up of the notebook, laid out a phone's width wide: the whole file for a moment,
+ * then cell by cell — the cell whole, its own run button pressed, and the result printing under it.
+ * The loop ends on the last cell's result and opens wide again on the next pass.
  */
 async function closeUpTour(context: SceneContext, camera: Camera, all: HTMLElement[]): Promise<void> {
   const { clock } = context;
+  if (camera.scale >= 1) {
+    camera.to(null, 900);
+    await clock.sleep(900);
+  }
+  await clock.sleep(800);
   for (const [index, card] of all.entries()) {
-    camera.to(sqlFocus(camera, card), 900);
+    camera.to(wholeCell(camera, card), 900);
     await clock.sleep(900 + HOLD_MS);
     await runCell(context, index);
-    await clock.sleep(400);
-    camera.to(resultFocus(camera, card), 900);
-    await clock.sleep(900 + HOLD_MS + 300);
-    const next = all[index + 1];
-    if (!next) break;
-    // Back out over this cell and the next, so the move to it reads as down the same file.
-    const from = camera.box(card);
-    const to = camera.box(next);
-    camera.to(
-      { x0: from.x - 24, y0: from.y - 24, x1: from.x + from.w + 24, y1: to.y + to.h + 24, fitWidth: true, reading: PANES },
-      900,
-    );
-    await clock.sleep(900 + 700);
+    await clock.sleep(300);
+    // The cell has grown by its result: the frame follows it down.
+    camera.to(wholeCell(camera, card), 700);
+    await clock.sleep(700 + HOLD_MS + 500);
   }
-  camera.to(null, 1000);
-  await clock.sleep(1000);
 }
 
 const script: SceneScript = {
@@ -86,12 +98,19 @@ const script: SceneScript = {
     notebook: [FILE],
     panels: { sidebarTab: "files", layout: splitLayout(42) },
   },
+  closeUpInput: {
+    fixtures: birdwatch,
+    open: [FILE],
+    notebook: [FILE],
+    files: { [FILE]: PHONE_TEXT },
+    panels: { sidebarOpen: false, sidebarTab: "files", layout: splitLayout(42) },
+  },
 
   async play(context) {
     const { clock, camera } = context;
     const all = await cards(context);
-    await clock.sleep(1200);
     if (camera?.closeUp) return closeUpTour(context, camera, all);
+    await clock.sleep(1200);
     for (const [index, card] of all.entries()) {
       // Narrow, a whole card is too small to read: hold its SQL, then cross to the numbers.
       const narrow = camera !== null && context.frameWidth() < NARROW_WIDTH;
@@ -116,10 +135,10 @@ const script: SceneScript = {
     for (const index of all.keys()) await runCell(context, index);
   },
 
-  // The last cell, its SQL and the top of what it returned.
+  // The first cell whole, with what it returned.
   rest: (camera, stage) => {
-    const last = [...stage.querySelectorAll<HTMLElement>("main article")].at(-1);
-    return last ? resultFocus(camera, last) : null;
+    const first = stage.querySelector<HTMLElement>("main article");
+    return first ? wholeCell(camera, first) : null;
   },
 
   anchors: (stage) => ({

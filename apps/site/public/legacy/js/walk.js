@@ -9,6 +9,8 @@
  * Attributes
  *   autoplay  On unless autoplay="false". Plays while at least 40% visible, pauses offscreen.
  *   paused    Holds the recording where it is; removing it resumes.
+ *   variant   "phone" plays walk-phone, recorded 470 wide, where the app stacks the step's
+ *             explanation under its table. Read once, when the element is first connected.
  *
  * Methods
  *   play()   Resumes (never under prefers-reduced-motion).
@@ -31,14 +33,15 @@ const asset = (path) => new URL(path, ASSETS).href;
 
 const RAIL = ["FROM", "JOIN", "WHERE", "GROUP BY", "HAVING", "WINDOW", "SELECT", "DISTINCT", "ORDER BY", "LIMIT"];
 // The app's coordinate space: the recording is 1280x760 CSS px under a 40px titlebar, the size
-// <perch-workspace> replays, so both windows read at one scale on the page.
-const WIDTH = 1280;
+// <perch-workspace> replays, so both windows read at one scale on the page. The phone recording is
+// 470x1100 under the same titlebar; --app-w and --app-h on :host carry whichever is playing.
 const TITLEBAR = 40;
-const SCREEN = 760;
+const at = (px) => `calc(100cqw * ${px} / var(--app-w))`;
 
 const CSS = `
 :host {
   display: block; position: relative; min-width: 0;
+  --app-w: 1280; --app-h: 760;
   --pw-sidebar: oklch(23.1% 0.004 264.487);
   --pw-border: oklch(30.8% 0.006 258.354);
   --pw-field: oklch(29.3% 0.006 271.223);
@@ -46,6 +49,7 @@ const CSS = `
   --pw-screen: oklch(14.6% 0.003 264);
   --rail-ease: var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1));
 }
+:host([variant="phone"]) { --app-w: 470; --app-h: 1100; }
 :host([hidden]) { display: none; }
 .wrap { container-type: inline-size; }
 .window {
@@ -55,21 +59,21 @@ const CSS = `
   box-shadow: 0 0 0 1px oklch(100% 0 0 / 0.15), 0 8px 28px oklch(0% 0 0 / 0.34);
 }
 .titlebar {
-  position: relative; height: calc(100cqw * ${TITLEBAR / WIDTH}); display: flex; align-items: center; justify-content: center;
+  position: relative; height: ${at(TITLEBAR)}; display: flex; align-items: center; justify-content: center;
   background: var(--pw-sidebar); border-bottom: 1px solid var(--pw-border); box-sizing: border-box;
 }
-.lights { position: absolute; left: calc(100cqw * ${14 / WIDTH}); top: 0; bottom: 0; display: flex; align-items: center; gap: calc(100cqw * ${8 / WIDTH}); }
-.lights span { width: calc(100cqw * ${12 / WIDTH}); aspect-ratio: 1; border-radius: 50%; box-shadow: inset 0 0 0 0.5px rgb(0 0 0 / 0.2); }
+.lights { position: absolute; left: ${at(14)}; top: 0; bottom: 0; display: flex; align-items: center; gap: ${at(8)}; }
+.lights span { width: ${at(12)}; aspect-ratio: 1; border-radius: 50%; box-shadow: inset 0 0 0 0.5px rgb(0 0 0 / 0.2); }
 .lights span:nth-child(1) { background: #ff5f57; }
 .lights span:nth-child(2) { background: #febc2e; }
 .lights span:nth-child(3) { background: #28c840; }
 .address {
-  height: calc(100cqw * ${24 / WIDTH}); padding: 0 calc(100cqw * ${14 / WIDTH}); border-radius: calc(100cqw * ${6 / WIDTH});
+  height: ${at(24)}; padding: 0 ${at(14)}; border-radius: ${at(6)};
   display: flex; align-items: center; background: var(--pw-field); color: var(--pw-muted);
-  font: 400 calc(100cqw * ${12 / WIDTH}) / 1 var(--font-sans, "Geist Variable", ui-sans-serif, system-ui, sans-serif);
+  font: 400 ${at(12)} / 1 var(--font-sans, "Geist Variable", ui-sans-serif, system-ui, sans-serif);
   font-variant-numeric: tabular-nums; letter-spacing: 0.01em;
 }
-.screen { position: relative; aspect-ratio: ${WIDTH} / ${SCREEN}; background: var(--pw-screen); }
+.screen { position: relative; aspect-ratio: var(--app-w) / var(--app-h); background: var(--pw-screen); }
 video { display: block; width: 100%; height: 100%; object-fit: cover; background: var(--pw-screen); }
 
 .rail {
@@ -128,8 +132,11 @@ function registerFonts() {
   document.head.append(style);
 }
 
-let data;
-const loadData = () => (data ??= fetch(asset("data/walk.json")).then((r) => r.json()));
+const data = new Map();
+const loadData = (name) => {
+  if (!data.has(name)) data.set(name, fetch(asset(`data/${name}.json`)).then((r) => r.json()));
+  return data.get(name);
+};
 
 class PerchWalk extends HTMLElement {
   static observedAttributes = ["paused", "autoplay"];
@@ -157,16 +164,22 @@ class PerchWalk extends HTMLElement {
   #approach;
   #resize;
   #source;
+  #variant;
 
   constructor() {
     super();
     this.#root = this.attachShadow({ mode: "open" });
     this.#build();
-    this.#ready = this.#load();
   }
 
+  // Started on first use rather than in the constructor, which can run before the variant is set.
   get ready() {
-    return this.#ready;
+    return (this.#ready ??= this.#load());
+  }
+
+  // The recording's base name, fixed by the variant the element was connected with.
+  #name() {
+    return (this.#variant ??= this.getAttribute("variant") === "phone" ? "walk-phone" : "walk");
   }
 
   get anchors() {
@@ -174,6 +187,7 @@ class PerchWalk extends HTMLElement {
   }
 
   connectedCallback() {
+    void this.ready;
     this.#reduced.addEventListener("change", this.#onMotion);
     this.#seen ??= new IntersectionObserver(([entry]) => {
       this.#visible = entry.isIntersecting && entry.intersectionRatio >= 0.4;
@@ -182,7 +196,7 @@ class PerchWalk extends HTMLElement {
     this.#approach ??= new IntersectionObserver(([entry]) => {
       if (!entry.isIntersecting) return;
       this.#approach.disconnect();
-      this.#video.poster = asset("clips/walk.webp");
+      this.#video.poster = asset(`clips/${this.#name()}.webp`);
       if (!this.#reduced.matches) this.#fetchVideo();
     }, { rootMargin: "100% 0px 100% 0px" });
     this.#resize ??= new ResizeObserver(() => this.#placeUnderline(false));
@@ -275,7 +289,7 @@ class PerchWalk extends HTMLElement {
   async #load() {
     registerFonts();
     try {
-      const walk = await loadData();
+      const walk = await loadData(this.#name());
       this.#stages = walk.stages.map((s) => ({ ...s, index: RAIL.indexOf(s.clause) })).filter((s) => s.index >= 0);
       this.#duration = walk.duration;
       this.#done = walk.done;
@@ -303,7 +317,7 @@ class PerchWalk extends HTMLElement {
   #fetchVideo() {
     if (this.#source) return;
     const video = this.#video;
-    video.poster = asset("clips/walk.webp");
+    video.poster = asset(`clips/${this.#name()}.webp`);
     const url = asset(this.#pick());
     this.#source = fetch(url)
       .then((r) => (r.ok ? r.blob() : Promise.reject(new Error(r.statusText))))
@@ -316,12 +330,14 @@ class PerchWalk extends HTMLElement {
   }
 
   // The 1x clip wherever the window is drawn under ~1440 device pixels wide (phones, 1x desktops):
-  // scaled down that far by the browser, the 2x clip's text comes out jagged. Elsewhere AV1 where
-  // it decodes, H.264 everywhere else.
+  // scaled down that far by the browser, the 2x clip's text comes out jagged. The phone recording is
+  // 940 pixels at 2x, already that size, so it has no 1x cut. Elsewhere AV1 where it decodes, H.264
+  // everywhere else.
   #pick() {
+    const name = this.#name();
     const pixels = (this.getBoundingClientRect().width || innerWidth) * devicePixelRatio;
-    if (pixels <= 1440) return "clips/walk-small.mp4";
-    return this.#video.canPlayType('video/webm; codecs="av01.0.12M.08"') ? "clips/walk.webm" : "clips/walk.mp4";
+    if (name === "walk" && pixels <= 1440) return "clips/walk-small.mp4";
+    return this.#video.canPlayType('video/webm; codecs="av01.0.12M.08"') ? `clips/${name}.webm` : `clips/${name}.mp4`;
   }
 
   #onMotion = () => this.#sync();

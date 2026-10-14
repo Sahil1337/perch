@@ -27,9 +27,10 @@ type Loader = () => Promise<{ default: React.ComponentType<RealSceneProps> }>;
  * A real scene as the light export prototypes import. The frame — chrome, aspect ratio, scale — is
  * here and paints at once; CodeMirror and the workspace are in `load`'s module, fetched only once
  * the frame comes within a viewport and a half of being seen, and rendered into the frame's app area.
- * The frame's elements never change, so an anchor taken from them stays good.
+ * The frame's elements never change, so an anchor taken from them stays good. `phone` is the app's
+ * size in the close-up under lg, when it differs from the desktop's.
  */
-export function lazyScene(load: Loader, size: FrameSize): React.FC<SceneProps> {
+export function lazyScene(load: Loader, desktop: FrameSize, phone?: FrameSize): React.FC<SceneProps> {
   const Real = React.lazy(load);
 
   function Scene(props: SceneProps): React.ReactElement {
@@ -41,6 +42,8 @@ export function lazyScene(load: Loader, size: FrameSize): React.FC<SceneProps> {
     // other frame rather than moving a running camera between two.
     const closeUp = !useMediaQuery(LG);
     const parts = frame && (frame.lens !== undefined) === closeUp ? frame : null;
+    // A scene can lay the app out narrower in the close-up, as the app would be on a small screen.
+    const size = closeUp && phone ? phone : desktop;
 
     const near = useNear(parts?.outer ?? null, MOUNT_AHEAD);
 

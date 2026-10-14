@@ -1,6 +1,6 @@
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { cn } from "../../cn";
-import { LG, useMediaQuery } from "../../viewport/media";
+import { MD, useMediaQuery } from "../../viewport/media";
 import type { SceneAnchors, SceneProps } from "../types";
 import "./legacy.css";
 
@@ -15,8 +15,11 @@ export type LegacySceneDef = {
   tag: "perch-walk" | "perch-terminal";
   /** Holds the element's final height from first paint, so nothing moves when it mounts. */
   reserve: ReactNode;
-  /** Below lg: reshapes the element into a close-up once it is ready, and returns the undo. */
-  closeUp?: (host: HTMLElement, anchors: SceneAnchors) => () => void;
+  /**
+   * Below md: the attribute that switches the element to its phone cut, and what frames that cut
+   * once it is ready (returning the undo). The reserve holds both cuts' boxes, each at its widths.
+   */
+  phone?: { attribute: string; value: string; frame: (anchors: SceneAnchors) => () => void };
 };
 
 const modules = new Map<string, Promise<void>>();
@@ -63,12 +66,12 @@ export function LegacyScene({ def, className, autoplay = true, paused = false, o
   const host = useRef<HTMLDivElement>(null);
   const element = useRef<LegacyElement | null>(null);
   const [anchors, setAnchors] = useState<SceneAnchors | null>(null);
-  const wide = useMediaQuery(LG);
+  const narrow = !useMediaQuery(MD) && !!def.phone;
   const callbacks = useRef({ onReady, onDone, autoplay });
   useLayoutEffect(() => {
     callbacks.current = { onReady, onDone, autoplay };
   });
-  const { module, tag, closeUp } = def;
+  const { module, tag, phone } = def;
 
   useEffect(() => {
     const parent = host.current;
@@ -77,6 +80,7 @@ export function LegacyScene({ def, className, autoplay = true, paused = false, o
     // Made here rather than rendered, so its attributes are in place before the element is attached.
     const el = document.createElement(tag) as LegacyElement;
     if (!callbacks.current.autoplay) el.setAttribute("autoplay", "false");
+    if (narrow && phone) el.setAttribute(phone.attribute, phone.value);
     el.classList.add("block", "w-full");
     element.current = el;
     const done = () => callbacks.current.onDone?.();
@@ -99,14 +103,13 @@ export function LegacyScene({ def, className, autoplay = true, paused = false, o
       element.current = null;
       setAnchors(null);
     };
-  }, [module, tag]);
+  }, [module, tag, narrow, phone]);
 
-  // Before the first paint with the anchors, so the whole small window is never seen first.
+  // Before the first paint with the anchors, so the unframed window is never seen.
   useLayoutEffect(() => {
-    const parent = host.current;
-    if (wide || !closeUp || !anchors || !parent) return;
-    return closeUp(parent, anchors);
-  }, [wide, closeUp, anchors]);
+    if (!narrow || !phone || !anchors) return;
+    return phone.frame(anchors);
+  }, [narrow, phone, anchors]);
 
   useEffect(() => {
     const el = element.current;
@@ -121,14 +124,19 @@ export function LegacyScene({ def, className, autoplay = true, paused = false, o
 
   // Animation only: the pointer passes through to the page, as it does over the real scenes.
   return (
-    <div className={cn("dark @container pointer-events-none grid w-full min-w-0 grid-cols-1 select-none", className)}>
+    <div className={cn("dark @container pointer-events-none relative grid w-full min-w-0 grid-cols-1 select-none", className)}>
       <div aria-hidden className="pointer-events-none invisible col-start-1 row-start-1">
         {def.reserve}
       </div>
+      {/* The phone cut is taller than its framed window until the frame applies: held to the
+          reserve, it can never push the page. */}
       <div
         ref={host}
-        data-close-up={closeUp ? "" : undefined}
-        className={cn("col-start-1 row-start-1 min-w-0", closeUp && "max-lg:overflow-x-clip", closeUp && !anchors && "max-lg:invisible")}
+        className={cn(
+          "col-start-1 row-start-1 min-w-0",
+          phone && "max-md:absolute max-md:inset-0 max-md:overflow-hidden",
+          narrow && !anchors && "invisible",
+        )}
       />
     </div>
   );
