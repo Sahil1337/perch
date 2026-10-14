@@ -31,6 +31,8 @@ export type SceneContext = {
   readonly camera: Camera | null;
   /** The frame's rendered width, in page pixels. */
   readonly frameWidth: () => number;
+  /** Tells the page the demo reached its nth beat, for a `usable` scene's narration. */
+  readonly beat: (index: number) => void;
 };
 
 export type SceneScript = {
@@ -55,17 +57,20 @@ export function RealScene({
   script,
   autoplay = true,
   usable = false,
+  paused = false,
+  skip = false,
   live,
   handOver,
   onReady,
   onDone,
+  onBeat,
 }: RealSceneProps & { script: SceneScript }): React.ReactElement {
   const { api, store } = useReplayWorkspace(script.input);
   const latest = React.useRef(api);
   latest.current = api;
-  const callbacks = React.useRef({ onReady, onDone, handOver });
+  const callbacks = React.useRef({ onReady, onDone, onBeat, handOver });
   React.useLayoutEffect(() => {
-    callbacks.current = { onReady, onDone, handOver };
+    callbacks.current = { onReady, onDone, onBeat, handOver };
   });
 
   const stageRef = React.useRef<HTMLDivElement>(null);
@@ -74,6 +79,8 @@ export function RealScene({
   /** The running script's clock. Made per run of the effect, so a remount starts a fresh one. */
   const clock = React.useRef<Clock | null>(null);
   const camera = React.useRef<Camera | null>(null);
+  /** A usable scene's way out of its demo, set while the demo plays. */
+  const skipDemo = React.useRef<(() => void) | null>(null);
 
   // A notebook cell opens its messages only for an error, so the visitor's unrecorded query there
   // would read as an empty success. The notice is the answer: open it under the cell that ran.
@@ -147,7 +154,7 @@ export function RealScene({
   }, []);
 
   const playing = React.useRef(false);
-  playing.current = visible;
+  playing.current = visible && !paused;
 
   // The script: a loop while autoplay is on and motion is welcome, the last frame otherwise. A
   // usable scene plays once instead, and then the app is the visitor's.
@@ -167,16 +174,54 @@ export function RealScene({
     const done = (): void => {
       if (alive) callbacks.current.onDone?.();
     };
-    const context: SceneContext = {
+    const contextOn = (on: Clock): SceneContext => ({
       api: () => latest.current,
       store,
-      clock: own,
+      clock: on,
       stage,
       get camera() {
         return camera.current;
       },
       frameWidth: width,
+      beat: (index) => {
+        if (alive) callbacks.current.onBeat?.(index);
+      },
+    });
+    const context = contextOn(own);
+    const handOverNow = async (on: Clock): Promise<void> => {
+      // The visitor gets the window whole: a camera still in close comes back out first, at its
+      // own pace, never in a cut.
+      if (camera.current?.zoomed) {
+        camera.current.to(null, CAMERA_MS);
+        await on.sleep(CAMERA_MS);
+      }
+      camera.current = null;
+      on.stop();
+      release(stage);
+      callbacks.current.handOver();
+      done();
     };
+    // Skipping stops the demo's clock wherever it is, which ends its script, and reaches the last
+    // frame on a fresh clock with no camera: the visitor asked for the app, not the rest of the show.
+    if (usable && !final) {
+      skipDemo.current = () => {
+        skipDemo.current = null;
+        own.stop();
+        camera.current?.to(null, 0);
+        camera.current = null;
+        const now = new Clock();
+        clock.current = now;
+        now.run();
+        void (async () => {
+          try {
+            await script.final(contextOn(now));
+            await handOverNow(now);
+          } catch (error) {
+            if (!(error instanceof Stopped)) console.error(error);
+          }
+        })();
+      };
+    }
     void (async () => {
       try {
         if (final) await script.final(context);
@@ -189,35 +234,31 @@ export function RealScene({
             await settle(stage, own, store);
           }
         }
-        if (usable) {
-          // The visitor gets the window whole: a camera still in close comes back out first, at its
-          // own pace, never in a cut.
-          if (camera.current?.zoomed) {
-            camera.current.to(null, CAMERA_MS);
-            await own.sleep(CAMERA_MS);
-          }
-          camera.current = null;
-          own.stop();
-          release(stage);
-          callbacks.current.handOver();
-        }
-        done();
+        skipDemo.current = null;
+        if (usable) await handOverNow(own);
+        else done();
       } catch (error) {
         if (!(error instanceof Stopped)) console.error(error);
       }
     })();
     return () => {
       alive = false;
+      skipDemo.current = null;
       own.stop();
+      clock.current?.stop();
     };
     // Built once: a scene that changed its motion preference mid-visit keeps the mode it began in.
   }, []);
 
-  // Scene time runs only while the window is mostly in view.
+  // Scene time runs only while the window is mostly in view, and not held back by the page.
   React.useEffect(() => {
-    if (visible) clock.current?.run();
+    if (visible && !paused) clock.current?.run();
     else if (!(reduced || !autoplay)) clock.current?.pause();
-  }, [visible, reduced, autoplay]);
+  }, [visible, paused, reduced, autoplay]);
+
+  React.useEffect(() => {
+    if (skip) skipDemo.current?.();
+  }, [skip]);
 
   return (
     <div className="relative h-full w-full origin-top-left" ref={stageRef}>

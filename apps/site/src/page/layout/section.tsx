@@ -5,19 +5,35 @@ import { Container } from "./container";
 import { Perch } from "./perch";
 import { body, heading } from "./type";
 
-// The one section anatomy, applied to every section below the hero:
+// The section anatomies below the hero. A feature section is a stage (layout/stage.tsx), from lg one
+// view tall under the nav, its window held to what that view leaves:
+//
+//   ┌ nav ───────────────────────────────────────────────────────────┐
+//   │                              32                                 │
+//   │  H2               │ 48 │                                        │
+//   │  body             │    │   window, as wide as its column or as  │
+//   │  24               │    │   the view's height allows, centred    │
+//   │  piece (224, the  │    │                                        │
+//   │  288 box at 0.8)  │    │                                        │
+//   │                              32                                 │
+//   └─────────────────────────────────────────────────────────────────┘
+//     4/12, text side alternates          the rest, bleeding past the measure to the
+//                                         view's gutter on its side, at most 1100 wide
+//
+// Any other section keeps the stacked anatomy:
 //
 //        48                      32 under lg
 //   H2 + at most ~3 lines of body  |  piece (from lg, in the other half)
 //        48                      32 under lg
 //   scene
 //
-// Under lg a piece comes after the body. Sections sit 128px apart (80 under lg), and the space above
-// each heading is headroom for the bird standing on the section's piece, so the gap between two
-// sections is always well over twice the gaps inside one and each reads as a unit. These components
-// are the only place those numbers live; a section never sets its own vertical spacing. An anchor
-// jump stops that headroom below the nav (the page's scroll padding is the nav's height, which also
-// keeps a focused control from scrolling in under it), so the bird stays in view.
+// Under lg a stage stacks the same way: H2, body, piece, window. Sections sit 128px apart (80 under
+// lg; a stage's own view-tall row stands in for that gap from lg), and the space above each heading is
+// headroom for the bird standing on the section's piece, so the gap between two sections is always
+// well over twice the gaps inside one and each reads as a unit. These components are the only place
+// those numbers live; a section never sets its own vertical spacing. An anchor jump stops that
+// headroom below the nav (the page's scroll padding is the nav's height, which also keeps a focused
+// control from scrolling in under it), so the bird stays in view, and a stage's row fills the view.
 
 export type SectionProps = {
   id: string;
@@ -27,20 +43,29 @@ export type SectionProps = {
   perchRef?: Ref<HTMLDivElement>;
   /** First light's dawn rises behind this section (a.css keeps a still version for reduced motion). */
   dawn?: boolean;
+  /**
+   * The section is a `Stage`, which spaces itself from lg. Its top is then a snap point under the
+   * nav (html's proximity snapping), so a visitor who stops near it has its whole row glide in.
+   */
+  stage?: boolean;
   className?: string;
   children: ReactNode;
 };
 
-export function Section({ id, labelledBy, perchRef, dawn, className, children }: SectionProps) {
+export function Section({ id, labelledBy, perchRef, dawn, stage, className, children }: SectionProps) {
   return (
     <section
       id={id}
       aria-labelledby={labelledBy}
       data-site-dawn={dawn || undefined}
-      className={cn("relative mt-20 scroll-mt-14 lg:mt-32 lg:scroll-mt-16", className)}
+      className={cn(
+        "relative mt-20 scroll-mt-14",
+        stage ? "lg:mt-0 lg:scroll-mt-0 lg:motion-safe:snap-start" : "lg:mt-32 lg:scroll-mt-16",
+        className,
+      )}
     >
       <Container>
-        <div className="relative pt-8 lg:pt-12">
+        <div className={cn("relative pt-8", stage ? "lg:pt-0" : "lg:pt-12")}>
           {perchRef ? <Perch ref={perchRef} section /> : null}
           {children}
         </div>
@@ -74,14 +99,28 @@ export type SectionHeadingProps = {
   className?: string;
 };
 
-export function SectionHeading({ id, title, children, side = "start", piece, wide, className }: SectionHeadingProps) {
-  const text = (
+/** A section's H2 and its body, the text every anatomy starts from. */
+export function SectionText({
+  id,
+  title,
+  wide,
+  children,
+}: Pick<SectionHeadingProps, "id" | "title" | "wide" | "children">) {
+  return (
     <>
       <h2 id={id} className={heading}>
         {title}
       </h2>
       {children ? <p className={cn(body, "mt-4 lg:mt-6", wide && "lg:max-w-3xl")}>{children}</p> : null}
     </>
+  );
+}
+
+export function SectionHeading({ id, title, children, side = "start", piece, wide, className }: SectionHeadingProps) {
+  const text = (
+    <SectionText id={id} title={title} wide={wide}>
+      {children}
+    </SectionText>
   );
   if (wide) return <Reveal className={className}>{text}</Reveal>;
   if (!piece) {

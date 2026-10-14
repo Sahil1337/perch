@@ -9,14 +9,19 @@ import { SceneWindow, useNear, useVisible } from "./relations-walk-kit";
 
 const RelationsSceneInner = React.lazy(() => import("./relations-scene"));
 
-/** The app's viewport for this scene, the size the legacy one was captured at. */
-const WIDTH = 1280;
-const HEIGHT = 840;
+/**
+ * The app's viewport for this scene. A small laptop's window rather than a desktop's, like every
+ * stage scene: the stage fits a window to the view's height, and at this size the app reads at about
+ * 0.8 scale on a laptop.
+ */
+const WIDTH = 1040;
+const HEIGHT = 720;
 
-export const RelationsScene: React.FC<SceneProps> = ({ className, autoplay = true, onReady, onDone }) => {
+export const RelationsScene: React.FC<SceneProps> = ({ className, autoplay = true, paused = false, onReady, onDone }) => {
   const ref = React.useRef<HTMLDivElement>(null);
   const near = useNear(ref);
-  const visible = useVisible(ref, 0.4);
+  // Held back by the page reads as offscreen to the scene: it waits where it is.
+  const visible = useVisible(ref, 0.4) && !paused;
   const reduced = usePrefersReducedMotion();
 
   return (

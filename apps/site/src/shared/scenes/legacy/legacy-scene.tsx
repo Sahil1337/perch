@@ -57,7 +57,7 @@ function anchorsOf(el: LegacyElement): SceneAnchors | null {
   return anchors as SceneAnchors;
 }
 
-export function LegacyScene({ def, className, autoplay = true, onReady, onDone }: SceneProps & { def: LegacySceneDef }) {
+export function LegacyScene({ def, className, autoplay = true, paused = false, onReady, onDone }: SceneProps & { def: LegacySceneDef }) {
   const host = useRef<HTMLDivElement>(null);
   const element = useRef<LegacyElement | null>(null);
   const callbacks = useRef({ onReady, onDone, autoplay });
@@ -106,6 +106,10 @@ export function LegacyScene({ def, className, autoplay = true, onReady, onDone }
     if (autoplay) el.removeAttribute("autoplay");
     else el.setAttribute("autoplay", "false");
   }, [autoplay, module, tag, attributeKey]);
+
+  useEffect(() => {
+    element.current?.toggleAttribute("paused", paused);
+  }, [paused, module, tag, attributeKey]);
 
   // Animation only: the pointer passes through to the page, as it does over the real scenes.
   return (

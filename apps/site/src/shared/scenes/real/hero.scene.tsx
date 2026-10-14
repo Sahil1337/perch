@@ -1,7 +1,8 @@
 // The hero: spring-migration.sql is open with its GROUP BY line still blank. The scene types it the
 // way the app is used — `gro`, accept `group by`; ` s.`, accept `common_name` — runs the statement
 // with ⌘↵ and holds on the 33 rows the database returned. Shown `usable`, it does that once and then
-// leaves the editor, the file and the results to the visitor.
+// leaves the editor, the file and the results to the visitor. Its beats (0 `gro`, 1 ` s.`, 2 ⌘↵) are
+// what "Your turn" narrates beside the window.
 
 import type { EditorView } from "@codemirror/view";
 import { birdwatch, fixtureText } from "../../replay";
@@ -59,11 +60,13 @@ const script: SceneScript = {
       await clock.sleep(CAMERA_MS);
     }
 
+    context.beat(0);
     await typeText(view, "gro", clock);
     if (await waitForCompletion(view, clock)) follow(context, view);
     await pickCompletion(view, clock, (option) => option.label === "group by", { read: 520, step: 260 });
     await clock.sleep(260);
 
+    context.beat(1);
     await typeText(view, " s.", clock);
     if (await waitForCompletion(view, clock)) follow(context, view);
     await pickCompletion(view, clock, (option) => option.label === "common_name", {
@@ -73,6 +76,7 @@ const script: SceneScript = {
 
     // A beat to read the line, long enough for autosave to land, then ⌘↵.
     await clock.sleep(1700);
+    context.beat(2);
     camera?.to(null, 1100);
     const before = context.api().activeRun?.id;
     pressKey(view, "Mod-Enter");

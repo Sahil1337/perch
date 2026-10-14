@@ -1,4 +1,4 @@
-import { type RefObject, useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { type RefObject, useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useInView, usePrefersReducedMotion } from "../../../shared/motion";
 import { BOX_ITEMS } from "./items";
 import type { CropState } from "./pane";
@@ -6,6 +6,9 @@ import type { CropState } from "./pane";
 const CYCLE_MS = 3500;
 // Tailwind's lg: from here the pane sits beside the list.
 const BESIDE = "(min-width: 64rem)";
+// How far past a step's edge, in steps, the scroll has to go before the next item takes over, so a
+// page resting on a boundary never flickers between two.
+const HYSTERESIS = 0.12;
 
 function useMatches(query: string): boolean {
   return useSyncExternalStore(
@@ -20,31 +23,97 @@ function useMatches(query: string): boolean {
 }
 
 const count = BOX_ITEMS.length;
+const clamp = (index: number) => Math.min(count - 1, Math.max(0, index));
+
+/** The track's scroll, in steps: 0 as the stage sticks, `count` as it lets go. */
+function stepsAt(track: HTMLElement, stage: HTMLElement): number {
+  const box = track.getBoundingClientRect();
+  const travel = box.height - stage.offsetHeight;
+  return travel > 0 ? (-box.top / travel) * count : 0;
+}
+
+export type ShowcaseRefs = {
+  pane: RefObject<HTMLElement | null>;
+  list: RefObject<HTMLElement | null>;
+  /** The pinned layout's scroll track and the stage that sticks inside it. */
+  track: RefObject<HTMLElement | null>;
+  stage: RefObject<HTMLElement | null>;
+};
 
 /**
  * Which item the pane shows.
  *
- * Beside the list (lg+), it follows the scroll: the item nearest a line that runs down the sticky
- * pane as the pane travels, from its top edge when it first sticks to its bottom edge when it lets
- * go. Through the middle that is the pane's centre; at the two ends it is what lets the first and
- * last items have a turn. A mouse on an item takes over while it stays on the list.
+ * Pinned (lg+, motion allowed), the page's own scroll steps through the items: the track is cut
+ * into one even step per item, and whichever step the scroll is in is the item in hand, with a
+ * little hysteresis at each edge. Clicking an item scrolls the page to the middle of its step, and
+ * the scroll ignores the steps it passes on the way, so the list never flickers through them.
+ *
+ * Unpinned, with reduced motion at lg, the pane is sticky beside the list instead and follows the
+ * item nearest a line that runs down it as it travels, from its top edge when it first sticks to its
+ * bottom edge when it lets go. A mouse on an item takes over while it stays on the list.
  *
  * Above the list (under lg), it cycles while the pane is in view and no mouse is on the showcase.
  * Clicking or tapping an item shows it, and the cycle carries on from there. Reduced motion never
  * cycles.
  */
-export function useShowcase({ pane, list }: { pane: RefObject<HTMLElement | null>; list: RefObject<HTMLElement | null> }) {
+export function useShowcase({ pane, list, track, stage }: ShowcaseRefs) {
   const beside = useMatches(BESIDE);
   const reduced = usePrefersReducedMotion();
+  const pinned = beside && !reduced;
   const [active, setActive] = useState(0);
   const [crops, setCrops] = useState<Readonly<Record<string, CropState>>>({});
   const [hovering, setHovering] = useState(false);
   const [paused, setPaused] = useState(false);
   const listInView = useInView(list, { once: false });
   const paneInView = useInView(pane, { once: false, amount: 0.5 });
+  // The item a click is scrolling to: the steps passed on the way are not the visitor's choice.
+  const aim = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!beside || hovering || !listInView) return;
+    if (!pinned) return;
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      if (!track.current || !stage.current) return;
+      const steps = stepsAt(track.current, stage.current);
+      const here = clamp(Math.floor(steps));
+      if (aim.current !== null) {
+        if (here !== aim.current) return;
+        aim.current = null;
+      }
+      setActive((current) =>
+        steps < current - HYSTERESIS || steps > current + 1 + HYSTERESIS ? here : current,
+      );
+    };
+    const schedule = () => {
+      frame ||= requestAnimationFrame(update);
+    };
+    // A wheel or a key during a click's scroll takes over from it, so stop waiting for its item.
+    const settle = () => {
+      if (aim.current === null) return;
+      aim.current = null;
+      schedule();
+    };
+    update();
+    addEventListener("scroll", schedule, { passive: true });
+    addEventListener("resize", schedule);
+    addEventListener("scrollend", settle);
+    addEventListener("wheel", settle, { passive: true });
+    addEventListener("touchstart", settle, { passive: true });
+    addEventListener("keydown", settle);
+    return () => {
+      removeEventListener("scroll", schedule);
+      removeEventListener("resize", schedule);
+      removeEventListener("scrollend", settle);
+      removeEventListener("wheel", settle);
+      removeEventListener("touchstart", settle);
+      removeEventListener("keydown", settle);
+      cancelAnimationFrame(frame);
+    };
+  }, [pinned, track, stage]);
+
+  useEffect(() => {
+    if (!beside || pinned || hovering || !listInView) return;
     let frame = 0;
     const update = () => {
       frame = 0;
@@ -76,7 +145,7 @@ export function useShowcase({ pane, list }: { pane: RefObject<HTMLElement | null
       removeEventListener("resize", schedule);
       cancelAnimationFrame(frame);
     };
-  }, [beside, hovering, listInView, pane, list]);
+  }, [beside, pinned, hovering, listInView, pane, list]);
 
   useEffect(() => {
     if (beside || reduced || paused || !paneInView) return;
@@ -100,11 +169,23 @@ export function useShowcase({ pane, list }: { pane: RefObject<HTMLElement | null
   }
 
   const onCrop = useCallback((key: string, state: CropState) => setCrops((all) => ({ ...all, [key]: state })), []);
-  const point = useCallback((index: number, hover: boolean) => {
-    setActive(index);
-    if (hover) setHovering(true);
-  }, []);
+  const point = useCallback(
+    (index: number, hover: boolean) => {
+      if (pinned) {
+        if (hover || !track.current || !stage.current) return;
+        const box = track.current.getBoundingClientRect();
+        const travel = box.height - stage.current.offsetHeight;
+        aim.current = index;
+        setActive(index);
+        scrollTo({ top: scrollY + box.top + (travel * (index + 0.5)) / count, behavior: "smooth" });
+        return;
+      }
+      setActive(index);
+      if (hover) setHovering(true);
+    },
+    [pinned, track, stage],
+  );
   const release = useCallback(() => setHovering(false), []);
 
-  return { active, shown, onCrop, point, release, pause: setPaused };
+  return { pinned, active, shown, onCrop, point, release, pause: setPaused };
 }
