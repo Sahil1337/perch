@@ -3,7 +3,7 @@
 // comes within a screen of the viewport.
 
 import * as React from "react";
-import { usePrefersReducedMotion } from "../../viewport/media";
+import { LG, useMediaQuery, usePrefersReducedMotion } from "../../viewport/media";
 import { useNear, useVisible } from "../../viewport/visibility";
 import type { SceneProps } from "../types";
 import { SceneWindow } from "./kit/scene-window";
@@ -24,10 +24,12 @@ export const RelationsScene: React.FC<SceneProps> = ({ className, autoplay = tru
   // Held back by the page reads as offscreen to the scene: it waits where it is.
   const visible = useVisible(ref, 0.4) && !paused;
   const reduced = usePrefersReducedMotion();
+  const closeUp = !useMediaQuery(LG);
 
   return (
     <div className={className} ref={ref}>
       <SceneWindow
+        closeUp={closeUp}
         height={HEIGHT}
         held={!visible}
         label="Perch's Relationship View: the birdwatch schema's tables and the keys between them"

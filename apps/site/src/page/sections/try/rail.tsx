@@ -41,8 +41,14 @@ function Keys({ children }: { children: ReactNode }) {
   return <kbd className={cn(code, "rounded-sm bg-secondary px-1.5 py-0.5 text-sm")}>{children}</kbd>;
 }
 
-/** A tutorial rail beside the window, lit in step with the demo: `at` is the step playing, -1 before it starts. */
-export function TryRail({ at }: { at: number }) {
+/** On a phone the editor is never handed over, so the visitor's step points them to a computer. */
+const WATCH_ONLY_STEP = "Try it yourself on a computer";
+
+/**
+ * A tutorial rail beside the window, lit in step with the demo: `at` is the step playing, -1 before
+ * it starts. `watchOnly` for a phone's window, whose demo loops and stays the demo's.
+ */
+export function TryRail({ at, watchOnly = false }: { at: number; watchOnly?: boolean }) {
   return (
     <ol aria-label="What the demo does" className="mt-8 flex flex-col gap-3 lg:mt-10">
       {STEPS.map((step, i) => (
@@ -61,7 +67,7 @@ export function TryRail({ at }: { at: number }) {
               i === at ? "bg-glaze" : i < at ? "bg-muted-foreground" : "ring-1 ring-muted-foreground/60 ring-inset",
             )}
           />
-          <span>{step.text}</span>
+          <span>{watchOnly && i === YOUR_STEP ? WATCH_ONLY_STEP : step.text}</span>
         </li>
       ))}
     </ol>

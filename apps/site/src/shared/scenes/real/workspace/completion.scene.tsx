@@ -18,6 +18,7 @@ import {
 import type { RealSceneProps } from "../../stage/lazy-scene";
 import {
   RealScene,
+  restOnResults,
   type SceneContext,
   type SceneScript,
   splitLayout,
@@ -117,6 +118,8 @@ const script: SceneScript = {
     pressKey(view, "Mod-Enter");
     await waitForRun(context);
   },
+
+  rest: restOnResults,
 
   anchors: (stage) => ({
     results: stage.querySelector<HTMLElement>("section[aria-label='Query results']"),

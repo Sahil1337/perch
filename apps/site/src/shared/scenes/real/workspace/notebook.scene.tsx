@@ -71,6 +71,12 @@ const script: SceneScript = {
     for (const index of all.keys()) await runCell(context, index);
   },
 
+  // The last cell, its SQL and the top of what it returned.
+  rest: (camera, stage) => {
+    const last = [...stage.querySelectorAll<HTMLElement>("main article")].at(-1);
+    return last ? camera.cardFocus(last, "left") : null;
+  },
+
   anchors: (stage) => ({
     runAll: [...stage.querySelectorAll<HTMLElement>("main button")].find((button) =>
       button.textContent?.includes("Run all"),

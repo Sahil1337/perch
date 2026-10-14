@@ -26,3 +26,9 @@ perch-terminal {
     --browser: 56cqw;
   }
 }
+
+/* <perch-walk>'s close-up below lg (walk-close-up.ts): the titlebar and WALK_CLOSE_UP_ROWS of the
+   recording at max(WALK_CLOSE_UP_SCALE, width / 1280), so (40 + 600) * 0.66 = 422.4px, then the rail. */
+[data-perch-walk-reserve] {
+  height: calc(max(422.4px, 50cqw) + 55px);
+}

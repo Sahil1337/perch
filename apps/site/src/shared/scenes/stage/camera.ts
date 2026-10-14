@@ -2,6 +2,10 @@
 // column or on a phone. The chrome stays put; only the app moves. Ported from the legacy element's
 // camera so the two cut the same way: frames open on the editor's left edge or below the topbar,
 // never through the sidebar, and the far edge gives way before the start of a line does.
+//
+// In a phone's close-up the frame is a crop already drawn at reading size, so the camera never
+// zooms: it only pans the crop to the beat's focus, and where the desktop camera would pull back
+// to the whole window it rests on what the scene names instead (its results, say).
 
 import type { EditorView } from "@codemirror/view";
 import { EASE_IN_OUT_CSS } from "../../motion/easing";
@@ -21,6 +25,8 @@ export type Focus = {
   /** Zoom no further than the focus's width (and height, unless `cropBottom`) allows. */
   fitWidth?: boolean;
   cropBottom?: boolean;
+  /** Close-up only: magnify the crop this much, for a surface the app itself draws small. */
+  scale?: number;
 };
 
 export const CAMERA_MS = 1000;
@@ -29,22 +35,44 @@ export class Camera {
   readonly #stage: HTMLElement;
   readonly #size: FrameSize;
   readonly #width: () => number;
+  readonly #lens: HTMLElement | null;
   #current = { s: 1, cx: 0, cy: 0 };
   #animation: Animation | null = null;
+  /** The close-up's resting focus, in place of the whole window. */
+  rest: (() => Focus | null) | null = null;
 
   /**
    * `stage` is the element moved: positioned, at the app's native size, inside the frame's app
-   * area. `width` is the frame's rendered width, which decides how far in to go.
+   * area. `width` is the frame's rendered width, which decides how far in to go. `lens` is the
+   * close-up's crop, when the frame is one.
    */
-  constructor(stage: HTMLElement, size: FrameSize, width: () => number) {
+  constructor(stage: HTMLElement, size: FrameSize, width: () => number, lens: HTMLElement | null = null) {
     this.#stage = stage;
     this.#size = size;
     this.#width = width;
+    this.#lens = lens;
     this.#current = { s: 1, cx: size.width / 2, cy: size.height / 2 };
   }
 
   get zoomed(): boolean {
     return this.#current.s > 1;
+  }
+
+  /** The zoom the camera holds now, 1 at rest. */
+  get scale(): number {
+    return this.#current.s;
+  }
+
+  get closeUp(): boolean {
+    return this.#lens !== null;
+  }
+
+  /** What the frame shows of the app at a zoom of 1, in the app's own pixels. */
+  #view(): { width: number; height: number } {
+    const lens = this.#lens;
+    if (!lens) return this.#size;
+    const k = Number.parseFloat(getComputedStyle(lens).getPropertyValue("--frame-scale")) || 1;
+    return { width: lens.clientWidth / k, height: lens.clientHeight / k };
   }
 
   /** How far in to go: further the smaller the window is drawn, so a popup reads at any width. */
@@ -125,12 +153,24 @@ export class Camera {
     };
   }
 
+  /** The top of the editor, from its left edge: where a close-up opens. */
+  editorTop(): Focus {
+    const main = this.#stage.querySelector("main");
+    const x = main ? this.box(main).x : 0;
+    return { x0: x, y0: 0, x1: x + 1, y1: 1, left: x };
+  }
+
+  /** Where a close-up rests: the scene's choice, else the top of the editor. */
+  #home(): Focus {
+    return this.rest?.() ?? this.editorTop();
+  }
+
   /** Pans only when the focus has left the comfortable middle of the view. */
   follow(focus: Focus | null, duration = 900): void {
     if (!focus) return;
     const { s, cx, cy } = this.#current;
-    if (s === 1) return this.to(focus, duration);
-    const { width: w, height: h } = this.#size;
+    if (s === 1 && !this.closeUp) return this.to(focus, duration);
+    const { width: w, height: h } = this.#view();
     const margin = 24;
     const view = { x0: cx - w / (2 * s), y0: cy - h / (2 * s), x1: cx + w / (2 * s), y1: cy + h / (2 * s) };
     const inside =
@@ -142,18 +182,23 @@ export class Camera {
   }
 
   /** Moves to hold `focus`, or back to the whole window for null. 0 ms jumps. */
-  to(focus: Focus | null, duration = CAMERA_MS): void {
-    const { width: w, height: h } = this.#size;
+  to(target: Focus | null, duration = CAMERA_MS): void {
+    const { width: w, height: h } = this.#view();
+    const { width: appW, height: appH } = this.#size;
+    const focus = target ?? (this.closeUp ? this.#home() : null);
     let s = 1;
     let cx = w / 2;
     let cy = h / 2;
     if (focus) {
       const fw = focus.x1 - focus.x0;
       const fh = focus.y1 - focus.y0;
-      s = this.zoom();
-      if (focus.fitWidth) s = Math.min(s, w / fw, focus.cropBottom ? Infinity : h / fh);
-      if (focus.cropBottom) s = Math.min(2.8, w / fw);
-      s = Math.max(1, s);
+      if (this.closeUp) s = Math.max(1, focus.scale ?? 1);
+      else {
+        s = this.zoom();
+        if (focus.fitWidth) s = Math.min(s, w / fw, focus.cropBottom ? Infinity : h / fh);
+        if (focus.cropBottom) s = Math.min(2.8, w / fw);
+        s = Math.max(1, s);
+      }
       cx = (focus.x0 + focus.x1) / 2;
       cy = (focus.y0 + focus.y1) / 2;
       if (fw > w / s) cx = focus.anchor === "right" ? focus.x1 - w / (2 * s) : focus.x0 + w / (2 * s);
@@ -187,22 +232,29 @@ export class Camera {
           }
         }
       }
-      cx = Math.min(w - w / (2 * s), Math.max(w / (2 * s), cx));
-      cy = Math.min(h - h / (2 * s), Math.max(h / (2 * s), cy));
+      // A crop taller or wider than the app keeps the app's top or left edge.
+      const hw = w / (2 * s);
+      const hh = h / (2 * s);
+      cx = 2 * hw >= appW ? hw : Math.min(appW - hw, Math.max(hw, cx));
+      cy = 2 * hh >= appH ? hh : Math.min(appH - hh, Math.max(hh, cy));
     }
     this.#current = { s, cx, cy };
-    const target =
-      s === 1
+    const tx = w / 2 - cx * s;
+    const ty = h / 2 - cy * s;
+    const transform =
+      s === 1 && Math.abs(tx) < 0.01 && Math.abs(ty) < 0.01
         ? "none"
-        : `translate(${(w / 2 - cx * s).toFixed(2)}px, ${(h / 2 - cy * s).toFixed(2)}px) scale(${s.toFixed(4)})`;
+        : s === 1
+          ? `translate(${tx.toFixed(2)}px, ${ty.toFixed(2)}px)`
+          : `translate(${tx.toFixed(2)}px, ${ty.toFixed(2)}px) scale(${s.toFixed(4)})`;
     const stage = this.#stage;
-    if ((stage.style.transform || "none") === target) return;
+    if ((stage.style.transform || "none") === transform) return;
     const from = getComputedStyle(stage).transform;
     this.#animation?.cancel();
-    stage.style.transform = target === "none" ? "" : target;
+    stage.style.transform = transform === "none" ? "" : transform;
     if (!duration || from === getComputedStyle(stage).transform) return;
     this.#animation = stage.animate(
-      [{ transform: from }, { transform: target === "none" ? "matrix(1, 0, 0, 1, 0, 0)" : target }],
+      [{ transform: from }, { transform: transform === "none" ? "matrix(1, 0, 0, 1, 0, 0)" : transform }],
       { duration, easing: EASE_IN_OUT_CSS },
     );
   }

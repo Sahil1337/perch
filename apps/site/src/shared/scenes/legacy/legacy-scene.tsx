@@ -1,5 +1,6 @@
-import { type ReactNode, useEffect, useLayoutEffect, useRef } from "react";
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { cn } from "../../cn";
+import { LG, useMediaQuery } from "../../viewport/media";
 import type { SceneAnchors, SceneProps } from "../types";
 import "./legacy.css";
 
@@ -14,6 +15,8 @@ export type LegacySceneDef = {
   tag: "perch-walk" | "perch-terminal";
   /** Holds the element's final height from first paint, so nothing moves when it mounts. */
   reserve: ReactNode;
+  /** Below lg: reshapes the element into a close-up once it is ready, and returns the undo. */
+  closeUp?: (host: HTMLElement, anchors: SceneAnchors) => () => void;
 };
 
 const modules = new Map<string, Promise<void>>();
@@ -59,11 +62,13 @@ function anchorsOf(el: LegacyElement): SceneAnchors | null {
 export function LegacyScene({ def, className, autoplay = true, paused = false, onReady, onDone }: SceneProps & { def: LegacySceneDef }) {
   const host = useRef<HTMLDivElement>(null);
   const element = useRef<LegacyElement | null>(null);
+  const [anchors, setAnchors] = useState<SceneAnchors | null>(null);
+  const wide = useMediaQuery(LG);
   const callbacks = useRef({ onReady, onDone, autoplay });
   useLayoutEffect(() => {
     callbacks.current = { onReady, onDone, autoplay };
   });
-  const { module, tag } = def;
+  const { module, tag, closeUp } = def;
 
   useEffect(() => {
     const parent = host.current;
@@ -82,8 +87,9 @@ export function LegacyScene({ def, className, autoplay = true, paused = false, o
       .then(() => el.ready)
       .then(() => {
         if (!live) return;
-        const anchors = anchorsOf(el);
-        if (anchors) callbacks.current.onReady?.(anchors);
+        const found = anchorsOf(el);
+        setAnchors(found);
+        if (found) callbacks.current.onReady?.(found);
       })
       .catch((error: unknown) => console.warn(`<${tag}> did not load:`, error));
     return () => {
@@ -91,8 +97,16 @@ export function LegacyScene({ def, className, autoplay = true, paused = false, o
       el.removeEventListener("scene:done", done);
       el.remove();
       element.current = null;
+      setAnchors(null);
     };
   }, [module, tag]);
+
+  // Before the first paint with the anchors, so the whole small window is never seen first.
+  useLayoutEffect(() => {
+    const parent = host.current;
+    if (wide || !closeUp || !anchors || !parent) return;
+    return closeUp(parent, anchors);
+  }, [wide, closeUp, anchors]);
 
   useEffect(() => {
     const el = element.current;
@@ -111,7 +125,7 @@ export function LegacyScene({ def, className, autoplay = true, paused = false, o
       <div aria-hidden className="pointer-events-none invisible col-start-1 row-start-1">
         {def.reserve}
       </div>
-      <div ref={host} className="col-start-1 row-start-1 min-w-0" />
+      <div ref={host} className={cn("col-start-1 row-start-1 min-w-0", closeUp && !anchors && "max-lg:invisible")} />
     </div>
   );
 }

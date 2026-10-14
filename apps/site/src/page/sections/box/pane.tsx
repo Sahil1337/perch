@@ -1,6 +1,7 @@
-import type { Ref } from "react";
+import type { CSSProperties, Ref } from "react";
 import { cn } from "../../../shared/cn";
-import { BOX_ITEMS, cropUrl } from "./items";
+import { clamp } from "../../../shared/math";
+import { BOX_ITEMS, type BoxItem, cropUrl } from "./items";
 
 export type CropState = "loaded" | "failed";
 
@@ -32,6 +33,14 @@ function Titlebar() {
   );
 }
 
+// On a phone the pane is about 290–400px wide, so a whole 600px crop would come out at half size. Each
+// crop is zoomed onto its focus instead: scaled about the origin that puts the focus in the middle,
+// held to the crop's edges so the window never shows past them.
+function focusOrigin({ x, y, zoom }: BoxItem["focus"]): string {
+  const origin = (at: number) => clamp((at * zoom - 0.5) / (zoom - 1), 0, 1) * 100;
+  return `${origin(x).toFixed(1)}% ${origin(y).toFixed(1)}%`;
+}
+
 export type BoxPaneProps = {
   /** The crop on show, or null before any has loaded. */
   shown: string | null;
@@ -53,8 +62,8 @@ export function BoxPane({ shown, onCrop, className, ref }: BoxPaneProps) {
       className={cn("dark overflow-hidden rounded-lg bg-background shadow-lg ring-1 ring-border", className)}
     >
       <Titlebar />
-      <div className="grid aspect-4/3">
-        {BOX_ITEMS.map(({ key }) => (
+      <div className="grid aspect-4/3 overflow-hidden">
+        {BOX_ITEMS.map(({ key, focus }) => (
           <img
             key={key}
             src={cropUrl(key)}
@@ -64,10 +73,11 @@ export function BoxPane({ shown, onCrop, className, ref }: BoxPaneProps) {
             draggable={false}
             onLoad={() => onCrop(key, "loaded")}
             onError={() => onCrop(key, "failed")}
+            style={{ "--zoom": String(focus.zoom), "--focus": focusOrigin(focus) } as CSSProperties}
             // The incoming crop fades in over the outgoing one, which only goes once it is covered,
             // so the crossfade never dips to the empty window between them.
             className={cn(
-              "col-start-1 row-start-1 size-full object-cover transition-opacity motion-reduce:transition-none",
+              "col-start-1 row-start-1 size-full origin-(--focus) object-cover transition-opacity max-md:scale-(--zoom) motion-reduce:transition-none",
               key === shown ? "z-10 opacity-100 duration-250 ease-out" : "opacity-0 delay-250 duration-0",
             )}
           />

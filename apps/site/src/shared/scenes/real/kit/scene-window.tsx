@@ -12,6 +12,8 @@ export type SceneWindowParts = {
   readonly window: HTMLDivElement;
   readonly titlebar: HTMLDivElement;
   readonly app: HTMLDivElement;
+  /** The close-up's crop, when the window is one. */
+  readonly lens?: HTMLDivElement;
 };
 
 /**
@@ -28,6 +30,7 @@ export function SceneWindow({
   className,
   below,
   held = false,
+  closeUp = false,
   onParts,
   children,
 }: {
@@ -39,17 +42,27 @@ export function SceneWindow({
   below?: React.ReactNode;
   /** Offscreen or paused: the CSS animations inside stop where they are. */
   held?: boolean;
+  /** The phone's close-up frame (see `WindowFrame`). */
+  closeUp?: boolean;
   onParts?: (parts: SceneWindowParts) => void;
   children?: (parts: SceneWindowParts) => React.ReactNode;
 }): React.ReactElement {
-  const [parts, setParts] = React.useState<SceneWindowParts | null>(null);
+  const [reportedParts, setParts] = React.useState<SceneWindowParts | null>(null);
+  // Parts from the other frame, for the one render before the new frame reports its own.
+  const parts = reportedParts && (reportedParts.lens !== undefined) === closeUp ? reportedParts : null;
   const reported = React.useRef(onParts);
   React.useLayoutEffect(() => {
     reported.current = onParts;
   });
   const size = React.useMemo(() => ({ width, height }), [width, height]);
   const onFrame = React.useCallback((frame: FrameParts) => {
-    const next = { root: frame.outer, window: frame.window, titlebar: frame.titlebar, app: frame.app };
+    const next = {
+      root: frame.outer,
+      window: frame.window,
+      titlebar: frame.titlebar,
+      app: frame.app,
+      ...(frame.lens ? { lens: frame.lens } : {}),
+    };
     setParts(next);
     reported.current?.(next);
   }, []);
@@ -60,7 +73,13 @@ export function SceneWindow({
 
   return (
     <div className={cn("relative w-full min-w-0", className)}>
-      <WindowFrame label={label} onParts={onFrame} size={size}>
+      <WindowFrame
+        closeUp={closeUp}
+        key={closeUp ? "close-up" : "whole"}
+        label={label}
+        onParts={onFrame}
+        size={size}
+      >
         {parts && children?.(parts)}
       </WindowFrame>
       {below}

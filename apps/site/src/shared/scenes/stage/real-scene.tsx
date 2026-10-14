@@ -14,7 +14,7 @@ import { activateScene, deactivateScene } from "./active-scene";
 import { usePrefersReducedMotion } from "../../viewport/media";
 import { useVisible } from "../../viewport/visibility";
 import { Clock, Stopped } from "./autoplay";
-import { CAMERA_MS, Camera } from "./camera";
+import { CAMERA_MS, Camera, type Focus } from "./camera";
 import { houseTooltips, scriptEditor } from "./editor-driver";
 import type { RealSceneProps } from "./lazy-scene";
 import { WorkspaceShell } from "./workspace-shell";
@@ -49,6 +49,11 @@ export type SceneScript = {
   readonly hold: number;
   /** The loop's last frame, reached at once: reduced motion, or autoplay off. */
   final(context: SceneContext): Promise<void>;
+  /**
+   * In a phone's close-up, what the crop rests on where the desktop camera pulls back to the whole
+   * window, and on the last frame: the beat's outcome, its results say. The editor's top otherwise.
+   */
+  rest?(camera: Camera, stage: HTMLElement): Focus | null;
   /** Extra anchors for the bird, looked up under the stage once the app is up. */
   anchors?(stage: HTMLElement): Record<string, HTMLElement | null | undefined>;
 };
@@ -171,7 +176,11 @@ export function RealScene({
     const width = (): number => parts.outer.getBoundingClientRect().width;
     const cameraOn =
       !reduced && (script.camera === "always" || width() < NARROW_WIDTH);
-    camera.current = cameraOn && !final ? new Camera(stage, size, width) : null;
+    // A close-up always has its camera: even a still frame is a crop that has to be placed.
+    const lens = parts.lens ?? null;
+    camera.current = lens || (cameraOn && !final) ? new Camera(stage, size, width, lens) : null;
+    const closeUp = camera.current?.closeUp ? camera.current : null;
+    if (closeUp) closeUp.rest = script.rest ? () => script.rest?.(closeUp, stage) ?? null : null;
     let alive = true;
     const done = (): void => {
       if (alive) callbacks.current.onDone?.();
@@ -226,7 +235,19 @@ export function RealScene({
     }
     void (async () => {
       try {
-        if (final) await script.final(context);
+        if (closeUp) {
+          // The crop opens on the editor, before the app has painted anything to move.
+          while (alive && !stage.querySelector("main")) await new Promise((r) => setTimeout(r, 30));
+          closeUp.to(closeUp.editorTop(), 0);
+        }
+        if (final) {
+          await script.final(context);
+          // The last frame's crop, once its results have rendered.
+          if (closeUp) {
+            await own.sleep(120);
+            closeUp.to(null, 0);
+          }
+        }
         else if (usable) await script.play(context);
         else {
           for (;;) {
@@ -340,4 +361,12 @@ export function splitLayout(editor: number): EditorLayout {
     },
     focusedGroup: "group-editor",
   };
+}
+
+/** A close-up's rest on the results pane, from its left edge, with the last lines of the query above it. */
+export function restOnResults(camera: Camera, stage: HTMLElement): Focus | null {
+  const results = stage.querySelector("section[aria-label='Query results']");
+  if (!results) return null;
+  const box = camera.box(results);
+  return { x0: box.x, y0: box.y - 96, x1: box.x + box.w, y1: box.y + box.h };
 }

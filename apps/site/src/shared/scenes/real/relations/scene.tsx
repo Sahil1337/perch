@@ -10,6 +10,7 @@ import * as React from "react";
 // barrel resolves to, so it shares the barrel's WorkspaceProvider context.
 import { SchemaDiagram } from "../../../../../../../packages/ui/src/workspace/schema-diagram/schema-diagram";
 import { EASE_IN_OUT_CSS, EASE_OUT_CSS } from "../../../motion/easing";
+import { Camera } from "../../stage/camera";
 import { birdwatch, useReplayWorkspace } from "../../../replay";
 import type { SceneAnchors } from "../../types";
 import type { SceneWindowParts } from "../kit/scene-window";
@@ -28,6 +29,10 @@ const TOUR_FIRST = 2600;
 const TOUR_GAP = 9000;
 const TOUR_LIT = 900;
 const TOUR_HOLD = 3200;
+/** How long the view's own focus takes to settle before a close-up reframes on it. */
+const REFRAME_AFTER = 650;
+/** A card's text in the close-up, as a share of its size in the app. */
+const READING_SCALE = 0.78;
 
 /** SchemaDiagram's viewport: the pane under its toolbar. */
 const viewportIn = (app: HTMLElement): HTMLElement | null => app.querySelector<HTMLElement>("header + div");
@@ -130,6 +135,35 @@ function hoverCard(card: HTMLElement, on: boolean, viewport: HTMLElement): void 
 
 type Phase = "idle" | "entrance" | "done";
 
+/**
+ * A phone's close-up holds the toured table with room for the keys around it. The diagram is the
+ * app's whole surface, so the camera moves the app area itself.
+ */
+function closeUpOn(parts: SceneWindowParts): ((duration: number) => void) | null {
+  if (!parts.lens) return null;
+  const app = parts.app;
+  const camera = new Camera(app, { width: app.offsetWidth, height: app.offsetHeight }, () => parts.root.clientWidth, parts.lens);
+  return (duration) => {
+    const viewport = viewportIn(app);
+    const card = viewport ? cardsIn(viewport).get(TOUR_TABLE) : undefined;
+    if (!card) return;
+    // The view fits every table into the window, which draws a card's text far under reading size
+    // in a phone's crop: the camera makes up the difference.
+    const drawn = card.getBoundingClientRect().width / (card.offsetWidth || 1) / camera.scale;
+    const box = camera.box(card);
+    camera.to(
+      {
+        x0: box.x - box.w * 0.15,
+        y0: box.y - box.h * 0.15,
+        x1: box.x + box.w * 1.15,
+        y1: box.y + box.h * 1.15,
+        scale: drawn > 0 ? READING_SCALE / drawn : 1,
+      },
+      duration,
+    );
+  };
+}
+
 export default function RelationsSceneInner({
   parts,
   visible,
@@ -178,6 +212,7 @@ export default function RelationsSceneInner({
     clock: new Clock(),
     token: 0,
     tourHover: null as HTMLElement | null,
+    reframe: null as ((duration: number) => void) | null,
   });
   React.useLayoutEffect(() => {
     live.current.visible = visible;
@@ -201,8 +236,12 @@ export default function RelationsSceneInner({
         hoverCard(card, false, viewport);
         state.tourHover = null;
         await pressCard(card);
-        if (!(await state.clock.wait(TOUR_HOLD)) || !going()) return;
+        if (!(await state.clock.wait(REFRAME_AFTER)) || !going()) return;
+        state.reframe?.(900);
+        if (!(await state.clock.wait(TOUR_HOLD - REFRAME_AFTER)) || !going()) return;
         if (card.hasAttribute("data-selected")) await pressCard(card);
+        if (!(await state.clock.wait(REFRAME_AFTER)) || !going()) return;
+        state.reframe?.(900);
       }
     },
     [parts.app],
@@ -322,7 +361,16 @@ export default function RelationsSceneInner({
       const cards: Record<string, HTMLElement> = Object.fromEntries(cardsIn(viewport));
       callbacks.current.onReady?.({ window: parts.window, titlebar: parts.titlebar, cards });
     }
+    // Placed before the entrance plays, so the cards arrive into the crop that holds them.
+    state.reframe = closeUpOn(parts);
+    state.reframe?.(0);
+    // Again once the view has fitted itself to its tables, a frame or two after they arrive.
+    let settle = requestAnimationFrame(() => {
+      settle = requestAnimationFrame(() => state.reframe?.(0));
+    });
     return () => {
+      cancelAnimationFrame(settle);
+      state.reframe = null;
       state.token += 1;
       state.clock.cancel();
       for (const animation of [...state.animations]) animation.cancel();
@@ -332,7 +380,7 @@ export default function RelationsSceneInner({
       const current = viewportIn(parts.app);
       if (current && motion) current.dataset.scenePre = "";
     };
-  }, [motion, parts.app, parts.titlebar, parts.window, ready]);
+  }, [motion, parts, ready]);
 
   // Plays the entrance the first time the view is in sight, holds everything while it is not.
   React.useEffect(() => {
