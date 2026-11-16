@@ -62,9 +62,23 @@ jobs:
         shell: pwsh
         env:
           PERCH_HOME: ${{ runner.temp }}\perch-home
+        # go-webview2 embeds WebView2Loader 1.0.992, which predates WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS,
+        # so the debug port never reaches the browser. A WebView2Loader.dll beside the exe wins over
+        # the embedded one, so the check borrows Microsoft's current loader and removes it after,
+        # before the uninstall check expects an empty folder.
         run: |
           $dir = Join-Path $env:LOCALAPPDATA 'Programs\Perch'
-          node apps/launcher/scripts/drive-window.mjs "$dir\PerchLauncher.exe" "$dir\perch.exe" "$env:RUNNER_TEMP\launcher-window"
+          Invoke-WebRequest https://www.nuget.org/api/v2/package/Microsoft.Web.WebView2 -OutFile "$env:RUNNER_TEMP\webview2.zip"
+          Expand-Archive "$env:RUNNER_TEMP\webview2.zip" "$env:RUNNER_TEMP\webview2"
+          Copy-Item "$env:RUNNER_TEMP\webview2\runtimes\win-x64\native\WebView2Loader.dll" $dir
+          try {
+            node apps/launcher/scripts/drive-window.mjs "$dir\PerchLauncher.exe" "$dir\perch.exe" "$env:RUNNER_TEMP\launcher-window"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          } finally {
+            Get-Process PerchLauncher -ErrorAction SilentlyContinue | Stop-Process -Force
+            Start-Sleep -Seconds 2
+            Remove-Item "$dir\WebView2Loader.dll" -Force
+          }
 
       - name: Reinstall over a running server, then uninstall
         if: success() || failure()
