@@ -1,0 +1,12 @@
+{
+  "name": "@perch/launcher",
+  "version": "0.0.0",
+  "description": "PerchLauncher.exe: the Windows desktop window that starts, opens, stops and updates perch.",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "build": "bash scripts/build.sh",
+    "lint": "go vet ./... && GOOS=windows go vet ./...",
+    "typecheck": "GOOS=windows go build -o /dev/null ."
+  }
+}

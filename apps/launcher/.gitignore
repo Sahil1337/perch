@@ -1,0 +1,2 @@
+# scripts/build.sh writes this for the link step and removes it after.
+*.syso

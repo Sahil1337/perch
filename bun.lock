@@ -12,6 +12,10 @@
         "typescript-eslint": "^8.70.0",
       },
     },
+    "apps/launcher": {
+      "name": "@perch/launcher",
+      "version": "0.0.0",
+    },
     "apps/server": {
       "name": "perch",
       "version": "0.2.0",
@@ -365,6 +369,8 @@
     "@oxc-project/types": ["@oxc-project/types@0.148.0", "", {}, "sha512-Nm4s/jB+4FpFsPhWGEC4h7rzksesmtnMXomo6rCMcg/b8zLQuOziRgkCS1fxDCXOlJB/6Q8oABOZ/OP6RIPj9A=="],
 
     "@perch/client": ["@perch/client@workspace:packages/client"],
+
+    "@perch/launcher": ["@perch/launcher@workspace:apps/launcher"],
 
     "@perch/protocol": ["@perch/protocol@workspace:packages/protocol"],
 
