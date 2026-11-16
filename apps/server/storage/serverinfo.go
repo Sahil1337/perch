@@ -10,3 +10,12 @@ func WriteServerInfo(info protocol.ServerInfo) error { return serverInfoStore.Wr
 func ReadServerInfo() (*protocol.ServerInfo, error) { return serverInfoStore.Read() }
 
 func ClearServerInfo() error { return serverInfoStore.Remove() }
+
+// ClearServerInfoFor removes server.json only while it still names pid, so stopping one server
+// never deletes the record of another that started meanwhile.
+func ClearServerInfoFor(pid int) error {
+	if info, err := ReadServerInfo(); err == nil && info != nil && info.PID != pid {
+		return nil
+	}
+	return ClearServerInfo()
+}

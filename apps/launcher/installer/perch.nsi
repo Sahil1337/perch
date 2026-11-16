@@ -251,9 +251,14 @@ Section "Uninstall"
     nsExec::ExecToLog `"$INSTDIR\perch.exe" stop`
     Pop $0
   ${EndIf}
+  ; A copy updated while it ran is still running from its .old image.
   Push "$INSTDIR\perch.exe"
   Call un.WaitUntilFree
+  Push "$INSTDIR\perch.exe.old"
+  Call un.WaitUntilFree
   Push "$INSTDIR\PerchLauncher.exe"
+  Call un.WaitUntilFree
+  Push "$INSTDIR\PerchLauncher.exe.old"
   Call un.WaitUntilFree
 
   Delete "$INSTDIR\perch.exe"

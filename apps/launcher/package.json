@@ -7,6 +7,6 @@
   "scripts": {
     "build": "bash scripts/build.sh",
     "lint": "go vet ./... && GOOS=windows go vet ./...",
-    "typecheck": "GOOS=windows go build -o /dev/null ."
+    "typecheck": "GOOS=windows go build ./..."
   }
 }

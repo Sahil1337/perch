@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"os"
 	"syscall"
+
+	"perch/protocol"
 )
 
 func processAlive(pid int) bool {
@@ -18,8 +20,11 @@ func processAlive(pid int) bool {
 	return err == nil || errors.Is(err, syscall.EPERM)
 }
 
+func recordedAlive(info protocol.ServerInfo) (bool, error) { return processAlive(info.PID), nil }
+
 // SIGTERM reaches the same graceful path as /api/shutdown, so this never kills outright.
-func stopByForce(pid int, _ string) error {
+func stopByForce(info protocol.ServerInfo) error {
+	pid := info.PID
 	process, err := os.FindProcess(pid)
 	if err != nil {
 		return err

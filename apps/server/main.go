@@ -7,6 +7,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"math"
 	"net/http"
 	"os"
 	"os/exec"
@@ -203,18 +204,36 @@ func cmdStop(args []string) error {
 		fmt.Println("not running")
 		return nil
 	}
-	if !processAlive(info.PID) {
+	// A negative pid would signal a whole process group, and Windows truncates to 32 bits.
+	if info.PID <= 0 || info.PID > math.MaxInt32 {
+		return fmt.Errorf("server.json names an invalid pid %d", info.PID)
+	}
+	alive, err := recordedAlive(*info)
+	if errors.Is(err, errNotPerch) {
+		return clearReused(info.PID)
+	}
+	if !alive {
 		fmt.Println("server.json was stale (process already gone)")
-		return storage.ClearServerInfo()
+		return storage.ClearServerInfoFor(info.PID)
 	}
 	if !requestShutdown(info.URL) || !waitForExit(info.PID, stopWait) {
 		// A server older than /api/shutdown, or one that did not finish closing in time.
-		if err := stopByForce(info.PID, info.URL); err != nil {
+		if err := stopByForce(*info); errors.Is(err, errNotPerch) {
+			return clearReused(info.PID)
+		} else if err != nil {
 			return err
 		}
 	}
 	fmt.Printf("stopped (pid %d)\n", info.PID)
-	return storage.ClearServerInfo()
+	return storage.ClearServerInfoFor(info.PID)
+}
+
+// errNotPerch means the recorded pid now belongs to another program, which is left alone.
+var errNotPerch = errors.New("not perch")
+
+func clearReused(pid int) error {
+	fmt.Printf("server.json was stale (pid %d is no longer perch)\n", pid)
+	return storage.ClearServerInfoFor(pid)
 }
 
 // Long enough for Close to run out its own 5 s timeout on a request that will not finish.

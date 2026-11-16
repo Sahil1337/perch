@@ -362,20 +362,33 @@ func (h *host) dispatch(f func()) {
 	procPostMessageW.Call(h.hwnd, wmDispatch, 0, 0)
 }
 
+// drain takes one item at a time: a modal MessageBox pumps messages mid-drain, and onUI's empty
+// check must still see everything queued behind it.
 func (h *host) drain() {
-	h.mu.Lock()
-	q := h.queue
-	h.queue = nil
-	h.mu.Unlock()
-	for _, f := range q {
+	for {
+		h.mu.Lock()
+		if len(h.queue) == 0 {
+			h.mu.Unlock()
+			return
+		}
+		f := h.queue[0]
+		h.queue = h.queue[1:]
+		h.mu.Unlock()
 		f()
 	}
 }
 
+// onUI runs f in call order with everything already dispatched: inline only on the UI thread
+// with nothing queued ahead of it.
 func (h *host) onUI(f func()) {
 	if windows.GetCurrentThreadId() == h.uiThread {
-		f()
-		return
+		h.mu.Lock()
+		idle := len(h.queue) == 0
+		h.mu.Unlock()
+		if idle {
+			f()
+			return
+		}
 	}
 	h.dispatch(f)
 }
@@ -491,6 +504,9 @@ func newHandler(invoke func(this *comHandler, a, b unsafe.Pointer) uintptr) *com
 	}}
 }
 
+// The callers pass stack addresses as uintptr; uintptrescapes keeps them valid through the call.
+//
+//go:uintptrescapes
 func comCall(obj unsafe.Pointer, slot int, args ...uintptr) uintptr {
 	vtbl := *(*unsafe.Pointer)(obj)
 	fn := *(*uintptr)(unsafe.Add(vtbl, slot*int(unsafe.Sizeof(uintptr(0)))))

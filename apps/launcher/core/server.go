@@ -79,7 +79,7 @@ func (p Perch) Status() (*Status, error) {
 
 // Stop stops whichever server is running, wherever it was started.
 func (p Perch) Stop() error {
-	_, err := p.run(15*time.Second, "stop")
+	_, err := p.run(45*time.Second, "stop")
 	return err
 }
 

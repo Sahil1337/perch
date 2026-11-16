@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 	"time"
 )
@@ -41,7 +42,8 @@ type Host interface {
 // View is the whole page state; every PerchLauncher.set carries all of it.
 type View struct {
 	State        string `json:"state"`
-	Port         int    `json:"port"`
+	Port         int    `json:"port"`    // the setting
+	Address      string `json:"address"` // host:port the running server took; empty unless running
 	Error        string `json:"error"`
 	Update       string `json:"update"`
 	Version      string `json:"version"`
@@ -56,6 +58,11 @@ type App struct {
 	self    string
 	host    Host
 
+	// pubMu keeps snapshot, marshal and Eval in one order without holding mu while the page runs.
+	pubMu sync.Mutex
+	// saveMu makes reading settings and writing them one step, so an older snapshot never lands last.
+	saveMu sync.Mutex
+
 	mu        sync.Mutex
 	settings  Settings
 	state     string
@@ -66,7 +73,9 @@ type App struct {
 	paused    bool
 	known     bool // the first status answer is in
 	pageReady bool
-	busy      bool // a launch, stop or update is running
+	busy      bool   // a launch, stop or update is running
+	gen       uint64 // bumped on every lifecycle change; a status read before one must not land after it
+	exited    bool   // our server exited while busy; launch checks it before committing running
 	checking  bool
 	closing   bool
 	child     *exec.Cmd
@@ -97,6 +106,7 @@ func (a *App) Start(h Host) {
 		a.mu.Lock()
 		if st != nil {
 			a.state, a.url = StateRunning, st.URL
+			a.gen++
 		}
 		a.known = true
 		launch := st == nil && a.settings.LaunchOnOpen
@@ -174,7 +184,7 @@ func (a *App) Close() {
 }
 
 func (a *App) view() View {
-	return View{
+	v := View{
 		State:        a.state,
 		Port:         a.settings.Port,
 		Error:        a.errMsg,
@@ -184,9 +194,17 @@ func (a *App) view() View {
 		CheckUpdates: a.settings.CheckUpdates,
 		Paused:       a.paused,
 	}
+	if a.state == StateRunning {
+		_, rest, _ := strings.Cut(a.url, "://")
+		v.Address, _, _ = strings.Cut(rest, "/")
+	}
+	return v
 }
 
+// push relies on Host.Eval running scripts in call order.
 func (a *App) push() {
+	a.pubMu.Lock()
+	defer a.pubMu.Unlock()
 	a.mu.Lock()
 	ready := a.known && a.pageReady && a.host != nil
 	v := a.view()
@@ -212,13 +230,16 @@ func (a *App) begin() bool {
 		return false
 	}
 	a.busy = true
+	a.gen++
 	return true
 }
 
-func (a *App) end() {
+func (a *App) end() uint64 {
 	a.mu.Lock()
+	defer a.mu.Unlock()
 	a.busy = false
-	a.mu.Unlock()
+	a.gen++
+	return a.gen
 }
 
 func (a *App) launch(port int) {
@@ -230,7 +251,8 @@ func (a *App) launch(port int) {
 	if !validPort(port) {
 		port = a.settings.Port
 	}
-	a.busy = true
+	a.busy, a.exited = true, false
+	a.gen++
 	a.state, a.errMsg = StateStarting, ""
 	a.out = NewOutput()
 	out := a.out
@@ -240,7 +262,19 @@ func (a *App) launch(port int) {
 	url, err := a.start(port, out)
 
 	a.mu.Lock()
+	if err == nil && a.exited {
+		// Our server exited after answering; watch left that to us. It is gone for good, so one
+		// more status read is final: perch serve also exits when another server was already up.
+		a.mu.Unlock()
+		if st, _ := a.perch.Status(); st != nil {
+			url = st.URL
+		} else {
+			err = errors.New(exitMessage(out))
+		}
+		a.mu.Lock()
+	}
 	a.busy = false
+	a.gen++
 	if a.closing {
 		a.mu.Unlock()
 		return
@@ -314,25 +348,29 @@ func (a *App) start(port int, out *Output) (string, error) {
 // watch reaps the server and notices when it dies on its own while the window shows it running.
 func (a *App) watch(cmd *exec.Cmd, done chan struct{}) {
 	_ = cmd.Wait()
-	close(done)
 	a.mu.Lock()
-	if a.child != cmd {
-		a.mu.Unlock()
-		return
-	}
-	a.child, a.childDone = nil, nil
-	unexpected := !a.busy && !a.closing && a.state == StateRunning
-	if unexpected {
-		a.state, a.url = StateError, ""
-		a.errMsg = a.out.LastError()
-		if a.errMsg == "" {
-			a.errMsg = "Perch stopped unexpectedly"
+	unexpected := false
+	if a.child == cmd {
+		a.child, a.childDone = nil, nil
+		a.exited = a.busy
+		unexpected = !a.busy && !a.closing && a.state == StateRunning
+		if unexpected {
+			a.state, a.url, a.errMsg = StateError, "", exitMessage(a.out)
+			a.gen++
 		}
 	}
 	a.mu.Unlock()
+	close(done)
 	if unexpected {
 		a.push()
 	}
+}
+
+func exitMessage(out *Output) string {
+	if line := out.LastError(); line != "" {
+		return line
+	}
+	return "Perch stopped unexpectedly"
 }
 
 func (a *App) waitChild(limit time.Duration) {
@@ -355,11 +393,14 @@ func (a *App) isClosing() bool {
 }
 
 func (a *App) open() {
+	a.mu.Lock()
+	gen := a.gen
+	a.mu.Unlock()
 	st, _ := a.perch.Status()
 	if st != nil {
 		_ = a.host.OpenURL(st.URL)
 	}
-	a.refresh(st)
+	a.refresh(st, gen)
 }
 
 func (a *App) stop() {
@@ -369,14 +410,14 @@ func (a *App) stop() {
 	_ = a.perch.Stop()
 	a.waitChild(5 * time.Second)
 	st, _ := a.perch.Status()
-	a.end()
-	a.refresh(st)
+	a.refresh(st, a.end())
 }
 
-// refresh moves the state to what `perch status` just reported, unless a launch is in flight.
-func (a *App) refresh(st *Status) {
+// refresh moves the state to what `perch status` reported, unless an operation is in flight or
+// the state changed since gen was read.
+func (a *App) refresh(st *Status, gen uint64) {
 	a.mu.Lock()
-	if a.busy || a.closing {
+	if a.busy || a.closing || a.gen != gen {
 		a.mu.Unlock()
 		return
 	}
@@ -413,9 +454,8 @@ func (a *App) applySettings(raw json.RawMessage) {
 	if !a.settings.CheckUpdates {
 		a.update = ""
 	}
-	s := a.settings
 	a.mu.Unlock()
-	_ = SaveSettings(s)
+	a.saveSettings()
 	a.push()
 	if turnedOn {
 		go a.checkUpdates(false)
@@ -441,21 +481,32 @@ func (a *App) checkUpdates(force bool) {
 		return
 	}
 	a.settings.LastUpdateCheck = now
-	s := a.settings
-	a.update = ""
 	notify := false
-	if info.Available && info.Latest != "" {
-		a.update = info.Latest
-		notify = a.notified != info.Latest
-		a.notified = info.Latest
+	// Checks may have been turned off while this one ran; then only "Check now" still reports.
+	if force || a.settings.CheckUpdates {
+		a.update = ""
+		if info.Available && info.Latest != "" {
+			a.update = info.Latest
+			notify = a.notified != info.Latest
+			a.notified = info.Latest
+		}
 	}
 	a.mu.Unlock()
-	_ = SaveSettings(s)
+	a.saveSettings()
 	a.push()
 	if notify {
 		a.host.Notify("Perch "+displayVersion(info.Latest)+" is available",
 			"Open Perch — SQL Client and click the version link to update.")
 	}
+}
+
+func (a *App) saveSettings() {
+	a.saveMu.Lock()
+	defer a.saveMu.Unlock()
+	a.mu.Lock()
+	s := a.settings
+	a.mu.Unlock()
+	_ = SaveSettings(s)
 }
 
 // applyUpdate stops Perch, lets `perch update` swap both executables, then hands over to the new
@@ -481,6 +532,7 @@ func (a *App) applyUpdate() {
 	}
 	a.mu.Lock()
 	a.busy = false
+	a.gen++
 	a.state, a.url, a.errMsg = StateError, "", "Update failed: "+err.Error()
 	a.mu.Unlock()
 	a.push()
