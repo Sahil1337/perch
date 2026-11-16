@@ -6,6 +6,7 @@ and versions follow [semantic versioning](https://semver.org/).
 The section matching a release's version becomes that release's notes on GitHub — see
 [CONTRIBUTING.md](CONTRIBUTING.md#cutting-a-release).
 
+[Unreleased]: https://github.com/Sahil1337/perch/compare/v0.2.0...HEAD
 [0.2.0]: https://github.com/Sahil1337/perch/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Sahil1337/perch/releases/tag/v0.1.0
 
@@ -22,7 +23,23 @@ The section matching a release's version becomes that release's notes on GitHub 
 - **Windows launcher** — The Start menu entry opens a small window to start Perch, open it in
   your browser and stop it again. Closing the window stops Perch. Its settings are kept in
   `~/.perch/launcher.json`, and when a new release is out it says so and installs it through
-  `perch update`.
+  `perch update`. Only one launcher runs at a time, and it pauses itself while minimised so it
+  costs next to nothing in the background.
+
+- **`perch update --check --json`** — Prints the current and latest version as one line of JSON,
+  for scripts and tools that want to check for updates themselves.
+
+### Changed
+
+- **`perch stop`** asks the server to shut down through its local API, the same clean shutdown
+  as pressing Ctrl+C, which works the same on every OS. It falls back to the old signal for
+  servers from earlier releases. Shutting down no longer waits five seconds when a Perch tab is
+  still open.
+
+### Fixed
+
+- `perch stop` did not work on Windows: it reported the server as stale and cleared its record
+  while the server kept running.
 
 ## [0.2.0] — 2026-09-27
 
