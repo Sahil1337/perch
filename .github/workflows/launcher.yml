@@ -1,0 +1,158 @@
+name: launcher
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/launcher/**"
+      - "apps/server/**"
+      - ".github/workflows/launcher.yml"
+  pull_request:
+    paths:
+      - "apps/launcher/**"
+      - "apps/server/**"
+      - ".github/workflows/launcher.yml"
+  workflow_dispatch:
+
+env:
+  GO_VERSION: "1.25"
+
+jobs:
+  # The installer, the launcher window and `perch stop` only meet on Windows, and no Windows
+  # machine is in the dev loop, so this is the one place they run together.
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: apps/*/go.sum
+      # drive-window.mjs speaks CDP over Node's global WebSocket.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # No UI is embedded, as in server.yml's cli job. build.sh names a host build plain
+      # dist/perch; the installer looks for the release name.
+      - name: Build perch
+        shell: bash
+        working-directory: apps/server
+        run: bash scripts/build.sh && cp dist/perch dist/perch-windows-amd64.exe
+      - name: Build the launcher
+        shell: bash
+        run: bash apps/launcher/scripts/build.sh
+      - name: Install NSIS
+        shell: pwsh
+        run: |
+          choco install nsis -y --no-progress
+          Add-Content $env:GITHUB_PATH "${env:ProgramFiles(x86)}\NSIS"
+      - name: Build the installer
+        shell: bash
+        run: bash apps/launcher/scripts/installer.sh
+
+      - name: Install silently, then serve and stop
+        shell: pwsh
+        env:
+          PERCH_HOME: ${{ runner.temp }}\perch-home
+        run: |
+          function Fail($msg) { Write-Output "::error::$msg"; exit 1 }
+          $version = (Get-Content apps/server/package.json -Raw | ConvertFrom-Json).version
+          $dir = Join-Path $env:LOCALAPPDATA 'Programs\Perch'
+          # Built from the code point so the check does not depend on how this script is decoded.
+          $name = "Perch $([char]0x2014) SQL Client"
+          $key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Perch'
+
+          $setup = Start-Process "apps/launcher/dist/perch-$version-windows-amd64-setup.exe" -ArgumentList '/S' -Wait -PassThru
+          if ($setup.ExitCode -ne 0) { Fail "setup /S exited $($setup.ExitCode)" }
+          foreach ($file in 'perch.exe', 'PerchLauncher.exe', 'LICENSE', 'uninstall.exe') {
+            if (-not (Test-Path (Join-Path $dir $file))) { Fail "missing $dir\$file" }
+          }
+
+          $shell = New-Object -ComObject WScript.Shell
+          foreach ($folder in 'Programs', 'Desktop') {
+            $lnk = Join-Path ([Environment]::GetFolderPath($folder)) "$name.lnk"
+            if (-not (Test-Path -LiteralPath $lnk)) { Fail "no shortcut at $lnk" }
+            $shortcut = $shell.CreateShortcut($lnk)
+            if ($shortcut.TargetPath -ne (Join-Path $dir 'PerchLauncher.exe')) { Fail "$lnk points at $($shortcut.TargetPath)" }
+            if ($shortcut.Description -cne 'SQL client for Postgres and MySQL databases') { Fail "$lnk says $($shortcut.Description)" }
+          }
+
+          $reg = Get-ItemProperty $key
+          if ($reg.DisplayName -cne $name) { Fail "DisplayName is $($reg.DisplayName)" }
+          if ($reg.DisplayVersion -ne $version) { Fail "DisplayVersion is $($reg.DisplayVersion)" }
+          if ($reg.QuietUninstallString -ne "`"$dir\uninstall.exe`" /S") { Fail "QuietUninstallString is $($reg.QuietUninstallString)" }
+          foreach ($value in 'Publisher', 'DisplayIcon', 'UninstallString', 'EstimatedSize', 'NoModify', 'NoRepair') {
+            if ($null -eq $reg.$value) { Fail "the uninstall key has no $value" }
+          }
+
+          # The uninstall step checks this survives: PERCH_HOME is the user's data.
+          New-Item -ItemType Directory -Force $env:PERCH_HOME | Out-Null
+          Set-Content (Join-Path $env:PERCH_HOME 'marker.txt') 'left by CI'
+
+          $serve = Start-Process "$dir\perch.exe" -ArgumentList 'serve', '--no-open' -PassThru -NoNewWindow `
+            -RedirectStandardOutput "$env:RUNNER_TEMP\serve.out" -RedirectStandardError "$env:RUNNER_TEMP\serve.err"
+          $info = Join-Path $env:PERCH_HOME 'server.json'
+          for ($i = 0; $i -lt 60 -and -not (Test-Path $info); $i++) { Start-Sleep -Milliseconds 500 }
+          if (-not (Test-Path $info)) { Get-Content "$env:RUNNER_TEMP\serve.out", "$env:RUNNER_TEMP\serve.err"; Fail 'perch serve never wrote server.json' }
+          & "$dir\perch.exe" stop
+          if (-not $serve.WaitForExit(15000)) { Fail 'perch stop left the server running' }
+          if (Test-Path $info) { Fail 'perch stop left server.json behind' }
+
+      - name: Drive the launcher window
+        shell: pwsh
+        env:
+          PERCH_HOME: ${{ runner.temp }}\perch-home
+        run: |
+          $dir = Join-Path $env:LOCALAPPDATA 'Programs\Perch'
+          node apps/launcher/scripts/drive-window.mjs "$dir\PerchLauncher.exe" "$dir\perch.exe" "$env:RUNNER_TEMP\launcher-window"
+
+      - name: Reinstall over a running server, then uninstall
+        if: success() || failure()
+        shell: pwsh
+        env:
+          PERCH_HOME: ${{ runner.temp }}\perch-home
+        run: |
+          function Fail($msg) { Write-Output "::error::$msg"; exit 1 }
+          $version = (Get-Content apps/server/package.json -Raw | ConvertFrom-Json).version
+          $dir = Join-Path $env:LOCALAPPDATA 'Programs\Perch'
+          $name = "Perch $([char]0x2014) SQL Client"
+          $key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Perch'
+          $info = Join-Path $env:PERCH_HOME 'server.json'
+          function Start-Perch {
+            $p = Start-Process "$dir\perch.exe" -ArgumentList 'serve', '--no-open' -PassThru -NoNewWindow `
+              -RedirectStandardOutput "$env:RUNNER_TEMP\serve2.out" -RedirectStandardError "$env:RUNNER_TEMP\serve2.err"
+            for ($i = 0; $i -lt 60 -and -not (Test-Path $info); $i++) { Start-Sleep -Milliseconds 500 }
+            if (-not (Test-Path $info)) { Fail 'perch serve never wrote server.json' }
+            $p
+          }
+
+          $serve = Start-Perch
+          $setup = Start-Process "apps/launcher/dist/perch-$version-windows-amd64-setup.exe" -ArgumentList '/S' -Wait -PassThru
+          if ($setup.ExitCode -ne 0) { Fail "setup /S over an install exited $($setup.ExitCode)" }
+          if (-not $serve.WaitForExit(15000)) { Fail 'reinstalling left the running server up' }
+
+          $serve = Start-Perch
+          $before = Get-ChildItem -Recurse -File $env:PERCH_HOME | Where-Object Name -ne 'server.json' | ForEach-Object FullName
+          Start-Process "$dir\uninstall.exe" -ArgumentList '/S' -Wait
+          # The uninstaller hands off to a copy of itself in %TEMP% and returns at once, so this
+          # waits on the effect rather than the process.
+          for ($i = 0; $i -lt 120 -and ((Test-Path $dir) -or (Test-Path $key)); $i++) { Start-Sleep -Milliseconds 500 }
+          if (Test-Path $dir) { Get-ChildItem $dir; Fail "uninstall left $dir behind" }
+          if (Test-Path $key) { Fail 'uninstall left the registry key behind' }
+          foreach ($folder in 'Programs', 'Desktop') {
+            $lnk = Join-Path ([Environment]::GetFolderPath($folder)) "$name.lnk"
+            if (Test-Path -LiteralPath $lnk) { Fail "uninstall left $lnk behind" }
+          }
+          if (-not $serve.WaitForExit(5000)) { Fail 'uninstall left the server running' }
+
+          $missing = $before | Where-Object { -not (Test-Path -LiteralPath $_) }
+          if ($missing) { Fail "uninstall removed user data: $($missing -join ', ')" }
+          if ((Get-Content (Join-Path $env:PERCH_HOME 'marker.txt')) -ne 'left by CI') { Fail 'uninstall changed PERCH_HOME' }
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: launcher-window
+          path: ${{ runner.temp }}/launcher-window
+          if-no-files-found: warn

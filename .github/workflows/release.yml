@@ -25,7 +25,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-          cache-dependency-path: apps/server/go.sum
+          cache-dependency-path: apps/*/go.sum
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
@@ -52,6 +52,15 @@ jobs:
       - name: Build every target
         working-directory: apps/server
         run: bash scripts/build.sh --all
+
+      # The installer wraps the windows-amd64 build above with the launcher. makensis runs on
+      # Linux, which is what keeps this one job on one machine.
+      - name: Build the launcher
+        run: bash apps/launcher/scripts/build.sh
+      - name: Install NSIS
+        run: sudo apt-get update && sudo apt-get install -y nsis
+      - name: Build the installer
+        run: bash apps/launcher/scripts/installer.sh
 
       - name: Package
         id: package
@@ -82,6 +91,13 @@ jobs:
             tar -czf "release/perch-$VERSION-$target.tar.gz" -C "$stage" .
             rm -rf "$stage"
           done
+
+          # Additive: the bare .exe above keeps its name, because `perch update` on every
+          # existing Windows install resolves exactly that asset. The launcher asset is what
+          # `perch update` fetches for an installed copy, which has PerchLauncher.exe beside it.
+          cp "../launcher/dist/perch-$VERSION-windows-amd64-setup.exe" release/
+          cp ../launcher/dist/PerchLauncher.exe "release/perch-launcher-$VERSION-windows-amd64.exe"
+
           (cd release && sha256sum perch-* > checksums.txt)
           ls -lh release
 
