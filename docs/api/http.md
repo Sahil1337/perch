@@ -27,14 +27,14 @@ status. A route returns an `*httpx.Error`
 into that envelope; anything else is a bug, is logged, and answers 500 with a message and no
 code.
 
-| Code             | Status | Raised by                                                                           |
-| ---------------- | ------ | ----------------------------------------------------------------------------------- |
-| `bad_request`    | 400    | the default for `badRequest()` — bad body, bad query param, a non-`.sql` path       |
-| `forbidden`      | 403    | a path outside the configured workspace roots, or no roots configured               |
-| `not_found`      | 404    | an unknown connection, run or file — and any unmatched route                        |
-| `conflict`       | 409    | a duplicate connection name, a file that already exists, a run id already executing |
-| `stale_write`    | 409    | `PUT /api/files/content` when `ifModifiedAt` does not match disk                    |
-| `connect_failed` | 400    | the fallback when a connect or test fails for a reason with no code of its own      |
+| Code             | Status | Raised by                                                                                 |
+| ---------------- | ------ | ----------------------------------------------------------------------------------------- |
+| `bad_request`    | 400    | the default for `badRequest()` — bad body, bad query param, a non-`.sql` path             |
+| `forbidden`      | 403    | a path outside the configured workspace roots, or no roots configured; a refused shutdown |
+| `not_found`      | 404    | an unknown connection, run or file — and any unmatched route                              |
+| `conflict`       | 409    | a duplicate connection name, a file that already exists, a run id already executing       |
+| `stale_write`    | 409    | `PUT /api/files/content` when `ifModifiedAt` does not match disk                          |
+| `connect_failed` | 400    | the fallback when a connect or test fails for a reason with no code of its own            |
 
 A `conflict` carries its extra fields *beside* the envelope rather than inside it, which is how
 the stale-write 409 returns the file as it is on disk now.
@@ -44,6 +44,19 @@ the stale-write 409 returns the file as it is on disk now.
 | Method | Path          | Body | Response     | Purpose                                                                  |
 | ------ | ------------- | ---- | ------------ | ------------------------------------------------------------------------ |
 | GET    | `/api/health` | —    | `ServerInfo` | Name, version, pid, url, start time and perch home — the liveness probe. |
+
+## Shutdown
+
+| Method | Path            | Body | Response             | Purpose                                                                                      |
+| ------ | --------------- | ---- | -------------------- | -------------------------------------------------------------------------------------------- |
+| POST   | `/api/shutdown` | —    | `{ ok: true }` (202) | Stop the server the way Ctrl+C does: close the pools and history, clear `server.json`, exit. |
+
+This is what `perch stop` calls, on every OS — Windows cannot be sent SIGTERM. It is accepted only
+from a loopback peer, with no `Origin` header, and with `X-Perch-Shutdown: 1`; anything else is
+`403 forbidden`. A browser always sends `Origin` on a cross-site POST, and the custom header forces
+a CORS preflight that is never granted for it, so no web page can stop the server. The 202 is
+written before shutdown starts; poll the pid, not the port, to know it has finished. Not part of
+`@perch/protocol`: only the CLI calls it, never the UI.
 
 ## Events
 

@@ -71,7 +71,19 @@ func Apply(ctx context.Context, tag string, log func(string)) (string, error) {
 		}
 	}
 
-	if err := replace(binaryPath, binary); err != nil {
+	// Everything is downloaded and verified before the first file is swapped.
+	finish, err := prepareInstalled(ctx, base, tag, sums, binaryPath, log)
+	if err != nil {
+		return "", err
+	}
+
+	err = replace(binaryPath, binary)
+	if finish != nil {
+		if finishErr := finish(err == nil); err == nil {
+			err = finishErr
+		}
+	}
+	if err != nil {
 		return "", err
 	}
 	return binaryPath, nil
@@ -102,8 +114,44 @@ func fetch(ctx context.Context, url string) ([]byte, error) {
 	return io.ReadAll(io.LimitReader(response.Body, maxAsset))
 }
 
+// download streams url into a temp file in dir while hashing it, so a second asset never sits
+// in memory beside the first. The caller owns the returned file.
+func download(ctx context.Context, url, dir string) (path, digest string, err error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return "", "", err
+	}
+	response, err := client.Do(request)
+	if err != nil {
+		return "", "", err
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return "", "", fmt.Errorf("%s", response.Status)
+	}
+	file, err := os.CreateTemp(dir, ".perch-download-*.tmp")
+	if err != nil {
+		return "", "", err
+	}
+	hash := sha256.New()
+	_, err = io.Copy(io.MultiWriter(file, hash), io.LimitReader(response.Body, maxAsset))
+	if closeErr := file.Close(); err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		os.Remove(file.Name())
+		return "", "", err
+	}
+	return file.Name(), hex.EncodeToString(hash.Sum(nil)), nil
+}
+
 // checksums.txt lists every asset in the release; only the line for ours matters.
 func verify(data, sums []byte, asset string) error {
+	sum := sha256.Sum256(data)
+	return verifyDigest(hex.EncodeToString(sum[:]), sums, asset)
+}
+
+func verifyDigest(got string, sums []byte, asset string) error {
 	want := ""
 	for _, line := range strings.Split(string(sums), "\n") {
 		digest, name, found := strings.Cut(strings.TrimSpace(line), " ")
@@ -119,8 +167,7 @@ func verify(data, sums []byte, asset string) error {
 	if want == "" {
 		return fmt.Errorf("checksums.txt does not list %s", asset)
 	}
-	sum := sha256.Sum256(data)
-	if got := hex.EncodeToString(sum[:]); got != want {
+	if got != want {
 		return fmt.Errorf("checksum mismatch for %s (expected %s, got %s) — refusing to install", asset, want, got)
 	}
 	return nil
@@ -180,14 +227,20 @@ func replace(binaryPath string, binary []byte) error {
 // Windows will not rename over a file that is open, and the file here is this process. Moving
 // the running binary aside first is allowed, and the stale copy goes on the next run.
 func replaceWindows(binaryPath string, binary []byte) error {
+	// Staged in the target directory and renamed into place: a write that dies halfway would
+	// otherwise leave a truncated perch.exe where the binary belongs.
+	return swapRunning(binaryPath, func() error { return fsx.WriteAtomic(binaryPath, binary, 0o755) })
+}
+
+// swapRunning moves binaryPath aside to .old, runs put to place the new file, and puts the old
+// one back if that fails.
+func swapRunning(binaryPath string, put func() error) error {
 	previous := binaryPath + ".old"
 	_ = os.Remove(previous)
 	if err := os.Rename(binaryPath, previous); err != nil {
 		return writeError(binaryPath, err)
 	}
-	// Staged in the target directory and renamed into place: a write that dies halfway would
-	// otherwise leave a truncated perch.exe where the binary belongs.
-	if err := fsx.WriteAtomic(binaryPath, binary, 0o755); err != nil {
+	if err := put(); err != nil {
 		if restore := os.Rename(previous, binaryPath); restore != nil {
 			return fmt.Errorf("could not replace %s: %w — the previous binary is still at %s",
 				binaryPath, err, previous)

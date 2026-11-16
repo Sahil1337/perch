@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"net/http"
@@ -132,6 +133,8 @@ already running (per ~/.perch/server.json), prints/opens its URL instead of star
 		_ = storage.ClearServerInfo()
 	}
 
+	// POST /api/shutdown lands on the same channel as Ctrl+C, so both end the server one way.
+	stop := make(chan os.Signal, 1)
 	running, err := server.Start(server.StartOptions{
 		Port:         *port,
 		Host:         *host,
@@ -139,6 +142,12 @@ already running (per ~/.perch/server.json), prints/opens its URL instead of star
 		UIDir:        resolveUIDir(*uiDir),
 		AllowOrigins: origins,
 		Version:      Version,
+		OnShutdown: func() {
+			select {
+			case stop <- syscall.SIGTERM:
+			default:
+			}
+		},
 	})
 	if err != nil {
 		return err
@@ -157,7 +166,6 @@ already running (per ~/.perch/server.json), prints/opens its URL instead of star
 	}
 	go noticeUpdate()
 
-	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 	<-stop
 	return running.Close()
@@ -184,7 +192,7 @@ func resolveUIDir(flagValue string) string {
 func cmdStop(args []string) error {
 	flags := flag.NewFlagSet("stop", flag.ExitOnError)
 	flags.Usage = func() {
-		fmt.Print("usage: perch stop\n\nSends SIGTERM to the running server (per server.json) and clears it.\n")
+		fmt.Print("usage: perch stop\n\nAsks the running server (per server.json) to shut down and waits for it to exit.\n")
 	}
 	if err := flags.Parse(args); err != nil {
 		return err
@@ -195,12 +203,47 @@ func cmdStop(args []string) error {
 		fmt.Println("not running")
 		return nil
 	}
-	if process, err := os.FindProcess(info.PID); err == nil && process.Signal(syscall.SIGTERM) == nil {
-		fmt.Printf("stopped (pid %d)\n", info.PID)
-	} else {
+	if !processAlive(info.PID) {
 		fmt.Println("server.json was stale (process already gone)")
+		return storage.ClearServerInfo()
 	}
+	if !requestShutdown(info.URL) || !waitForExit(info.PID, stopWait) {
+		// A server older than /api/shutdown, or one that did not finish closing in time.
+		if err := stopByForce(info.PID, info.URL); err != nil {
+			return err
+		}
+	}
+	fmt.Printf("stopped (pid %d)\n", info.PID)
 	return storage.ClearServerInfo()
+}
+
+// Long enough for Close to run out its own 5 s timeout on a request that will not finish.
+const stopWait = 10 * time.Second
+
+func requestShutdown(url string) bool {
+	request, err := http.NewRequest(http.MethodPost, url+"/api/shutdown", nil)
+	if err != nil {
+		return false
+	}
+	request.Header.Set("X-Perch-Shutdown", "1")
+	client := &http.Client{Timeout: 2 * time.Second}
+	response, err := client.Do(request)
+	if err != nil {
+		return false
+	}
+	response.Body.Close()
+	return response.StatusCode == http.StatusAccepted
+}
+
+func waitForExit(pid int, timeout time.Duration) bool {
+	deadline := time.Now().Add(timeout)
+	for processAlive(pid) {
+		if time.Now().After(deadline) {
+			return false
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	return true
 }
 
 func cmdStatus(args []string) error {
@@ -269,19 +312,24 @@ func openBrowser(url string) {
 func cmdUpdate(args []string) error {
 	flags := flag.NewFlagSet("update", flag.ExitOnError)
 	checkOnly := flags.Bool("check", false, "report whether a newer release exists, and install nothing")
+	asJSON := flags.Bool("json", false, "with --check, print the result as one JSON object")
 	pin := flags.String("version", "", "install this tag instead of the latest (e.g. vX.Y.Z)")
 	flags.Usage = func() {
-		fmt.Print(`usage: perch update [--check] [--version <tag>]
+		fmt.Print(`usage: perch update [--check [--json]] [--version <tag>]
 
 Downloads the latest release for this platform, verifies it against the release's checksums.txt,
 and replaces the running binary. A running server keeps the old version until it is restarted.
 
   --check             report what is available and install nothing
+  --json              with --check: print {"current","latest","available"} and nothing else
   --version <tag>     install this tag instead of the latest, including an older one
 `)
 	}
 	if err := flags.Parse(args); err != nil {
 		return err
+	}
+	if *asJSON && !*checkOnly {
+		return errors.New("--json only applies to --check")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
@@ -294,6 +342,9 @@ and replaces the running binary. A running server keeps the old version until it
 			return fmt.Errorf("could not reach the releases API: %w", err)
 		}
 		tag = latest
+		if *asJSON {
+			return printCheck(tag, update.IsNewer(tag, Version))
+		}
 		if !update.IsNewer(tag, Version) {
 			fmt.Printf("perch v%s is the latest release\n", Version)
 			return nil
@@ -302,6 +353,8 @@ and replaces the running binary. A running server keeps the old version until it
 			fmt.Printf("%s is available (you have v%s)\n  run: perch update\n", tag, Version)
 			return nil
 		}
+	} else if *asJSON {
+		return printCheck(tag, update.Compare(tag, Version) != 0)
 	} else if *checkOnly {
 		fmt.Printf("%s is available (you have v%s)\n  run: perch update --version %s\n", tag, Version, tag)
 		return nil
@@ -318,6 +371,15 @@ and replaces the running binary. A running server keeps the old version until it
 		fmt.Printf("\nA server is still running the old version (pid %d). Restart it: perch stop && perch\n", info.PID)
 	}
 	return nil
+}
+
+// The launcher reads this, so stdout carries the object and nothing else.
+func printCheck(latest string, available bool) error {
+	return json.NewEncoder(os.Stdout).Encode(struct {
+		Current   string `json:"current"`
+		Latest    string `json:"latest"`
+		Available bool   `json:"available"`
+	}{Version, latest, available})
 }
 
 // noticeUpdate is the look serve takes for a newer release: one cached request a day, never

@@ -24,6 +24,8 @@ type Options struct {
 	Watch bool
 	// AllowOrigins lets a UI dev server on another origin call /api/*. Production is same-origin.
 	AllowOrigins []string
+	// OnShutdown is called once POST /api/shutdown is accepted; nil leaves the route out.
+	OnShutdown func()
 }
 
 type Server struct {
@@ -32,6 +34,7 @@ type Server struct {
 	url          string
 	startedAt    string
 	allowOrigins []string
+	onShutdown   func()
 
 	bus       *Bus
 	pool      *Pool
@@ -55,6 +58,7 @@ func New(opts Options) *Server {
 		url:          opts.URL,
 		startedAt:    startedAt,
 		allowOrigins: opts.AllowOrigins,
+		onShutdown:   opts.OnShutdown,
 		bus:          NewBus(),
 		pool:         NewPool(),
 		runLog:       NewRunLog(),
@@ -93,6 +97,7 @@ func (s *Server) routes() {
 	s.registerHistory()
 	s.registerSettings()
 	s.registerFiles()
+	s.registerShutdown()
 	// Last: the UI mount ends in a catch-all.
 	s.registerUI()
 }
