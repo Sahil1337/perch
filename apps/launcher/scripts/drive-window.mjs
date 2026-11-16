@@ -53,6 +53,19 @@ function showWindow(pid, cmd) {
   execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script]);
 }
 
+// WebView2 ignored the environment variable on the hosted runner, so the port also goes in the
+// per-app browser-arguments policy WebView2 reads from the registry. Removed again on exit.
+const FLAGS_KEY = "HKCU\\Software\\Policies\\Microsoft\\Edge\\WebView2\\AdditionalBrowserArguments";
+const FLAGS_NAME = "PerchLauncher.exe";
+execFileSync("reg", ["add", FLAGS_KEY, "/v", FLAGS_NAME, "/t", "REG_SZ", "/d", `--remote-debugging-port=${PORT}`, "/f"]);
+process.on("exit", () => {
+  try {
+    execFileSync("reg", ["delete", FLAGS_KEY, "/v", FLAGS_NAME, "/f"], { stdio: "ignore" });
+  } catch {
+    // already gone
+  }
+});
+
 const launcher = spawn(launcherExe, [], {
   env: { ...process.env, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${PORT}` },
   stdio: ["ignore", "pipe", "pipe"],
