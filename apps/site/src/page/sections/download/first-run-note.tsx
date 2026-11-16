@@ -15,7 +15,8 @@ const NOTES: Partial<Record<string, ReactNode>> = {
   windows: (
     <>
       On Windows, SmartScreen warns the first time: choose <span className="text-foreground">More info</span>, then{" "}
-      <span className="text-foreground">Run anyway</span>.
+      <span className="text-foreground">Run anyway</span>. The installer adds Perch to the Start menu; the single
+      .exe runs from wherever you save it.
     </>
   ),
 };

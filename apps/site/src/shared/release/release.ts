@@ -20,6 +20,8 @@ export type Asset = {
   size: number;
   os: Exclude<OS, "unknown">;
   arch: Arch;
+  /** Windows' setup, rather than the perch binary itself. */
+  installer: boolean;
   /** "macOS · Apple silicon" */
   label: string;
   kind: ".tar.gz" | ".exe";
@@ -31,8 +33,10 @@ export type Release = {
   status: "loading" | "ready" | "fallback";
   /** The tag, "v0.2.0", once the API has answered. */
   version?: string;
-  /** The build for this machine, when one was found. */
+  /** The download for this machine, when one was found: on Windows the installer if the release has one. */
   primary?: Asset;
+  /** This machine's perch binary itself. The same as `primary` except where that is the installer. */
+  binary?: Asset;
   /** Every build in the release, in a fixed platform order. */
   assets: Asset[];
   releasesUrl: string;
@@ -48,17 +52,23 @@ export const ARCH_NAMES = {
   linux: { amd64: "x86-64", arm64: "ARM64" },
   windows: { amd64: "x64", arm64: "ARM64" },
 } as const;
-const buildLabel = (os: Exclude<OS, "unknown">, arch: Arch): string => `${OS_NAMES[os]} · ${ARCH_NAMES[os][arch]}`;
-/** Every build the release workflow ships, in a fixed platform order. */
-export const BUILDS: { os: Exclude<OS, "unknown">; arch: Arch; label: string }[] = (
+// Windows ships twice, so its two labels say which one.
+const buildLabel = (os: Exclude<OS, "unknown">, arch: Arch, installer: boolean): string =>
+  `${OS_NAMES[os]} · ${ARCH_NAMES[os][arch]}${os === "windows" ? (installer ? " · Installer" : " · Single .exe") : ""}`;
+/**
+ * Every build the release workflow ships, in a fixed platform order. The installer comes before the
+ * single .exe, so the first match for a machine is the one it should download.
+ */
+export const BUILDS: { os: Exclude<OS, "unknown">; arch: Arch; installer: boolean; label: string }[] = (
   [
-    { os: "darwin", arch: "arm64" },
-    { os: "darwin", arch: "amd64" },
-    { os: "linux", arch: "amd64" },
-    { os: "linux", arch: "arm64" },
-    { os: "windows", arch: "amd64" },
+    { os: "darwin", arch: "arm64", installer: false },
+    { os: "darwin", arch: "amd64", installer: false },
+    { os: "linux", arch: "amd64", installer: false },
+    { os: "linux", arch: "arm64", installer: false },
+    { os: "windows", arch: "amd64", installer: true },
+    { os: "windows", arch: "amd64", installer: false },
   ] as const
-).map((b) => ({ ...b, label: buildLabel(b.os, b.arch) }));
+).map((b) => ({ ...b, label: buildLabel(b.os, b.arch, b.installer) }));
 
 type RawRelease = { tag: string; url: string; assets: { name: string; size: number; url: string }[] };
 
@@ -144,16 +154,22 @@ async function latestRelease(): Promise<RawRelease | null> {
 
 const megabytes = (bytes: number) => `${(bytes / 1e6).toFixed(1)} MB`;
 
-function assetFor(release: RawRelease, os: Exclude<OS, "unknown">, arch: Arch): Asset | undefined {
+function assetFor(release: RawRelease, { os, arch, installer, label }: (typeof BUILDS)[number]): Asset | undefined {
   const version = release.tag.replace(/^v/, "");
-  const name = os === "windows" ? `perch-${version}-windows-amd64.exe` : `perch-${version}-${os}-${arch}.tar.gz`;
+  const name =
+    os !== "windows"
+      ? `perch-${version}-${os}-${arch}.tar.gz`
+      : installer
+        ? `perch-${version}-windows-amd64-setup.exe`
+        : `perch-${version}-windows-amd64.exe`;
   const found = release.assets.find((a) => a.name === name);
   if (!found) return undefined;
   return {
     ...found,
     os,
     arch,
-    label: buildLabel(os, arch),
+    installer,
+    label,
     kind: os === "windows" ? ".exe" : ".tar.gz",
     sizeLabel: megabytes(found.size),
   };
@@ -169,12 +185,15 @@ function build(os: OS, mobile: boolean, arch: Arch | undefined, release: RawRele
     mobile,
   };
   if (!release) return base;
-  const assets = BUILDS.map((b) => assetFor(release, b.os, b.arch)).filter((a): a is Asset => !!a);
-  const primary = os !== "unknown" && arch ? assetFor(release, os, arch) : undefined;
+  const assets = BUILDS.map((b) => assetFor(release, b)).filter((a): a is Asset => !!a);
+  // A release without the installer (v0.2.0 and earlier) still has the single .exe, so Windows
+  // falls back to it.
+  const mine = assets.filter((a) => a.os === os && a.arch === arch);
   return {
     ...base,
     version: release.tag,
-    primary,
+    primary: mine[0],
+    binary: mine.find((a) => !a.installer),
     assets,
     checksumsUrl: release.assets.find((a) => a.name === "checksums.txt")?.url,
   };

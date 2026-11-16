@@ -9,6 +9,21 @@ The section matching a release's version becomes that release's notes on GitHub 
 [0.2.0]: https://github.com/Sahil1337/perch/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Sahil1337/perch/releases/tag/v0.1.0
 
+## [Unreleased]
+
+### Added
+
+- **Windows installer** — A new download, `perch-<version>-windows-amd64-setup.exe`, installs
+  Perch for your user without an admin prompt and adds **Perch — SQL Client** to the Start menu.
+  It appears in Settings → Apps, and uninstalling it leaves your connections, settings and
+  queries in `~/.perch` alone. The single `.exe` is still there, unchanged, for anyone who would
+  rather not install anything.
+
+- **Windows launcher** — The Start menu entry opens a small window to start Perch, open it in
+  your browser and stop it again. Closing the window stops Perch. Its settings are kept in
+  `~/.perch/launcher.json`, and when a new release is out it says so and installs it through
+  `perch update`.
+
 ## [0.2.0] — 2026-09-27
 
 ### Added

@@ -288,9 +288,19 @@ next update — deleting it by hand is fine too.
 
 ### Windows
 
-Download `perch-<version>-windows-amd64.exe` from the
-[releases page](https://github.com/Sahil1337/perch/releases/latest) and run it. Windows shows a
-SmartScreen warning the first time — choose **More info → Run anyway**.
+Two downloads on the [releases page](https://github.com/Sahil1337/perch/releases/latest), both
+the same Perch:
+
+- **Installer** — `perch-<version>-windows-amd64-setup.exe`. It installs for your user only, so
+  there is no admin prompt, and adds **Perch — SQL Client** to the Start menu, which opens a small
+  window to start and stop Perch. Uninstall it from Settings → Apps; your connections and queries
+  in `~/.perch` stay.
+- **Single .exe** — `perch-<version>-windows-amd64.exe`. Nothing to install: save it anywhere and
+  run it, or run it from a terminal like the macOS and Linux binary.
+
+Either way, Windows shows a SmartScreen warning the first time — choose
+**More info → Run anyway**. The binaries are not code-signed yet, so on Windows 11 with Smart App
+Control turned on, Windows blocks them outright and offers no way past it.
 
 ### From source
 
@@ -343,6 +353,7 @@ Perch runs locally and keeps your workspace on your machine.
 ├── history.db
 ├── server.json
 ├── update.json
+├── launcher.json
 └── queries/
 ```
 

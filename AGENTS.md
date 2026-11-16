@@ -131,7 +131,12 @@ land is a committed `*.test.ts`.
   on Windows) and read `checksums.txt`; changing how `release.yml` names or packages assets
   breaks `curl … | sh` for everyone and `perch update` for everyone already on an older binary,
   which no later release can fix. Change all three, and test both against a local directory with
-  `PERCH_DOWNLOAD_BASE=file:///path` — `update` speaks `file://` for exactly that.
+  `PERCH_DOWNLOAD_BASE=file:///path` — `update` speaks `file://` for exactly that. Windows also
+  ships two more assets, both in `checksums.txt`: `perch-<v>-windows-amd64-setup.exe`, the
+  installer the website offers first, and `perch-launcher-<v>-windows-amd64.exe`, which `update`
+  swaps in on an installed copy. They are additions: the bare `perch-<v>-windows-amd64.exe` name
+  must never change, because every Windows `perch update` already in the wild resolves exactly
+  that asset, and `apps/site/src/shared/release/release.ts` builds all three names too.
   Never add an `npm i -g` line to docs — there is no package to install, and the npm names
   `perch`, `sqe` and `sql-engine` all belong to unrelated projects.
 - **The frontend is `apps/web`.** The four layout directions in `apps/mockups` did their job
