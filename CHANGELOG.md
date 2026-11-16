@@ -6,11 +6,11 @@ and versions follow [semantic versioning](https://semver.org/).
 The section matching a release's version becomes that release's notes on GitHub — see
 [CONTRIBUTING.md](CONTRIBUTING.md#cutting-a-release).
 
-[Unreleased]: https://github.com/Sahil1337/perch/compare/v0.2.0...HEAD
+[0.3.0]: https://github.com/Sahil1337/perch/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Sahil1337/perch/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Sahil1337/perch/releases/tag/v0.1.0
 
-## [Unreleased]
+## [0.3.0] — 2026-11-17
 
 ### Added
 
