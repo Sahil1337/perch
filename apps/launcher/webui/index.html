@@ -7,36 +7,22 @@
 <meta name="color-scheme" content="dark">
 <title>Perch</title>
 <style>
-/* The app's dark palette and the site's night and porcelain, as literals: the page has no stylesheet to inherit. */
+/* packages/ui's dark tokens, as literals: the page has no stylesheet to inherit. */
 :root {
-  --sky: oklch(17.6% 0.014 262);
-  --sky-deep: oklch(15.2% 0.012 262);
-  --ink: oklch(96.4% 0.002 247.8);
-  --ink-2: oklch(73.1% 0.008 260.7);
-  /* 62%, not the board's 60%: 60% on the card measures 4.4:1, under the 4.5:1 floor for text. */
-  --ink-3: oklch(62% 0.01 262);
-  --ink-on-light: oklch(18% 0.006 262);
-  --porcelain: oklch(95% 0.005 85);
-  --porcelain-light: oklch(97% 0.018 55.6);
-  --porcelain-trail: oklch(95% 0.005 85 / 0.9);
-  --bird: oklch(93.5% 0.004 85);
-  --branch: oklch(73.1% 0.008 260.7 / 0.75);
-  --cloud: oklch(32% 0.012 262);
-  --orange: oklch(74.6% 0.156 55.6);
-  --firefly: oklch(90% 0.15 105);
-  --firefly-glow: oklch(90% 0.15 105 / 0.45);
-  --green: oklch(70.5% 0.154 153.8);
-  --green-ring: oklch(70.5% 0.154 153.8 / 0.16);
-  --red: oklch(66.6% 0.18 21.4);
-  --card: oklch(21.5% 0.01 262);
-  --field: oklch(25.5% 0.008 262);
-  --line: oklch(100% 0 0 / 0.08);
-  --line-strong: oklch(100% 0 0 / 0.14);
-  --hover: oklch(100% 0 0 / 0.07);
-  --switch-off: oklch(100% 0 0 / 0.16);
-  --sep: oklch(100% 0 0 / 0.25);
-  --scrim: oklch(9% 0.01 262 / 0.55);
-  --shadow: oklch(0% 0 0 / 0.5);
+  --page: oklch(20.9% 0.004 264.477);
+  --card: oklch(26% 0.006 271.191);
+  --line: oklch(30.8% 0.006 258.354);
+  --line-strong: oklch(35.6% 0.007 264.474);
+  --ink: oklch(96.4% 0.002 247.839);
+  --ink-2: oklch(73.1% 0.008 260.731);
+  /* 64%, not the board's 62%: 62% on the card measures 4.3:1, under the 4.5:1 floor for text. */
+  --ink-3: oklch(64% 0.01 264.484);
+  --green: oklch(70.5% 0.154 153.814);
+  --red: oklch(70.4% 0.191 22.216);
+  --orange: oklch(74.6% 0.156 55.642);
+  --hover: oklch(100% 0 0 / 0.05);
+  --code: oklch(100% 0 0 / 0.06);
+  --shadow: oklch(0% 0 0 / 0.4);
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --sans: "Geist", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
   --mono: "Geist Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
@@ -45,166 +31,128 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
 body {
-  background: var(--sky-deep);
+  background: var(--page);
   color: var(--ink);
-  font: 400 13px/1.4 var(--sans);
+  font: 400 13px/normal var(--sans);
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
 }
 button, input { font: inherit; color: inherit; }
-button { margin: 0; border: 0; background: none; cursor: pointer; }
+button { margin: 0; padding: 0; border: 0; background: none; cursor: pointer; }
 :focus { outline: none; }
-:focus-visible { outline: 2px solid var(--porcelain-light); outline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 
 .pl {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  isolation: isolate;
-  background: radial-gradient(130% 90% at 50% 0%, var(--sky), var(--sky-deep));
+  position: relative; width: 100%; height: 100%; overflow: hidden; isolation: isolate;
+  display: grid; place-items: center; padding: 16px;
   user-select: none;
 }
 .pl[data-paused] *, .pl[data-paused] *::before, .pl[data-paused] *::after { animation-play-state: paused !important; }
 
-.sky { position: absolute; inset: 0; z-index: -1; pointer-events: none; }
-.moon { position: absolute; top: 30px; left: 38px; width: 24px; height: auto; opacity: 0.55; transition: opacity 1600ms var(--ease-out); }
-.moon > circle { fill: var(--porcelain); }
-.star { position: absolute; width: 2px; height: 2px; border-radius: 50%; background: var(--porcelain); opacity: var(--o, 0.4); animation: twinkle var(--t, 8s) ease-in-out var(--d, 0s) infinite; }
-.star.small { width: 1.5px; height: 1.5px; }
-@keyframes twinkle { 0%, 100% { opacity: var(--o, 0.4); } 50% { opacity: calc(var(--o, 0.4) * 0.35); } }
+/* The workspace behind the window, blurred ahead of time so the only motion is an opacity crossfade:
+   asleep while Perch is stopped, half awake while it starts, awake while it runs. */
+.bg { position: absolute; inset: 0; z-index: -1; background: center / cover no-repeat; pointer-events: none; }
+.bg.asleep { background-image: url(data:image/jpeg;base64,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FFFABRRRQAUUUUAFFFFABRRRQAUUUUAFPplPoAsR1pw1mR1pw0AXAOKhkqcdKhkoApPUR61K9RHrQA4VZQ1WFWEoAtrSkUxak6igCu4qswq41VXoAgNIKU0g60ATJVtKppVpKAP/0PztooorQkKKKKACiiigAooooAKYafTDQAyiiigAPSm049KbQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABT6ZT6ALEdacNZkdacNAF0dKhkqdelQyUAUnqE9ameoT1oAcKnWoBVhKALC0/NMWgmgBGNVXNSs1V2OaAGGkFBoHWgCVatJVVatJQB//0fztooorQkKKKKACiiigAooooAKYafTDQAyiiigAPSm049KbQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABT6ZT6ALEdacNZkdacNAF5elQyVMOlQyUAUnqE9ameoT1oAUVZSq61YSgCwKY5pwpj0AV2NRE1IwqMigBtKOtFA60ASpVpKqpVpKAP/S/O2iiitCQooooAKKKKACiiigAphp9MNADKKKKAA9KbTj0ptABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFPHWmU8daALEdacNZkdaUJoAvjpUMlSA8VC5oAqPUJ61M9QmgBwqwlVhUymgC0OlIwpA1LuFAEJWoitWTiomoAgIpo6080wUASrVpKqKasK1AH//T/O2iiitCQooooAKKKKACiiigAphp9MNADKKKKAA9KbTj0ptABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFPplOoAnQ1fias5atoaANEPxTWNQqaUmgBjVCaexqAtQA8Gnhqr7qN9AFwPS+ZVLfR5lAF3fTC+aq76N9AExNJxUO+jdQBYBp4eqm+l30Af/U/O2iiitCQooooAKKKKACiiigAphp9MNADKKKKAA9KbTjTcGgAoowaXBoASilwaMGgBKKXBowaAEopcGjBoASilwaMGgBKKXBowaAEopcGjBoASilwaMGgBKKXBowaAEopcGjBoASilwaMGgBKKXBowaAEopcGjBoASilwaMGgBKdSYNLQBKtWkqqpqwjUAXFFOIqJXFKXFAEb1UY1O75qo5oAQtRuqMmkyaAJd1G6osmjJoAl3UbqiyaMmgCXdRuqLJoyaAJd1G6osmjJoA//9X87aKKK0JCiiigAooooAKKKKACkxS09VoAj25pdhq0seam8qgDNKUzBrQaOq7JQBXwaMVLtpMUAR4NJT6KAGUU+igBlFPooAZRT6KAGUU+igBlFPooAZRT6KAGUU+igBlFPooAZRT6KAGUU+igBlFPxS4NAEdFPxRQAylwadRQAgNODYqOkJoAsCSlMhqtk0ZNAExfNRk0zJooAKKKKACiiigAooooAKKKKACiiigD/9b87aKKK0JCiiigAooooAKKKKAFHSpUqIVIpxQBdTFTgiqStipd9AEjYqs4qQvUTNQBA1Rk09jUJoAKTIpOTRg0ALkUZFJg0YNAC5FGRSc0lADsijIptFADsijIpMGjBoAXIoyKTBowaAFyKMikwaMGgBcijIpOaSgB2RRkU2igB2RRkU2igB2acBmo6mQZNAEipmpPK4qxEmateWMUAZTR4qIrWjImKqstAFbFJUpFMIoAjpppxph60AFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFAH/9f87aKKK0JCiiigAooooAKKKKAAU8UwdamUUAPAp+DinKtOK0ARVGamYVC1AELUzFSmkAoAaFzTxHUqCrKoKAKRjppSr5QUwpQBS2U0rVsrUTCgCvilC1JgUoFADQmakEdTItWAgoAo+WaPLNaGwUbKAM4x00pV9lFRECgCmUpCtWSBURoAhxRipMCjigCPFGKk4o4oAjxUyDmm4FSLQBoRelW88VQjarQagCOQVUYVdbmoStAFQrUTCrZWoXFAFRqiNTNURoASiiigAooooAKKKKACiiigAooooAKKKKACiiigD//Q/O2iiitCQooooAKKKKACiiigAHWpkqEdalSgC4lPNMSnt0oAruarM1TSVVY0AKTQDTKUdaALSGrSmqSVZBoAmJptM3Um+gBWqu9Ss1V3NAEZNKDTDQKALsZq0p4qjGatKeKAJS1N3Uw0wmgBzPUDPSM1V2NAEhemFqjzRQA7NGRTaKAHZFGRTaKAHZpwao6KALSyVZSSs4GrEZoA0VOaXbTI6sYoArMtVnFXmFU5KAKL1AanfrUBoASiiigAooooAKKKKACiiigAooooAKKKKACiiigD/9H87aKKK0JCiiigAooooAKKKKAAdalSoh1qVKALaU9qjSnk5FAFaSqrVZkqqetACUo603NOFAFhKl7VElT44oAiJqPdUrLUDDFAClqjJpDTc0ALSim5py9aALKVaWq0dWV6UAKRULVKxqs7UARMaiNKxpmaAFopM0ZoAWikzRmgBaKTNGaAFopM0ZoAUdasx1WBqxH1oA0o6s44qtFVntQBG9UpKuvVKSgCg/WoDU79agNACUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAf/0vztooorQkKKKKACiiigAooooABUqVEOtTJQBZSnkcUiCpGHFAFKSqrVckFVG60ARU8UmKcOtAFiOrSiqqVbWgBGWq7rVwioXFAFBhUZqy4qA0AMqRetNxT1oAsx1aHSqsdWhQAx6qPmrrCqzigCoaZUrCmYoAbRTsCjAoAbRTsCjAoAbRTsCjAoAbRTsCjAoAQVajquKsR9aANGLpVmq0VWaAI3qnJVx6pyUAUH61AanfrUBoASiiigAooooAKKKKACiiigAooooAKKKKACiiigD//T/O2iiitCQooooAKKKKACiiigBRUqVCOtSpQBdSnseKjSnnpQBVkqo3WrUlVG60ANzThUdPFAE6GramqiVZWgCbNRtS5qNjQBA9QGpHNQmgAzThUdPFAFpKtLVRKtL0oAcarvVg9KrvQBWaoicVI1RGgBc0ZptFADs0ZptFADs0ZptFADs0ZptFADxViPrVYVZi60AaMVWarRVZoAjeqclXG6VTkoAoP1qA1O/WoDQAlFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFAH/9T87aKKK0JCiiigAooooAKKKKAAdalSoh1qVKALiVIRxUaVKelAFOSqjdatyVUbrQBGetPHWmHrTx1oAnSrK1WSrK0ABqBjU7VA9AEDVGae1NoAaKeKYOtPFAFlKtLVZKsrQApqB6sGoHoAqNURqV6iNADaKKKACiiigAooooAKKKKAHirEdVxViOgDQiq0OlVYqtDpQBG1U5KuPVOSgCg/WoDU79agNACUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAf//Z); }
+.bg.awake { background-image: url(data:image/jpeg;base64,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IFAGu2hFIjIWHFc6wwxFWWvrhl2ljiqmaACijijigBR1res9IW5g83cAfSsEYq1FJdIuY84oA//R/OqiiitCQooooAKKKKACiiigApknSn0yTpQBXpy9abTl60AIetJSnrSUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAU5etNpy9aAJP466rSby3tgfOGa5X+Oun0vS5NQOFOMUAdEut6avHljNZ+qanZ3Vv5cKgGph4YlLYDCqGoaM9jF5hOaAOf5o5p1FADeat2kiRTq8gyBVarNtAbiQRDvQB00upabJyqYrO1K8s5YBHAuDTm0GcHrxWfdWElqNz0AZvNHNOooAbzRzTqKAEFdDZ6pBBAIXQGsAVr2+lPcxCRD1oA//S/OqiiitCQooooAKKKKACiiigApknSn0yTpQBXpy9abTl60AIetJSnrSUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAU5etNpy9aAJP4627W6uLcZgJH0rE/jrsdFnsYkIuhmgCsNU1AdGNV7i9up12zEkV2H2zRN33RisbU59PeEi3HNAHNUU3mjmgB1SxyNGwZDzUHNW7UxrMDJ0oAsnU73G0sarzXM842uc10bvpTLkfeqt52nx8gZoA5zBorqkbSCm5xyapXZsDCfJ69qAMGim4o5oAeKuQ31zCu2MnFURXR2M2nCDZOPmoA//T/OqiiitCQooooAKKKKACiiigApknSn0yTpQBXpy9abTl60AIetJSnrSUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAU5etNpy9aAJP4614IXnbYnWsZjhs1p2t6YCHU4NAGg2nXSHBFN+w3HpTjrMzHJNA1mQDrQMry28kP3xioKlnvzOMOarealAiSlqLzUo81KAJcmjNRealHmpQBLk0ZNRealHmpQBJRUfmpR5qUAS0lR+alHmpQB//1PzqooorQkKKKKACiiigAooooAKZJ0p9Mk6UAV6cvWm05etACHrSUp60lABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFF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); opacity: 0; transition: opacity 1200ms var(--ease-out); }
+.pl[data-state="starting"] .bg.awake { opacity: 0.5; }
+.pl[data-state="running"] .bg.awake { opacity: 1; }
 
-/* now and then a shooting star crosses the top; none while starting or after a failure */
-.shooting {
-  position: absolute; top: 46px; left: -70px; width: 64px; height: 1.5px; border-radius: 1px;
-  background: linear-gradient(to right, transparent, var(--porcelain-trail));
-  transform: rotate(14deg); opacity: 0;
+.card {
+  width: 300px; max-width: 100%; padding: 16px; border-radius: 10px; background: var(--card);
+  box-shadow: 0 0 0 1px var(--line), 0 16px 40px var(--shadow);
 }
-.pl[data-state="ready"] .shooting, .pl[data-state="running"] .shooting { animation: shoot 17s linear 3s infinite; }
-@keyframes shoot {
-  0%, 90% { transform: translate(0, 0) rotate(14deg); opacity: 0; }
-  91% { opacity: 1; }
-  96%, 100% { transform: translate(380px, 95px) rotate(14deg); opacity: 0; }
+.front { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: 12px; row-gap: 14px; }
+.front > .actions { grid-column: 1 / -1; }
+.back { display: none; flex-direction: column; gap: 14px; }
+.pl[data-settings] .front { display: none; }
+.pl[data-settings] .back { display: flex; }
+/* Turning the card over: the incoming face settles in; the front only after Settings has been opened once. */
+.pl[data-settings] .back, .pl[data-turned]:not([data-settings]) .front { animation: face-in 220ms var(--ease-out); }
+@keyframes face-in { from { opacity: 0; transform: perspective(700px) rotateY(-10deg) scale(0.98); } }
+
+.badge {
+  position: relative; width: 32px; height: 32px; border-radius: 8px;
+  display: grid; place-items: center; background: var(--card); box-shadow: 0 0 0 1px var(--line); color: var(--ink);
+}
+.pl[data-state="starting"] .badge { cursor: default; }
+.badge svg { width: 19px; height: 19px; overflow: visible; }
+.badge svg * { vector-effect: non-scaling-stroke; }
+.badge g { fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.badge .eye { fill: currentColor; stroke: none; }
+.badge .bird { transform-box: fill-box; transform-origin: 50% 100%; animation: breathe 3.6s ease-in-out infinite; }
+.badge .eye { transform-box: fill-box; transform-origin: 50% 50%; animation: blink 5.5s infinite; }
+.pl[data-state="starting"] .badge .bird { animation: hop 0.6s cubic-bezier(0.3, 0.7, 0.4, 1) infinite; }
+.pl[data-state="running"] .badge .bird { animation: breathe 3.6s ease-in-out infinite, peck 7s ease-in-out infinite; }
+.pl[data-state="error"] .badge .bird { animation: none; transform: rotate(12deg) translateY(0.4px); }
+.pl[data-state="error"] .badge .eye { animation: none; transform: scaleY(0.45); }
+@keyframes breathe { 0%, 100% { transform: none; } 50% { transform: translateY(-0.25px) scaleY(1.015); } }
+@keyframes peck { 0%, 74%, 100% { rotate: 0deg; } 78% { rotate: 12deg; } 82% { rotate: 0deg; } 86% { rotate: 10deg; } 90% { rotate: 0deg; } }
+@keyframes hop { 0%, 100% { transform: none; } 40% { transform: translateY(-2.5px) rotate(-5deg); } 70% { transform: scaleY(0.94); } }
+@keyframes blink { 0%, 94%, 100% { transform: none; } 96% { transform: scaleY(0.1); } }
+.badge .dot { position: absolute; right: -3px; bottom: -3px; width: 10px; height: 10px; border-radius: 50%; background: var(--ink-3); box-shadow: 0 0 0 2.5px var(--card); }
+.pl[data-state="starting"] .badge .dot { background: var(--orange); }
+.pl[data-state="running"] .badge .dot { background: var(--green); }
+.pl[data-state="error"] .badge .dot { background: var(--red); }
+
+header { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+h1 { margin: 0; font-size: 14px; font-weight: 500; line-height: normal; letter-spacing: -0.01em; }
+header p { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--ink-2); }
+.pl[data-state="error"] .front header p {
+  font: 400 12px/1.45 var(--mono); color: var(--red);
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; overflow-wrap: anywhere;
 }
 
-/* a cloud drifts over the moon when Perch can't start, and away again after */
-.cloud { position: absolute; top: 22px; left: 0; width: 76px; height: auto; opacity: 0; transform: translateX(-90px); transition: transform 2400ms var(--ease-out), opacity 1200ms var(--ease-out); }
-.cloud path { fill: var(--cloud); }
-.pl[data-state="error"] .cloud { opacity: 1; transform: translateX(14px); }
-.pl[data-state="error"] .moon { opacity: 0.3; }
-
-/* Two fireflies keep the bird company while it waits, the rest arrive while Perch starts, all five
-   while it runs, and they leave when it fails. */
-.ff {
-  position: absolute; width: 3px; height: 3px; border-radius: 50%;
-  background: var(--firefly); box-shadow: 0 0 6px 2px var(--firefly-glow);
-  opacity: 0; transition: opacity 1400ms var(--ease-out);
-  animation: drift var(--t, 9s) ease-in-out var(--d, 0s) infinite, glow var(--g, 3.2s) ease-in-out var(--d, 0s) infinite;
+.actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.grow { flex: 1; }
+.btn {
+  height: 30px; padding: 0 12px; border-radius: 7px; display: inline-flex; align-items: center; gap: 7px;
+  font-size: 12.5px; font-weight: 500; white-space: nowrap; color: var(--ink);
 }
-.pl[data-state="ready"] .ff.early { opacity: 0.55; }
-.pl[data-state="starting"] .ff.early { opacity: 0.9; }
-.pl[data-state="starting"] .ff.mid { opacity: 0.6; }
-.pl[data-state="running"] .ff { opacity: 1; }
-@keyframes drift {
-  0%, 100% { translate: 0 0; }
-  25% { translate: var(--x1, 8px) var(--y1, -6px); }
-  50% { translate: var(--x2, -4px) var(--y2, -14px); }
-  75% { translate: var(--x3, -10px) var(--y3, -5px); }
-}
-@keyframes glow { 0%, 100% { scale: 1; } 50% { scale: 0.55; } }
+.btn svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.btn:active { transform: translateY(0.5px); }
+.primary { background: var(--ink); color: var(--page); }
+.outline { box-shadow: inset 0 0 0 1px var(--line-strong); }
+.ghost { color: var(--ink-2); }
+.ghost:hover, .outline:hover { background: var(--hover); color: var(--ink); }
+.kbd { font: 400 10.5px/1 var(--mono); opacity: 0.55; }
+.busy { opacity: 0.7; cursor: default; }
+.busy:active { transform: none; }
+.icon { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 7px; color: var(--ink-3); }
+.icon:hover { color: var(--ink); background: var(--hover); }
+.icon svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; }
+.front .actions .btn { display: none; }
+.pl[data-state="ready"] .on-ready, .pl[data-state="starting"] .on-starting,
+.pl[data-state="running"] .on-running, .pl[data-state="error"] .on-error { display: inline-flex; }
 
-.icon-btn {
-  position: absolute; z-index: 1; top: 10px; right: 10px;
-  width: 30px; height: 30px; padding: 0; display: grid; place-items: center;
-  border-radius: 8px; color: var(--ink-2);
+.foot {
+  position: absolute; left: 0; right: 0; bottom: 0; padding: 26px 16px 12px;
+  display: flex; justify-content: center; align-items: center; gap: 10px; white-space: nowrap;
+  font: 400 11px/1.4 var(--mono); color: var(--ink-3);
+  background: linear-gradient(to top, var(--page) 45%, transparent);
 }
-.icon-btn:hover { background: var(--hover); color: var(--ink); }
-.update {
-  position: absolute; z-index: 1; left: 14px; bottom: 12px;
-  display: none; align-items: center; gap: 7px; padding: 4px 6px;
-  border-radius: 6px; color: var(--ink-2); font: 400 12px/1 var(--mono);
-}
-.update::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--orange); }
-.update:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--sep); }
-.pl[data-update] .update { display: inline-flex; }
+.foot .update { display: inline-flex; align-items: center; gap: 6px; border-radius: 4px; color: var(--ink); }
+.foot .update::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--orange); }
+.foot [hidden] { display: none; }
+.foot .update:hover { text-decoration: underline; text-underline-offset: 3px; }
+.pl[data-settings] .foot { display: none; }
 
-.stage {
-  position: absolute; inset: 0;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 14px; padding: 40px 16px 34px;
-}
-.bird-btn { display: block; padding: 4px 6px; border-radius: 14px; color: var(--bird); }
-.pl[data-state="starting"] .bird-btn { cursor: default; }
-.bird { display: block; width: 170px; height: auto; overflow: visible; }
-
-.status { margin: 0; max-width: 100%; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--ink-2); font-size: 13px; white-space: nowrap; }
-.status .text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.dot { display: none; width: 6px; height: 6px; flex: none; border-radius: 50%; }
-.addr, .sep { display: none; flex: none; }
-.addr { font: 400 12.5px/1 var(--mono); color: var(--ink-2); }
-.sep { color: var(--sep); }
-.pl[data-state="running"] .status .text, .pl[data-state="error"] .status .text { color: var(--ink); }
-.pl[data-state="running"] .dot { display: block; background: var(--green); box-shadow: 0 0 0 3px var(--green-ring); }
-.pl[data-state="running"] .addr, .pl[data-state="running"] .sep { display: inline; }
-.pl[data-state="error"] .dot { display: block; background: var(--red); }
-
-.actions { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 28px; }
-.pill {
-  display: inline-block; height: 28px; padding: 0 13px; border-radius: 999px;
-  font-size: 13px; font-weight: 500; line-height: 28px; white-space: nowrap;
-  transition: transform 120ms;
-}
-.pill:active { transform: translateY(0.5px); }
-.pill.primary { background: var(--porcelain); color: var(--ink-on-light); }
-.pill.primary:hover { background: var(--porcelain-light); }
-.pill.quiet { color: var(--ink-2); }
-.pill.quiet:hover { background: var(--hover); color: var(--ink); }
-.actions .pill { display: none; }
-.pl[data-state="ready"] .on-ready, .pl[data-state="running"] .on-running, .pl[data-state="error"] .on-error { display: inline-block; }
-
-/* the bird holds still: a pose per state, eased into once, never looping */
-.bird * { transform-box: fill-box; }
-.b-line { fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; }
-.b-fill { fill: currentColor; opacity: 0.06; }
-.b-branch { stroke: var(--branch); }
-.b-eye { fill: currentColor; transform-origin: 50% 50%; transition: transform 500ms var(--ease-out); }
-.b-tilt { transform-origin: 55% 92%; transition: transform 700ms var(--ease-out); }
-.pl[data-state="running"] .b-tilt { transform: rotate(-8deg); }
-.pl[data-state="error"] .b-tilt { transform: rotate(13deg) translateY(0.6px); }
-.pl[data-state="error"] .b-eye { transform: scaleY(0.45); }
-
-.scrim, .settings-card { display: none; }
-.scrim { position: absolute; inset: 0; z-index: 2; background: var(--scrim); }
-.settings-card {
-  position: absolute; z-index: 3; left: 50%; top: 50%; transform: translate(-50%, -50%);
-  width: 352px; max-width: calc(100% - 24px); flex-direction: column; gap: 12px; padding: 18px 18px 14px;
-  border-radius: 12px; background: var(--card);
-  box-shadow: 0 0 0 1px var(--line-strong), 0 18px 44px var(--shadow);
-}
-.pl[data-settings] .scrim { display: block; }
-.pl[data-settings] .settings-card { display: flex; }
-.settings-card header { display: flex; flex-direction: column; gap: 3px; }
-.settings-card h2 { margin: 0; font-size: 14px; font-weight: 500; letter-spacing: -0.01em; }
-.settings-card header p { margin: 0; font-size: 12.5px; color: var(--ink-2); }
 .fields { display: flex; flex-direction: column; }
-.field { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 9px 0; border-top: 1px solid var(--line); }
-.field:first-child { border-top: 0; padding-top: 2px; }
-.field .label { display: flex; flex-direction: column; gap: 1px; min-width: 0; font-size: 13px; }
+.field { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 13px; }
+.field:first-child { border-top: 0; padding-top: 0; }
+.field .label { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .field small { font-size: 12px; color: var(--ink-3); }
-.switch { position: relative; flex: none; width: 30px; height: 18px; padding: 0; border-radius: 999px; background: var(--switch-off); }
-.switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 12px; height: 12px; border-radius: 50%; background: var(--ink-2); }
-.switch[aria-checked="true"] { background: var(--orange); }
-.switch[aria-checked="true"]::after { left: 15px; background: var(--ink-on-light); }
+.switch { position: relative; flex: none; width: 28px; height: 16px; border-radius: 8px; background: var(--line-strong); }
+.switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--ink-2); transition: transform 160ms var(--ease-out); }
+.switch[aria-checked="true"] { background: var(--ink); }
+.switch[aria-checked="true"]::after { transform: translateX(12px); background: var(--page); }
 .port {
-  width: 66px; height: 26px; padding: 0 8px; border: 0; border-radius: 7px;
-  background: var(--field); box-shadow: inset 0 0 0 1px var(--line-strong);
-  color: var(--ink); font: 400 12.5px/1 var(--mono); text-align: right; user-select: text;
+  width: 62px; height: 26px; padding: 0 8px; border: 0; border-radius: 6px;
+  background: var(--page); box-shadow: inset 0 0 0 1px var(--line-strong);
+  color: var(--ink); font: 400 12px/1 var(--mono); text-align: right; user-select: text;
+  appearance: textfield;
 }
-.settings-card footer { display: flex; align-items: center; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
-.settings-card footer .version { flex: 1; min-width: 0; font: 400 11.5px/1 var(--mono); color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.settings-card footer .pill { height: 26px; line-height: 26px; padding: 0 11px; font-size: 12.5px; }
-.pl[data-settings] .stage { pointer-events: none; }
-.pl[data-settings] .ff, .pl[data-settings] .shooting { animation-play-state: paused; }
+.port::-webkit-inner-spin-button, .port::-webkit-outer-spin-button { appearance: none; margin: 0; }
+.version { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 400 11px/1 var(--mono); color: var(--ink-3); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -217,69 +165,49 @@ button { margin: 0; border: 0; background: none; cursor: pointer; }
 </head>
 <body>
 <main class="pl" data-state="ready" aria-label="Perch">
-<div class="sky" aria-hidden="true">
-<svg class="moon" viewBox="0 0 24 24" width="24" height="24"><defs><mask id="moon-mask"><rect width="24" height="24" fill="#fff"/><circle cx="16.5" cy="8.5" r="8.4" fill="#000"/></mask></defs><circle cx="12" cy="12" r="10" mask="url(#moon-mask)"/></svg>
-<span class="star" style="top:14%;left:31%;--o:.45;--t:9s"></span>
-<span class="star small" style="top:24%;left:58%;--o:.32;--t:11s;--d:-3s"></span>
-<span class="star" style="top:11%;left:74%;--o:.5;--t:7s;--d:-1s"></span>
-<span class="star small" style="top:35%;left:87%;--o:.3;--t:10s;--d:-6s"></span>
-<span class="star small" style="top:41%;left:11%;--o:.28;--t:12s;--d:-2s"></span>
-<span class="star small" style="top:6%;left:47%;--o:.35;--t:8s;--d:-5s"></span>
-<span class="star" style="top:28%;left:19%;--o:.38;--t:13s;--d:-8s"></span>
-<span class="shooting"></span>
-<svg class="cloud" viewBox="0 0 76 30"><path d="M14 28h48a12 12 0 0 0 1-24a16 16 0 0 0-29-1a11 11 0 0 0-18 8a9 9 0 0 0-2 17z"/></svg>
-<span class="ff early" style="left:9%;bottom:16%;--t:9s;--g:3.4s;--x1:10px;--y1:-8px;--x2:4px;--y2:-16px;--x3:-6px;--y3:-6px"></span>
-<span class="ff early" style="right:11%;bottom:22%;--t:11s;--g:2.8s;--d:-4s;--x1:-9px;--y1:-5px;--x2:-14px;--y2:-12px;--x3:-3px;--y3:-9px"></span>
-<span class="ff mid" style="left:21%;bottom:7%;--t:10s;--g:3.8s;--d:-2s;--x1:12px;--y1:-4px;--x2:18px;--y2:-10px;--x3:6px;--y3:-3px"></span>
-<span class="ff mid" style="right:4%;top:52%;--t:12s;--g:3.1s;--d:-7s;--x1:-6px;--y1:8px;--x2:-12px;--y2:-4px;--x3:-4px;--y3:-10px"></span>
-<span class="ff" style="left:4%;top:56%;--t:13s;--g:4.2s;--d:-5s;--x1:7px;--y1:-9px;--x2:12px;--y2:2px;--x3:4px;--y3:8px"></span>
-</div>
-<button type="button" class="icon-btn" id="gear" aria-label="Settings" aria-haspopup="dialog"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15a3 3 0 1 0 0-6a3 3 0 0 0 0 6z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33a1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.6.85 1 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
-<button type="button" class="update" data-act="open-update"></button>
-<div class="stage">
-<button type="button" class="bird-btn" data-act="primary" aria-label="Launch Perch">
-<svg class="bird" viewBox="-6 0 38 22" aria-hidden="true">
-<g><path class="b-line b-branch" stroke-width=".45" d="M-5.5 20.3C1 19.75 8 19.95 14 20.05S25 19.8 31.5 18.9"/><path class="b-line b-branch" stroke-width=".4" d="M25.5 19.6c1.2-1.150 2.6-1.75 4.2-1.8M27.9 18.3c.45-.7 1.1-1.1 1.85-1.25"/></g>
-<g><path class="b-line" stroke-width=".55" d="M11.4 17L11 20M14.6 17L14.2 20"/><g class="b-tilt"><path class="b-fill" d="M20.5 8.2L18.3 7.2C17.8 5.3 15.5 4.4 14 5.6C13.2 6.2 12.4 6.5 11.6 7.2C10 8.6 9.6 10.85 7.9 12.2L3.95 15.3L5.55 17.35L9.3 14C10.3 15.6 13.8 18 16.2 15.6C17.6 14.2 18.4 12 18.3 10.5C18.2 9.6 18.4 9 18.6 8.9Z"/><path class="b-line" stroke-width=".62" d="M20.5 8.2L18.3 7.2C17.8 5.3 15.5 4.4 14 5.6C13.2 6.2 12.4 6.5 11.6 7.2C10 8.6 9.6 10.85 7.9 12.2L3.95 15.3L5.55 17.35L9.3 14C10.3 15.6 13.8 18 16.2 15.6C17.6 14.2 18.4 12 18.3 10.5C18.2 9.6 18.4 9 18.6 8.9Z"/><circle class="b-eye" cx="16.4" cy="6.9" r=".7"/></g></g>
-</svg>
-</button>
-<p class="status" role="status"><span class="dot" aria-hidden="true"></span><span class="text">Not running</span><span class="sep" aria-hidden="true">·</span><span class="addr">127.0.0.1:4600</span></p>
+<div class="bg asleep" aria-hidden="true"></div><div class="bg awake" aria-hidden="true"></div>
+<div class="card">
+<div class="front" id="front">
+<button type="button" class="badge" id="badge" data-act="primary" aria-label="Launch Perch"><svg viewBox="0 0 24 24" aria-hidden="true"><g><path d="M3 20h18"/><g class="bird"><path d="M11.4 17L11 20M14.6 17L14.2 20"/><path d="M20.5 8.2L18.3 7.2C17.8 5.3 15.5 4.4 14 5.6C13.2 6.2 12.4 6.5 11.6 7.2C10 8.6 9.6 10.85 7.9 12.2L3.95 15.3L5.55 17.35L9.3 14C10.3 15.6 13.8 18 16.2 15.6C17.6 14.2 18.4 12 18.3 10.5C18.2 9.6 18.4 9 18.6 8.9Z"/><circle class="eye" cx="16.4" cy="6.9" r=".65"/></g></g></svg><span class="dot"></span></button>
+<header role="status"><h1 id="title">Perch is ready</h1><p id="text">Runs on this computer, opens in your browser.</p></header>
 <div class="actions">
-<button type="button" class="pill primary on-ready" data-act="launch">Launch</button>
-<button type="button" class="pill primary on-running" data-act="open">Open</button>
-<button type="button" class="pill quiet on-running" data-act="stop">Stop</button>
-<button type="button" class="pill primary on-error" data-act="retry">Try again</button>
-<button type="button" class="pill quiet on-error" data-act="show-log">Show log</button>
+<button type="button" class="icon" id="gear" aria-label="Settings" aria-haspopup="dialog"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="2.2"/><path d="M8 1.8v1.6M8 12.6v1.6M1.8 8h1.6M12.6 8h1.6M3.6 3.6l1.1 1.1M11.3 11.3l1.1 1.1M3.6 12.4l1.1-1.1M11.3 4.7l1.1-1.1"/></svg></button>
+<span class="grow"></span>
+<button type="button" class="btn primary on-ready" data-act="launch">Launch Perch <span class="kbd" aria-hidden="true">↵</span></button>
+<button type="button" class="btn primary busy on-starting" disabled>Launching…</button>
+<button type="button" class="btn outline on-running" data-act="stop">Stop</button>
+<button type="button" class="btn primary on-running" data-act="open">Open Perch <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3H3.5v9.5H13V10M9 3h4v4M13 3L7.5 8.5"/></svg></button>
+<button type="button" class="btn ghost on-error" data-act="show-log">Show log</button>
+<button type="button" class="btn primary on-error" data-act="retry">Try again</button>
 </div>
 </div>
-<div class="scrim" id="scrim"></div>
-<section class="settings-card" id="settings" role="dialog" aria-modal="true" aria-labelledby="settings-title">
-<header><h2 id="settings-title">Settings</h2><p>For this window. Everything else is in Perch’s own settings.</p></header>
+<section class="back" id="settings" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+<header><h1 id="settings-title">Settings</h1><p>For this window only.</p></header>
 <div class="fields">
-<div class="field"><label class="label" for="s-auto"><span id="s-auto-name">Launch when opened</span><small id="s-auto-desc">Skip this window and go straight to the browser</small></label><button type="button" class="switch" id="s-auto" role="switch" aria-checked="false" aria-labelledby="s-auto-name" aria-describedby="s-auto-desc"></button></div>
-<div class="field"><label class="label" for="s-port"><span>Port</span><small id="s-port-desc">If it’s taken, Perch uses the next free one</small></label><input class="port" id="s-port" type="number" min="1024" max="65535" step="1" value="4600" aria-describedby="s-port-desc"></div>
+<div class="field"><label class="label" for="s-auto"><span id="s-auto-name">Launch when opened</span><small id="s-auto-desc">Go straight to the browser</small></label><button type="button" class="switch" id="s-auto" role="switch" aria-checked="false" aria-labelledby="s-auto-name" aria-describedby="s-auto-desc"></button></div>
+<div class="field"><label class="label" for="s-port"><span>Port</span><small id="s-port-desc">Next free one if taken</small></label><input class="port" id="s-port" type="number" min="1024" max="65535" step="1" value="4600" aria-describedby="s-port-desc"></div>
 <div class="field"><label class="label" for="s-upd"><span id="s-upd-name">Check for updates</span><small id="s-upd-desc">Once a day</small></label><button type="button" class="switch" id="s-upd" role="switch" aria-checked="true" aria-labelledby="s-upd-name" aria-describedby="s-upd-desc"></button></div>
 </div>
-<footer><span class="version" id="version"></span><button type="button" class="pill quiet" data-act="check-updates">Check now</button><button type="button" class="pill primary" id="done">Done</button></footer>
+<div class="actions"><span class="version" id="version"></span><span class="grow"></span><button type="button" class="btn ghost" data-act="check-updates">Check now</button><button type="button" class="btn outline" id="done">Done</button></div>
 </section>
+</div>
+<footer class="foot" id="foot"><span id="addr">127.0.0.1:4600</span><span id="ver-sep" aria-hidden="true">·</span><span id="ver"></span><span id="upd-sep" aria-hidden="true" hidden>·</span><button type="button" class="update" id="update" data-act="open-update" hidden></button></footer>
 </main>
 <script>
 (() => {
   const root = document.querySelector(".pl");
   const $ = (id) => document.getElementById(id);
-  const statusText = root.querySelector(".status .text");
-  const addr = root.querySelector(".addr");
-  const bird = root.querySelector(".bird-btn");
-  const update = root.querySelector(".update");
-  const gear = $("gear"), card = $("settings"), portInput = $("s-port");
+  const badge = $("badge"), title = $("title"), text = $("text");
+  const gear = $("gear"), card = $("settings"), portInput = $("s-port"), update = $("update");
   const switches = { autoLaunch: $("s-auto"), checkUpdates: $("s-upd") };
-  const behind = [gear, update, root.querySelector(".stage")];
+  const behind = [$("front"), $("foot")];
   const webview = window.chrome && window.chrome.webview;
 
   const DEFAULT_PORT = 4600;
   const STATES = ["ready", "starting", "running", "error"];
-  const s = { state: "ready", port: DEFAULT_PORT, error: "", update: "", version: "", autoLaunch: false, checkUpdates: true, paused: false };
-  // The address shows the port Go last reported, not an edit in Settings that hasn't been launched on.
+  const s = { state: "ready", port: DEFAULT_PORT, address: "", error: "", update: "", version: "", autoLaunch: false, checkUpdates: true, paused: false };
+  // Before Perch runs, the footer guesses the address from the port Go last reported, never from an
+  // unlaunched edit in Settings; while it runs, only the address Go says it listens on is shown.
   let runningPort = DEFAULT_PORT;
   let checking = false;
 
@@ -288,44 +216,65 @@ button { margin: 0; border: 0; background: none; cursor: pointer; }
     return Number.isInteger(n) && n >= 1024 && n <= 65535 ? n : DEFAULT_PORT;
   };
   const bare = (v) => String(v || "").trim().replace(/^v/i, "");
-  const syncPaused = () => root.toggleAttribute("data-paused", s.paused || document.hidden);
+
+  // CSS can pause animations but not transitions, so a crossfade in flight is paused through its Animation.
+  function syncPaused() {
+    const paused = s.paused || document.hidden;
+    root.toggleAttribute("data-paused", paused);
+    for (const a of root.getAnimations({ subtree: true })) {
+      if (!(a instanceof CSSTransition)) continue;
+      if (paused && a.playState === "running") a.pause();
+      else if (!paused && a.playState === "paused") a.play();
+    }
+  }
+
+  const COPY = {
+    ready: ["Perch is ready", "Runs on this computer, opens in your browser."],
+    starting: ["Starting Perch…", "Your browser opens in a moment."],
+    running: ["Perch is running", "Closing this window stops it."],
+    error: ["Perch couldn’t start", "The log has the details."],
+  };
 
   function render() {
     root.dataset.state = s.state;
-    root.toggleAttribute("data-update", !!s.update);
     syncPaused();
 
     const error = String(s.error || "").replace(/\s+/g, " ").trim();
-    const text = {
-      ready: "Not running",
-      starting: "Starting…",
-      running: "Running",
-      error: error ? `Couldn’t start: ${error}` : "Couldn’t start",
-    }[s.state];
-    statusText.textContent = text;
-    if (s.state === "error") statusText.title = text; else statusText.removeAttribute("title");
-    addr.textContent = `127.0.0.1:${runningPort}`;
+    const [heading, line] = COPY[s.state];
+    title.textContent = heading;
+    text.textContent = s.state === "error" && error ? error : line;
+    if (s.state === "error" && error) text.title = error; else text.removeAttribute("title");
 
-    bird.setAttribute("aria-label", { ready: "Launch Perch", starting: "Starting Perch", running: "Open Perch", error: "Try again" }[s.state]);
-    if (s.state === "starting") bird.setAttribute("aria-disabled", "true"); else bird.removeAttribute("aria-disabled");
+    badge.setAttribute("aria-label", { ready: "Launch Perch", starting: "Starting Perch", running: "Open Perch", error: "Try again" }[s.state]);
+    if (s.state === "starting") badge.setAttribute("aria-disabled", "true"); else badge.removeAttribute("aria-disabled");
 
-    update.textContent = s.update ? `v${s.update} available` : "";
+    const address = s.address || (s.state === "running" ? "" : `127.0.0.1:${runningPort}`);
+    $("addr").textContent = address;
+    $("ver").textContent = s.version ? `v${s.version}` : "";
+    update.textContent = s.update ? `Update to v${s.update}` : "";
+    $("addr").hidden = !address;
+    $("ver").hidden = !s.version;
+    update.hidden = !s.update;
+    $("ver-sep").hidden = !(address && s.version);
+    $("upd-sep").hidden = !((address || s.version) && s.update);
+
     switches.autoLaunch.setAttribute("aria-checked", String(s.autoLaunch));
     switches.checkUpdates.setAttribute("aria-checked", String(s.checkUpdates));
     if (document.activeElement !== portInput) portInput.value = s.port;
 
-    const note = checking ? "checking…" : s.update ? `v${s.update} out` :s.checkUpdates && s.version ? "up to date" : "";
+    const note = checking ? "checking…" : s.update ? `v${s.update} out` : "";
     $("version").textContent = [s.version && `v${s.version}`, note].filter(Boolean).join(" · ");
 
-    // A pill that just hid would drop keyboard focus onto the page; the bird is the stable target.
+    // A button that just hid would drop keyboard focus onto the page; the badge is the stable target.
     const focused = document.activeElement;
-    if (focused && focused.closest(".actions") && !focused.offsetParent) bird.focus();
+    if (focused && focused.closest(".front .actions, .foot") && (!focused.offsetParent || focused.disabled)) badge.focus();
   }
 
   function set(patch) {
     if (!patch || typeof patch !== "object") return;
     if (STATES.includes(patch.state)) s.state = patch.state;
     if ("port" in patch) s.port = runningPort = validPort(patch.port);
+    if ("address" in patch) s.address = String(patch.address || "").trim();
     if ("error" in patch) s.error = patch.error || "";
     if ("update" in patch) s.update = bare(patch.update);
     if ("version" in patch) s.version = bare(patch.version);
@@ -365,6 +314,7 @@ button { margin: 0; border: 0; background: none; cursor: pointer; }
   function openSettings() {
     if (isOpen()) return;
     root.setAttribute("data-settings", "");
+    root.setAttribute("data-turned", "");
     behind.forEach((el) => (el.inert = true));
     switches.autoLaunch.focus();
   }
@@ -382,7 +332,6 @@ button { margin: 0; border: 0; background: none; cursor: pointer; }
   });
   gear.addEventListener("click", openSettings);
   $("done").addEventListener("click", closeSettings);
-  $("scrim").addEventListener("click", closeSettings);
   for (const [key, el] of Object.entries(switches)) {
     el.addEventListener("click", () => {
       s[key] = !s[key];
@@ -415,14 +364,15 @@ button { margin: 0; border: 0; background: none; cursor: pointer; }
   if (webview) document.addEventListener("contextmenu", (e) => { if (e.target !== portInput) e.preventDefault(); });
 
   // Opened in a normal browser there is no Go host, so this stands in for it to keep the page reviewable.
-  // It uses no timer: Starting lasts until the arriving fireflies finish fading in.
+  // It uses no timer: Starting lasts until the workspace has crossfaded half awake.
   function demo(action) {
-    if (action === "ready-for-state") set({ state: "ready", port: DEFAULT_PORT, version: "0.2.0", update: "", autoLaunch: false, checkUpdates: true });
-    else if (action === "stop" || action === "check-updates") set(action === "stop" ? { state: "ready" } : {});
-    else if ((action === "launch" || action === "retry") && matchMedia("(prefers-reduced-motion: reduce)").matches) set({ state: "running" });
+    if (action === "ready-for-state") set({ state: "ready", port: DEFAULT_PORT, version: "0.3.0", update: "", autoLaunch: false, checkUpdates: true });
+    else if (action === "stop" || action === "check-updates") set(action === "stop" ? { state: "ready", address: "" } : {});
+    else if ((action === "launch" || action === "retry") && matchMedia("(prefers-reduced-motion: reduce)").matches) demoRun();
   }
+  const demoRun = () => set({ state: "running", address: `127.0.0.1:${s.port}` });
   if (!webview) root.addEventListener("transitionend", (e) => {
-    if (s.state === "starting" && e.target.classList.contains("mid")) set({ state: "running" });
+    if (s.state === "starting" && e.target.classList.contains("awake")) demoRun();
   });
 
   window.PerchLauncher = { set };
