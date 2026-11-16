@@ -55,18 +55,54 @@ function showWindow(pid, cmd) {
 
 const launcher = spawn(launcherExe, [], {
   env: { ...process.env, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${PORT}` },
-  stdio: "ignore",
+  stdio: ["ignore", "pipe", "pipe"],
 });
-const launcherExit = new Promise((r) => launcher.on("exit", r));
-
-const target = await until(
-  "the launcher page on the DevTools port",
-  async () => {
-    const list = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json();
-    return list.find((t) => t.type === "page");
-  },
-  30000,
+let launcherOutput = "";
+launcher.stdout.on("data", (d) => (launcherOutput += d));
+launcher.stderr.on("data", (d) => (launcherOutput += d));
+let launcherCode = null;
+const launcherExit = new Promise((r) =>
+  launcher.on("exit", (code) => {
+    launcherCode = code;
+    r(code);
+  }),
 );
+
+// When the window never shows up, say why: whether the launcher is still alive, what it printed,
+// how WebView2 was started, and what is on the screen (an error dialog would be).
+function explainMissingWindow() {
+  console.log(`launcher ${launcherCode === null ? "still running" : `exited with ${launcherCode}`}`);
+  console.log(`launcher output:\n${launcherOutput || "(none)"}`);
+  const script = `
+    Get-CimInstance Win32_Process -Filter "Name='msedgewebview2.exe' or Name='PerchLauncher.exe'" |
+      ForEach-Object { "$($_.ProcessId) $($_.CommandLine)" }
+    Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+    $b = [System.Windows.Forms.SystemInformation]::VirtualScreen
+    $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+    [System.Drawing.Graphics]::FromImage($bmp).CopyFromScreen($b.Left, $b.Top, 0, 0, $bmp.Size)
+    $bmp.Save('${join(shots, "desktop.png").replace(/'/g, "''")}')`;
+  try {
+    console.log(execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { encoding: "utf8" }));
+  } catch (e) {
+    console.log(`could not inspect the desktop: ${e.message}`);
+  }
+}
+
+let target;
+try {
+  target = await until(
+    "the launcher page on the DevTools port",
+    async () => {
+      const list = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json();
+      return list.find((t) => t.type === "page");
+    },
+    30000,
+  );
+} catch (e) {
+  explainMissingWindow();
+  launcher.kill();
+  throw e;
+}
 
 const ws = new WebSocket(target.webSocketDebuggerUrl);
 await new Promise((resolve, reject) => {

@@ -205,7 +205,9 @@ func (h *host) embed() error {
 		return errWebView2Missing
 	}
 	if s, err := c.GetSettings(); err == nil {
-		_ = s.PutAreDevToolsEnabled(false)
+		// Off for people, but left on when the launcher was started with a debug port on purpose:
+		// that is how the Windows CI job drives the real window.
+		_ = s.PutAreDevToolsEnabled(strings.Contains(os.Getenv("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"), "--remote-debugging-port"))
 		_ = s.PutAreDefaultContextMenusEnabled(false)
 		_ = s.PutAreBrowserAcceleratorKeysEnabled(false)
 		_ = s.PutIsZoomControlEnabled(false)
