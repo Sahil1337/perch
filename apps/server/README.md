@@ -52,8 +52,10 @@ whatever was copied in beside the executable is newer than whatever was compiled
 
 ### `perch stop`
 
-Sends `SIGTERM` to the running server (the pid in `server.json`) and clears the file. Prints
-`not running` when there is no server, and says so when the file turned out to be stale.
+Asks the running server (per `server.json`) to shut down through `POST /api/shutdown` and waits
+for its pid to exit, so it works on Windows too. A server too old to have the endpoint gets
+`SIGTERM` on macOS and Linux, and on Windows is killed after the wait. Prints `not running` when
+there is no server, and reports `server.json` as stale only when its process is really gone.
 
 ### `perch status`
 
@@ -82,6 +84,7 @@ version until it restarts, and `update` says so when it finds one.
 | Flag               | What it does                                                            |
 | ------------------ | ------------------------------------------------------------------------ |
 | `--check`          | Report what is available and install nothing.                           |
+| `--check --json`   | The same, as one `{"current","latest","available"}` object on stdout.    |
 | `--version <tag>`  | Install this tag instead of the latest, including an older one.          |
 
 A download that cannot be verified is refused rather than installed — unlike a first install,

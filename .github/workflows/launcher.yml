@@ -1,0 +1,74 @@
+name: launcher
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/launcher/**"
+      - "apps/server/**"
+      - ".github/workflows/launcher.yml"
+  pull_request:
+    paths:
+      - "apps/launcher/**"
+      - "apps/server/**"
+      - ".github/workflows/launcher.yml"
+  workflow_dispatch:
+
+env:
+  GO_VERSION: "1.25"
+
+jobs:
+  # The installer, the launcher window and `perch stop` only meet on Windows, and no Windows
+  # machine is in the dev loop, so this is the one place they run together.
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: apps/*/go.sum
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # The UI is embedded so the installer this job uploads is the real app, fit to hand to a
+      # tester. build.sh names a host build plain dist/perch; the installer looks for the release name.
+      - name: Build perch
+        shell: bash
+        run: |
+          bun install --frozen-lockfile
+          bun run --filter @perch/web build
+          cd apps/server && bash scripts/build.sh && cp dist/perch dist/perch-windows-amd64.exe
+      - name: Build the launcher
+        shell: bash
+        run: bash apps/launcher/scripts/build.sh
+      - name: Install NSIS
+        shell: pwsh
+        run: |
+          choco install nsis -y --no-progress
+          Add-Content $env:GITHUB_PATH "${env:ProgramFiles(x86)}\NSIS"
+      - name: Build the installer
+        shell: bash
+        run: bash apps/launcher/scripts/installer.sh
+
+      # The checks live in check-install.ps1 so the same run works on any Windows PC.
+      - name: Install silently, then serve and stop
+        shell: pwsh
+        env:
+          PERCH_HOME: ${{ runner.temp }}\perch-home
+        run: apps/launcher/scripts/check-install.ps1 -Setup (Get-Item apps/launcher/dist/perch-*-windows-amd64-setup.exe).FullName -Step install
+
+      - name: Reinstall over a running server, then uninstall
+        shell: pwsh
+        env:
+          PERCH_HOME: ${{ runner.temp }}\perch-home
+        run: apps/launcher/scripts/check-install.ps1 -Setup (Get-Item apps/launcher/dist/perch-*-windows-amd64-setup.exe).FullName -Step uninstall
+
+      # A test build for trying on a real Windows PC, not a release: nothing is published.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: apps/launcher/dist/perch-*-windows-amd64-setup.exe
+          if-no-files-found: error

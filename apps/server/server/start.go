@@ -33,6 +33,9 @@ type StartOptions struct {
 	Version      string
 	// StrictPort fails on a busy port instead of scanning upwards.
 	StrictPort bool
+	// OnShutdown is called when POST /api/shutdown is accepted. The caller owns shutting down,
+	// so a request and Ctrl+C end the server the same way.
+	OnShutdown func()
 }
 
 type Running struct {
@@ -119,8 +122,12 @@ func Start(opts StartOptions) (*Running, error) {
 		URL:          url,
 		AllowOrigins: opts.AllowOrigins,
 		Watch:        true,
+		OnShutdown:   opts.OnShutdown,
 	})
 	httpServer := &http.Server{Handler: app.Handler()}
+	// An open UI holds an SSE stream that only ends when the bus closes; without this, Shutdown
+	// waits out its whole timeout for it.
+	httpServer.RegisterOnShutdown(app.bus.CloseAll)
 
 	go func() {
 		if err := httpServer.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
